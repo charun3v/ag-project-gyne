@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if is_new %}Register New Patient - MS Access Style{% else %}Edit Patient: {{ patient.mr_no }} - {{ patient.pt_name }}{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>{% if is_new %}📝 frmPatientReg: New Patient Registration{% else %}✏️ frmPatientReg: Edit Patient Details [{{ patient.mr_no }}]{% endif %}</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Back to Dashboard</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="" id="patientForm">
+            {% csrf_token %}
+
+            <!-- Section 1: Identifiers & Core Demographics -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. Patient Identification & Demographics</legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Medical Record No. (MR_No) *</label>
+                        <input type="text" name="mr_no" value="{% if is_new %}{{ request.POST.mr_no|default:'' }}{% else %}{{ patient.mr_no }}{% endif %}" 
+                               class="access-input" {% if not is_new %}readonly style="background-color: #f0f0f0; font-weight: bold;"{% else %}required autofocus{% endif %} 
+                               placeholder="e.g. 2026-0001">
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="access-label" style="font-weight: bold;">Full Patient Name *</label>
+                        <input type="text" name="pt_name" value="{% if is_new %}{{ request.POST.pt_name|default:'' }}{% else %}{{ patient.pt_name }}{% endif %}" 
+                               class="access-input" required placeholder="Patient full name">
+                    </div>
+                    <div>
+                        <label class="access-label">Sex *</label>
+                        <select name="sex" class="access-select">
+                            <option value="Female" {% if not is_new and patient.sex == 'Female' %}selected{% endif %}>Female</option>
+                            <option value="Male" {% if not is_new and patient.sex == 'Male' %}selected{% endif %}>Male</option>
+                            <option value="Other" {% if not is_new and patient.sex == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label">Date of Birth</label>
+                        <input type="date" name="date_of_birth" id="dobInput" 
+                               value="{% if not is_new and patient.date_of_birth %}{{ patient.date_of_birth|date:'Y-m-d' }}{% endif %}" 
+                               class="access-input">
+                    </div>
+                    <div>
+                        <label class="access-label">Calculated Age</label>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <input type="text" id="calculatedAge" value="{% if not is_new and patient.age %}{{ patient.age }} yrs{% endif %}" 
+                                   class="access-input" readonly style="background-color: #f4f4f4; width: 70px;">
+                            <label style="font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px;">
+                                <input type="checkbox" name="dob_is_estimated" value="1" {% if not is_new and patient.dob_is_estimated %}checked{% endif %}>
+                                Estimated
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="access-label">Registration Date</label>
+                        <input type="date" name="date_of_registration" 
+                               value="{% if not is_new and patient.date_of_registration %}{{ patient.date_of_registration|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                               class="access-input">
+                    </div>
+                    <div>
+                        <label class="access-label">Primary Consultant</label>
+                        <select name="consultant_id" class="access-select">
+                            <option value="">-- Select Consultant --</option>
+                            {% for c in consultants %}
+                                <option value="{{ c.consultant_id }}" {% if not is_new and patient.primary_consultant_id == c.consultant_id %}selected{% endif %}>
+                                    {{ c.consultant_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Section 2: Contact Information & Address -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">2. Contact & Geographic Location</legend>
+
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Primary Phone *</label>
+                        <input type="tel" name="phone" value="{% if not is_new %}{{ patient.phone }}{% else %}{{ request.POST.phone|default:'' }}{% endif %}" 
+                               class="access-input" required placeholder="10-digit mobile">
+                    </div>
+                    <div>
+                        <label class="access-label">Alternate Phone</label>
+                        <input type="tel" name="phone_alternate" value="{% if not is_new %}{{ patient.phone_alternate }}{% endif %}" 
+                               class="access-input" placeholder="Secondary contact">
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="access-label">Residential Address</label>
+                        <input type="text" name="address" value="{% if not is_new %}{{ patient.address }}{% endif %}" 
+                               class="access-input" placeholder="House no, Street, Locality">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label">State</label>
+                        <select name="state_id" id="stateSelect" class="access-select">
+                            <option value="">-- Select State --</option>
+                            {% for s in states %}
+                                <option value="{{ s.state_id }}" {% if not is_new and patient.state_id == s.state_id %}selected{% endif %}>
+                                    {{ s.state_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">District</label>
+                        <select name="district_id" id="districtSelect" class="access-select">
+                            <option value="">-- Select District --</option>
+                            {% for d in districts %}
+                                <option value="{{ d.district_id }}" data-state="{{ d.state_id }}" 
+                                        {% if not is_new and patient.district_id == d.district_id %}selected{% endif %}>
+                                    {{ d.district_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Pincode</label>
+                        <input type="text" name="pincode" value="{% if not is_new %}{{ patient.pincode }}{% endif %}" 
+                               class="access-input" maxlength="10" placeholder="6-digit PIN">
+                    </div>
+                    <div>
+                        <label class="access-label">DigiPIN (India Post)</label>
+                        <input type="text" name="digipin" value="{% if not is_new %}{{ patient.digipin }}{% endif %}" 
+                               class="access-input" maxlength="20" placeholder="e.g. 500-001-A">
+                    </div>
+                    <div>
+                        <label class="access-label">Country</label>
+                        <input type="text" name="country" value="{% if not is_new %}{{ patient.country }}{% else %}India{% endif %}" 
+                               class="access-input">
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Section 3: Notes & Action Bar -->
+            <div style="margin-bottom: 12px;">
+                <label class="access-label">Administrative & Clinical Notes</label>
+                <textarea name="notes" class="access-textarea" rows="2" placeholder="Any special remarks or patient notes...">{% if not is_new %}{{ patient.notes }}{% endif %}</textarea>
+            </div>
+
+            <!-- Access Command Button Ribbon -->
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" name="save_stay" class="btn-access btn-primary-action">
+                    💾 Save Patient Record
+                </button>
+                <button type="submit" name="save_next" class="btn-access">
+                    ➡️ Save & Proceed to Clinical History
+                </button>
+                {% if not is_new %}
+                    <a href="{% url 'patient_summary' patient.mr_no %}" class="btn-access">
+                        📄 Full Patient Summary
+                    </a>
+                    <a href="{% url 'examination_detail' patient.mr_no 'baseline' %}" class="btn-access">
+                        🩺 Baseline Exam
+                    </a>
+                    <a href="{% url 'investigations_hub' patient.mr_no %}" class="btn-access">
+                        🧪 Investigations Hub
+                    </a>
+                    {% if user.is_staff or user.is_superuser %}
+                        <a href="{% url 'patient_delete' patient.mr_no %}" class="btn-access" style="color: #b00000; border-color: #ffcccc;" title="Delete Patient Record (Admin)">
+                            🗑️ Delete Patient
+                        </a>
+                    {% endif %}
+                {% endif %}
+                <div style="flex-grow: 1;"></div>
+                <a href="{% url 'dashboard' %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Dynamic age calculation from DOB
+    const dobInput = document.getElementById('dobInput');
+    const ageOutput = document.getElementById('calculatedAge');
+
+    if (dobInput) {
+        dobInput.addEventListener('change', function() {
+            if (!this.value) {
+                ageOutput.value = '';
+                return;
+            }
+            const dob = new Date(this.value);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+                age--;
+            }
+            ageOutput.value = (age >= 0 ? age : 0) + ' yrs';
+        });
+    }
+
+    // State-District dependent filtering
+    const stateSelect = document.getElementById('stateSelect');
+    const districtSelect = document.getElementById('districtSelect');
+
+    if (stateSelect && districtSelect) {
+        stateSelect.addEventListener('change', function() {
+            const selectedState = this.value;
+            const options = districtSelect.querySelectorAll('option');
+            
+            options.forEach(opt => {
+                if (!opt.value) return; // keep default
+                if (!selectedState || opt.getAttribute('data-state') === selectedState) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+        });
+    }
+</script>
+{% endblock %}

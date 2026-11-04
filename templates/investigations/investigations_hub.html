@@ -1,0 +1,337 @@
+{% extends 'base.html' %}
+
+{% block title %}Investigations Hub - {{ patient.mr_no }} {{ patient.pt_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .inv-tab-bar {
+        display: flex;
+        background: #d8e2eb;
+        border-bottom: 2px solid #003366;
+        padding-left: 6px;
+        margin-bottom: 10px;
+    }
+    .inv-tab {
+        padding: 6px 14px;
+        font-size: 11px;
+        font-weight: bold;
+        color: #333;
+        text-decoration: none;
+        border: 1px solid #b0c4de;
+        border-bottom: none;
+        background: #eef2f7;
+        margin-right: 4px;
+        border-top-left-radius: 3px;
+        border-top-right-radius: 3px;
+    }
+    .inv-tab.active {
+        background: #fff;
+        color: #003366;
+        border-color: #003366;
+        border-bottom: 2px solid #fff;
+        margin-bottom: -2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Diagnostic & Staging Investigations Hub</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>🧪 frmInvestigations: Multi-Modality Diagnostic Workup</span>
+        <div style="font-weight: normal; font-size: 11px; display: flex; gap: 8px; align-items: center;">
+            <a href="{% url 'investigations_pdf' patient.mr_no %}" target="_blank" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; border-color: #70a0d0; padding: 2px 8px;" title="Printable A4 report of complete hematology, pathology, molecular, and imaging findings">
+                📄 Investigation PDF Report
+            </a>
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Back to Dashboard</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <!-- Tab Navigation Bar -->
+        <div class="inv-tab-bar">
+            <a href="?tab=blood" class="inv-tab {% if active_tab == 'blood' %}active{% endif %}">
+                🩸 Blood Tests ({{ blood_tests.count }})
+            </a>
+            <a href="?tab=pathology" class="inv-tab {% if active_tab == 'pathology' %}active{% endif %}">
+                🔬 Pathology & Cytology ({{ pathology_reports.count }})
+            </a>
+            <a href="?tab=imaging" class="inv-tab {% if active_tab == 'imaging' %}active{% endif %}">
+                🩻 Radiology & MRI Pelvis ({{ imaging_studies.count }})
+            </a>
+            <a href="?tab=molecular" class="inv-tab {% if active_tab == 'molecular' %}active{% endif %}">
+                🧬 Molecular & IHC ({{ molecular_tests.count }})
+            </a>
+        </div>
+
+        <!-- TAB 1: BLOOD INVESTIGATIONS -->
+        {% if active_tab == 'blood' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: bold; color: #003366; font-size: 11px;">Hematology, Renal & Liver Function Panels</span>
+                <a href="{% url 'blood_add' patient.mr_no %}" class="btn-access btn-primary-action">
+                    ➕ Add Blood Lab Record
+                </a>
+            </div>
+            <table class="access-table">
+                <thead>
+                    <tr>
+                        <th style="width: 90px;">Date</th>
+                        <th style="width: 100px;">Lab Ref No.</th>
+                        <th>Hb (g/dL)</th>
+                        <th>TC (/uL)</th>
+                        <th>Platelets</th>
+                        <th>ANC / ALC</th>
+                        <th>Urea (mg/dL)</th>
+                        <th>Creatinine</th>
+                        <th>SGOT / SGPT</th>
+                        <th>Albumin</th>
+                        <th>Na / K / Ca</th>
+                        <th style="width: 80px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in blood_tests %}
+                        <tr>
+                            <td><strong>{{ b.test_date|date:'d-M-Y' }}</strong></td>
+                            <td>{{ b.lab_reference_no|default:'-' }}</td>
+                            <td>{{ b.hb|default:'-' }}</td>
+                            <td>{{ b.tc|default:'-' }}</td>
+                            <td>{{ b.platelet|default:'-' }}</td>
+                            <td>{{ b.anc|default:'-' }} / {{ b.alc|default:'-' }}</td>
+                            <td>{{ b.serum_urea|default:'-' }}</td>
+                            <td><strong>{{ b.serum_creatinine|default:'-' }}</strong></td>
+                            <td>{{ b.sgot|default:'-' }} / {{ b.sgpt|default:'-' }}</td>
+                            <td>{{ b.serum_albumin|default:'-' }}</td>
+                            <td>{{ b.serum_sodium|default:'-' }} / {{ b.serum_potassium|default:'-' }} / {{ b.serum_calcium|default:'-' }}</td>
+                            <td style="text-align: center;">
+                                <a href="{% url 'blood_edit' patient.mr_no b.blood_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                    ✏️ Edit
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="12" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                                No blood lab investigations recorded yet. Click "Add Blood Lab Record" to enter CBC/RFT/LFT panels.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <!-- TAB 2: PATHOLOGY & CYTOLOGY -->
+        {% if active_tab == 'pathology' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: bold; color: #003366; font-size: 11px;">Histopathology, Biopsy & Cytology Reports</span>
+                <a href="{% url 'pathology_add' patient.mr_no %}" class="btn-access btn-primary-action">
+                    ➕ Add Pathology Report
+                </a>
+            </div>
+            <table class="access-table">
+                <thead>
+                    <tr>
+                        <th style="width: 90px;">Date</th>
+                        <th style="width: 100px;">Lab Ref No.</th>
+                        <th>Specimen</th>
+                        <th>Biopsy / FNAC Site</th>
+                        <th>Test Type</th>
+                        <th>Pathology Findings / Impression</th>
+                        <th style="width: 80px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in pathology_reports %}
+                        <tr>
+                            <td><strong>{{ p.path_date|date:'d-M-Y' }}</strong></td>
+                            <td>{{ p.lab_reference_no|default:'-' }}</td>
+                            <td>{{ p.specimen.specimen_name|default:'-' }}</td>
+                            <td>{{ p.site_display }}</td>
+                            <td>{{ p.path_type.path_type_name|default:'Histology' }}</td>
+                            <td>
+                                <div><strong>{{ p.impression|default:'Report logged' }}</strong></div>
+                                {% if p.details %}<div style="color: #555; font-size: 10px;">{{ p.details|truncatechars:100 }}</div>{% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                <a href="{% url 'pathology_edit' patient.mr_no p.path_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                    ✏️ Edit
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                                No pathology reports recorded yet. Click "Add Pathology Report" to record biopsy findings.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <!-- TAB 3: RADIOLOGY & IMAGING (WITH MRI PELVIS DETAIL) -->
+        {% if active_tab == 'imaging' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: bold; color: #003366; font-size: 11px;">Diagnostic Radiology, Pelvic MRI, CT & PET-CT</span>
+                <a href="{% url 'imaging_add' patient.mr_no %}" class="btn-access btn-primary-action">
+                    ➕ Add Imaging Study
+                </a>
+            </div>
+            <table class="access-table">
+                <thead>
+                    <tr>
+                        <th style="width: 90px;">Date</th>
+                        <th style="width: 100px;">Modality</th>
+                        <th style="width: 100px;">Anatomical Site</th>
+                        <th>Tumour Size / Volume</th>
+                        <th>Parametrial / Vaginal Invasion</th>
+                        <th>Nodes Identified</th>
+                        <th>Impression</th>
+                        <th style="width: 80px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for img in imaging_studies %}
+                        <tr>
+                            <td><strong>{{ img.imaging_date|date:'d-M-Y' }}</strong></td>
+                            <td><strong style="color: #003366;">{{ img.imaging_type.imaging_type_name|default:'Scan' }}</strong></td>
+                            <td>{{ img.imaging_site.imaging_site_name|default:'Pelvis' }}</td>
+                            <td>
+                                {% if img.pelvis_detail %}
+                                    {{ img.pelvis_detail.tumour_dimension_1_cm|default:'-' }} x {{ img.pelvis_detail.tumour_dimension_2_cm|default:'-' }} x {{ img.pelvis_detail.tumour_dimension_3_cm|default:'-' }} cm
+                                    {% if img.pelvis_detail.tumour_volume_cc %}({{ img.pelvis_detail.tumour_volume_cc }} cc){% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if img.pelvis_detail %}
+                                    Parametrium: {% if img.pelvis_detail.parametrium_involved %}<span style="color: #b00000; font-weight: bold;">Yes</span>{% else %}Free{% endif %} | 
+                                    Vagina: {% if img.pelvis_detail.vaginal_involvement %}Yes ({{ img.pelvis_detail.vaginal_extent|default:'' }}){% else %}Free{% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if img.pelvis_detail %}
+                                    {% if img.pelvis_detail.nodes_present %}
+                                        <span style="color: #b00000; font-weight: bold;">Nodes +</span>
+                                        ({% if img.pelvis_detail.pelvic_nodes_present %}Pelvic{% endif %}{% if img.pelvis_detail.pa_nodes_present %}, PA{% endif %})
+                                    {% else %}
+                                        No significant nodes
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div><strong>{{ img.impression|default:'-' }}</strong></div>
+                                {% if img.pelvis_detail and img.pelvis_detail.radiologist_impression %}
+                                    <div style="font-size: 10px; color: #555;">{{ img.pelvis_detail.radiologist_impression|truncatechars:80 }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                <a href="{% url 'imaging_edit' patient.mr_no img.imaging_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                    ✏️ Edit
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                                No radiology imaging studies recorded yet. Click "Add Imaging Study" to record MRI/CT scans.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <!-- TAB 4: MOLECULAR & IHC -->
+        {% if active_tab == 'molecular' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: bold; color: #003366; font-size: 11px;">Next-Gen Sequencing, IHC Biomarkers & PCR</span>
+                <a href="{% url 'molecular_add' patient.mr_no %}" class="btn-access btn-primary-action">
+                    ➕ Add Molecular Test
+                </a>
+            </div>
+            <table class="access-table">
+                <thead>
+                    <tr>
+                        <th style="width: 90px;">Date</th>
+                        <th style="width: 120px;">Test Type</th>
+                        <th>Specimen / Lab</th>
+                        <th>Biomarker Results (p16, p53, MMR, PD-L1)</th>
+                        <th>Details & Impression</th>
+                        <th style="width: 80px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in molecular_tests %}
+                        <tr>
+                            <td><strong>{{ m.test_date|date:'d-M-Y' }}</strong></td>
+                            <td>{{ m.molecular_type.test_type_mol|default:'Biomarker Test' }}</td>
+                            <td>
+                                {{ m.specimen.specimen_name|default:'Biopsy' }} 
+                                {% if m.testing_lab %}({{ m.testing_lab }}){% endif %}
+                            </td>
+                            <td>
+                                {% for r in m.results.all %}
+                                    <span style="background: #e8eef4; padding: 1px 5px; border-radius: 2px; font-weight: bold; margin-right: 4px; display: inline-block;">
+                                        {{ r.marker.marker_name }}: {{ r.result_value }}
+                                    </span>
+                                {% empty %}
+                                    <span style="color: #777;">No marker values logged</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                <div><strong>{{ m.impression|default:'-' }}</strong></div>
+                                {% if m.details %}<div style="color: #555; font-size: 10px;">{{ m.details|truncatechars:80 }}</div>{% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                <a href="{% url 'molecular_edit' patient.mr_no m.molecular_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                    ✏️ Edit
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                                No molecular biomarker studies logged. Click "Add Molecular Test" to record IHC/NGS outcomes.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <!-- Hub Action Footer -->
+        <div style="margin-top: 14px; display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+            <a href="{% url 'patient_summary' patient.mr_no %}" class="btn-access">
+                📄 Full Patient Summary
+            </a>
+            <a href="{% url 'diagnosis_detail' patient.mr_no %}" class="btn-access btn-primary-action" style="font-weight: bold; background: #003366; color: white;">
+                🎯 Proceed to Diagnosis & Staging
+            </a>
+            <a href="{% url 'radiotherapy_hub' patient.mr_no %}" class="btn-access">
+                ➡️ Radiotherapy Hub (EBRT / Brachy)
+            </a>
+            <a href="{% url 'systemic_hub' patient.mr_no %}" class="btn-access">
+                💊 Systemic Chemo Hub
+            </a>
+            <div style="flex-grow: 1;"></div>
+            <a href="{% url 'dashboard' %}" class="btn-access" style="color: #666;">
+                🏠 Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

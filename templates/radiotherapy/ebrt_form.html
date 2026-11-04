@@ -1,0 +1,650 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if course %}EBRT Course #{{ course.ebrt_course_id }}{% else %}New EBRT Course{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<!-- 1. Patient Header & Senior Clinician Approval/Lock Banner -->
+{% include 'includes/treatment_patient_header.html' with form_type='ebrt' course_id=course.ebrt_course_id %}
+
+<div class="access-subform">
+    <div class="access-subform-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>⚡ frmEBRTCourse: External Beam Radiotherapy & Integrated Concurrent Chemotherapy</span>
+        <div style="font-size: 11px;">
+            <a href="{% url 'radiotherapy_hub' patient.mr_no %}" style="color: #fff; text-decoration: underline;">Radiotherapy Hub</a> |
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Dashboard</a>
+        </div>
+    </div>
+
+    <div class="access-subform-body">
+        <form method="post" action="{% if course %}{% url 'ebrt_edit' patient.mr_no course.ebrt_course_id %}{% else %}{% url 'ebrt_add' patient.mr_no %}{% endif %}" id="ebrtMainForm">
+            {% csrf_token %}
+
+            <!-- Section 1: Technique, Intent & Facility -->
+            <fieldset style="border: 1px solid #b0c4de; padding: 12px; margin-bottom: 14px; background: #fafafa; border-radius: 3px;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+                    1. Prescription Technique, Intent & Treatment Unit
+                </legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 10px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">
+                            Treatment Intent *
+                            <a href="{% url 'lookup_manager' 'intent' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;">[⚙️ Edit]</a>
+                        </label>
+                        <select name="ebrt_intent_id" class="access-select" required {% if course and course.approval_locked %}disabled{% endif %}>
+                            <option value="">-- Select Intent --</option>
+                            {% for it in intents %}
+                                <option value="{{ it.intent_id }}" {% if course and course.ebrt_intent_id == it.intent_id %}selected{% endif %}>
+                                    {{ it.intent_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">
+                            RT Technique *
+                            <a href="{% url 'lookup_manager' 'technique' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;">[⚙️ Edit]</a>
+                        </label>
+                        <select name="ebrt_technique_id" class="access-select" required {% if course and course.approval_locked %}disabled{% endif %}>
+                            <option value="">-- Select Technique --</option>
+                            {% for tech in techniques %}
+                                <option value="{{ tech.technique_id }}" {% if course and course.ebrt_technique_id == tech.technique_id %}selected{% endif %}>
+                                    {{ tech.technique_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">
+                            Treatment Machine
+                            <a href="{% url 'lookup_manager' 'machine' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;">[⚙️ Edit]</a>
+                        </label>
+                        <select name="initial_rt_machine_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <option value="">-- Select Machine --</option>
+                            {% for m in machines %}
+                                <option value="{{ m.machine_id }}" {% if course and course.initial_rt_machine_id == m.machine_id %}selected{% endif %}>
+                                    {{ m.machine_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">
+                            Treatment Centre
+                            <a href="{% url 'lookup_manager' 'centre' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;">[⚙️ Edit]</a>
+                        </label>
+                        <select name="treatment_centre_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <option value="">-- Select Centre --</option>
+                            {% for c in centres %}
+                                <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% endif %}>
+                                    {{ c.centre_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Targets Treated -->
+                <div style="margin-top: 6px;">
+                    <label class="access-label" style="font-weight: bold; color: #003366;">Anatomical Targets / Sites Treated (Check all that apply):</label>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 4px; background: #fff; padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 2px;">
+                        {% for s in ebrt_sites %}
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                <input type="checkbox" name="ebrt_sites" value="{{ s.site_id }}" 
+                                       {% if s.site_id in current_site_ids %}checked{% endif %}
+                                       {% if course and course.approval_locked %}disabled{% endif %}>
+                                {{ s.site_name }}
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Section 2: Prescription Dosimetry & Chronological Planning Dates -->
+            <fieldset style="border: 1px solid #b0c4de; padding: 12px; margin-bottom: 14px; background: #fafafa; border-radius: 3px;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+                    2. Prescription Dosimetry & Chronological Planning Workflow
+                </legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Total Prescription Dose (Gy) *</label>
+                        <input type="number" step="0.1" name="total_dose_gy" id="totalDose" 
+                               value="{% if course and course.total_dose_gy %}{{ course.total_dose_gy }}{% endif %}" 
+                               class="access-input" required placeholder="e.g. 45.0 or 50.4"
+                               {% if course and course.approval_locked %}disabled{% endif %}>
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Total Fractions Planned *</label>
+                        <input type="number" step="1" name="total_fractions" id="totalFx" 
+                               value="{% if course and course.total_fractions %}{{ course.total_fractions }}{% endif %}" 
+                               class="access-input" required placeholder="e.g. 25 or 28"
+                               {% if course and course.approval_locked %}disabled{% endif %}>
+                    </div>
+                    <div>
+                        <label class="access-label">Dose Per Fraction (Gy/#)</label>
+                        <input type="number" step="0.01" name="dose_per_fraction_gy" id="dosePerFx" 
+                               value="{% if course and course.dose_per_fraction_gy %}{{ course.dose_per_fraction_gy }}{% endif %}" 
+                               class="access-input" placeholder="Calculated automatically"
+                               {% if course and course.approval_locked %}disabled{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Planning & Treatment Chronology (Simulation <= Contouring <= Plan Approval <= Start <= End) -->
+                <div style="background: #eef3f8; border: 1px solid #b0c4de; padding: 10px; border-radius: 3px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                        <div style="font-size: 11px; font-weight: bold; color: #003366;">
+                            📅 Chronological Timeline: Simulation &le; Contouring &le; Plan Approval &le; RT Start &le; RT End
+                        </div>
+                        <div id="timelineWarning" style="display: none; background: #fff3cd; color: #b00000; border: 1px solid #f5c6cb; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+                        <div>
+                            <label class="access-label" style="font-weight: bold; color: #b00000;">1. Simulation Date *</label>
+                            <input type="date" name="simulation_date" id="simDate" required
+                                   value="{% if course and course.simulation_date %}{{ course.simulation_date|date:'Y-m-d' }}{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">Mandatory baseline date</span>
+                        </div>
+                        <div>
+                            <label class="access-label">2. Contouring Date</label>
+                            <input type="date" name="contouring_date" id="contDate"
+                                   value="{% if course and course.contouring_date %}{{ course.contouring_date|date:'Y-m-d' }}{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">&ge; Simulation date</span>
+                        </div>
+                        <div>
+                            <label class="access-label">3. Plan Approval Date</label>
+                            <input type="date" name="plan_approval_date" id="planAppDate"
+                                   value="{% if course and course.plan_approval_date %}{{ course.plan_approval_date|date:'Y-m-d' }}{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">&ge; Contouring date</span>
+                        </div>
+                        <div>
+                            <label class="access-label" style="font-weight: bold; color: #003366;">4. RT Start Date</label>
+                            <input type="date" name="ebrt_start_date" id="rtStartDate"
+                                   value="{% if course and course.ebrt_start_date %}{{ course.ebrt_start_date|date:'Y-m-d' }}{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">&ge; Plan Approval date</span>
+                        </div>
+                        <div>
+                            <label class="access-label" style="font-weight: bold; color: #003366;">5. RT End Date</label>
+                            <input type="date" name="ebrt_end_date" id="rtEndDate"
+                                   value="{% if course and course.ebrt_end_date %}{{ course.ebrt_end_date|date:'Y-m-d' }}{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">&ge; RT Start date</span>
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Section 3: Gaps & Interruptions -->
+            <fieldset style="border: 1px solid #b0c4de; padding: 12px; margin-bottom: 14px; background: #fafafa; border-radius: 3px;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+                    3. Gaps & Interruption Records
+                </legend>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" name="treatment_interrupted" value="1" 
+                               {% if course and course.treatment_interrupted %}checked{% endif %}
+                               {% if course and course.approval_locked %}disabled{% endif %}>
+                        <label class="access-label" style="margin: 0; font-weight: bold; color: #b00000;">Treatment Interrupted / Unplanned Gap</label>
+                    </div>
+                    <div>
+                        <label class="access-label">Total Days Lost / Delayed</label>
+                        <input type="number" name="interruption_days" 
+                               value="{% if course %}{{ course.interruption_days }}{% else %}0{% endif %}" 
+                               class="access-input" placeholder="Total days lost"
+                               {% if course and course.approval_locked %}disabled{% endif %}>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="access-label">Interruption / Gap Reason Clinical Remarks</label>
+                    <textarea name="long_gap_notes" class="access-textarea" rows="2" 
+                              {% if course and course.approval_locked %}disabled{% endif %}
+                              placeholder="Reason for gap (toxicity, machine breakdown, public holiday, patient defaulted)...">{% if course %}{{ course.long_gap_notes|default:'' }}{% endif %}</textarea>
+                </div>
+            </fieldset>
+
+            <!-- Section 4: INTEGRATED CONCURRENT CHEMOTHERAPY (Positioned after gaps, before course status) -->
+            <fieldset style="border: 2px solid #003366; padding: 12px; margin-bottom: 14px; background: #fdfefe; border-radius: 3px;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 12px;">
+                    💊 4. Concurrent Chemotherapy (Delivered During EBRT)
+                </legend>
+                
+                <!-- Concurrent Chemotherapy Toggle (Defaults to No) -->
+                <div style="background: #e8eef4; padding: 10px 14px; margin-bottom: 12px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: bold; color: #003366; font-size: 12px;">
+                        Was Concurrent Chemotherapy Given with this EBRT Course?
+                    </span>
+                    <div style="display: flex; gap: 20px; font-size: 12px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: bold; color: #2e7d32;">
+                            <input type="radio" name="concurrent_received" id="concYes" value="1" 
+                                   {% if concurrent_course and concurrent_course.concurrent_received %}checked{% endif %}
+                                   {% if course and course.approval_locked %}disabled{% endif %}
+                                   onchange="toggleConcChemo(true)">
+                            <span>✓ YES — Concurrent Chemo Given</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: bold; color: #b00000;">
+                            <input type="radio" name="concurrent_received" id="concNo" value="0" 
+                                   {% if not concurrent_course or not concurrent_course.concurrent_received %}checked{% endif %}
+                                   {% if course and course.approval_locked %}disabled{% endif %}
+                                   onchange="toggleConcChemo(false)">
+                            <span>✗ NO — Radiation Alone</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Concurrent Chemo Parameters (Active when YES is selected) -->
+                <div id="concChemoContainer" style="{% if concurrent_course and concurrent_course.concurrent_received %}display: block;{% else %}display: none;{% endif %}">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label class="access-label" style="font-weight: bold; color: #003366;">Concurrent Chemo Regimen</label>
+                            <select name="conc_chemo_regimen_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
+                                <option value="">-- Select Regimen --</option>
+                                {% for r in chemo_regimens %}
+                                    <option value="{{ r.regimen_id }}" {% if concurrent_course and concurrent_course.chemo_regimen_id == r.regimen_id %}selected{% endif %}>
+                                        {{ r.regimen_code }} ({{ r.regimen_description }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="access-label" style="font-weight: bold; color: #b00000;">Number of Cycles Planned *</label>
+                            <input type="number" name="conc_planned_cycles" min="1" max="10" 
+                                   value="{% if concurrent_course %}{{ concurrent_course.planned_cycles }}{% else %}5{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <span style="font-size: 9px; color: #666;">Declared cycles must complete before EBRT completes</span>
+                        </div>
+                        <div>
+                            <label class="access-label">Cycles Administered</label>
+                            <input type="number" name="conc_received_cycles" 
+                                   value="{% if concurrent_course %}{{ concurrent_course.received_cycles }}{% else %}0{% endif %}" 
+                                   class="access-input" readonly style="background: #f0f0f0;">
+                        </div>
+                    </div>
+
+                    <!-- Administration Grid -->
+                    <div style="border: 1px solid #b0c4de; border-radius: 3px; overflow: hidden; margin-top: 10px;">
+                        <div style="background: #e6edf5; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #b0c4de;">
+                            <span style="font-weight: bold; font-size: 11px; color: #003366;">
+                                Concurrent Administration Grid (Dates must satisfy: RT Start &le; Date &le; RT End)
+                            </span>
+                            {% if course and not course.approval_locked %}
+                            <button type="button" class="btn-access btn-primary-action" onclick="openAddConcCycleModal()" style="font-size: 11px; padding: 2px 8px;">
+                                ➕ Record Cycle Administration
+                            </button>
+                            {% endif %}
+                        </div>
+
+                        <table class="access-table" style="width: 100%; max-width: 880px; font-size: 11px; margin: 0;">
+                            <thead>
+                                <tr style="background: #f5f5f5;">
+                                    <th style="width: 45px; text-align: center;">Cycle #</th>
+                                    <th style="width: 90px;">Date</th>
+                                    <th style="width: 180px;">Agent</th>
+                                    <th style="width: 70px; text-align: right;">Dose</th>
+                                    <th style="width: 75px;">Unit</th>
+                                    <th style="width: 70px; text-align: center;">Days</th>
+                                    <th style="width: 100px;">Route</th>
+                                    <th style="width: 85px; text-align: center;">Status</th>
+                                    {% if course and not course.approval_locked %}
+                                    <th style="width: 100px; text-align: center;">Action</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ccyc in concurrent_cycles %}
+                                    {% for cdrug in ccyc.drugs.all %}
+                                    <tr>
+                                        <td style="text-align: center; font-weight: bold;">#{{ ccyc.cycle_number }}</td>
+                                        <td>{{ ccyc.cycle_date|date:"d M Y" }}</td>
+                                        <td style="color: #003366; font-weight: bold;">{{ cdrug.chemo_agent.agent_name }}</td>
+                                        <td style="text-align: right;">{{ cdrug.dose|default:"--" }}</td>
+                                        <td>{{ cdrug.dose_unit.unit_name|default:"mg" }}</td>
+                                        <td style="text-align: center;">{{ cdrug.no_of_days|default:1 }}</td>
+                                        <td>{{ cdrug.chemo_route.route_name|default:"IV Infusion" }}</td>
+                                        <td style="text-align: center;">
+                                            <span style="color: #2e7d32; font-weight: bold;">{{ ccyc.cycle_status }}</span>
+                                        </td>
+                                        {% if course and not course.approval_locked %}
+                                        <td style="text-align: center;">
+                                            <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                                                <button type="button" class="btn-access" 
+                                                        onclick="openEditConcCycleModal('{{ ccyc.conc_chemo_cycle_id }}', '{{ ccyc.cycle_number }}', '{{ ccyc.cycle_date|date:'Y-m-d' }}', '{{ ccyc.cycle_status }}', '{{ cdrug.chemo_agent_id|default:'' }}', '{{ cdrug.dose|default:'' }}', '{{ cdrug.dose_unit_id|default:'' }}', '{{ cdrug.no_of_days|default:1 }}', '{{ cdrug.chemo_route_id|default:'' }}')"
+                                                        style="font-size: 10px; padding: 2px 6px; color: #003366; background: #f0f7ff; border: 1px solid #b0c4de;" 
+                                                        title="Edit cycle details">
+                                                    ✏️ Edit
+                                                </button>
+                                                <form method="post" action="{% url 'ebrt_concurrent_cycle_delete' patient.mr_no course.ebrt_course_id ccyc.conc_chemo_cycle_id %}" style="display: inline;" onsubmit="return confirm('Remove concurrent cycle #{{ ccyc.cycle_number }}?');">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn-access" style="color: #b00000; font-size: 10px; padding: 2px 6px; border: 1px solid #ffccd0; background: #fff5f5;" title="Remove cycle">
+                                                        ✖
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                        {% endif %}
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td style="text-align: center; font-weight: bold;">#{{ ccyc.cycle_number }}</td>
+                                        <td>{{ ccyc.cycle_date|date:"d M Y" }}</td>
+                                        <td colspan="5" style="color: #888; font-style: italic;">No specific agent recorded</td>
+                                        <td style="text-align: center;"><span style="color: #2e7d32;">{{ ccyc.cycle_status }}</span></td>
+                                        {% if course and not course.approval_locked %}
+                                        <td style="text-align: center;">
+                                            <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                                                <button type="button" class="btn-access" 
+                                                        onclick="openEditConcCycleModal('{{ ccyc.conc_chemo_cycle_id }}', '{{ ccyc.cycle_number }}', '{{ ccyc.cycle_date|date:'Y-m-d' }}', '{{ ccyc.cycle_status }}', '', '', '', '1', '')"
+                                                        style="font-size: 10px; padding: 2px 6px; color: #003366; background: #f0f7ff; border: 1px solid #b0c4de;" 
+                                                        title="Edit cycle details">
+                                                    ✏️ Edit
+                                                </button>
+                                                <form method="post" action="{% url 'ebrt_concurrent_cycle_delete' patient.mr_no course.ebrt_course_id ccyc.conc_chemo_cycle_id %}" style="display: inline;" onsubmit="return confirm('Remove concurrent cycle #{{ ccyc.cycle_number }}?');">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn-access" style="color: #b00000; font-size: 10px; padding: 2px 6px; border: 1px solid #ffccd0; background: #fff5f5;" title="Remove cycle">
+                                                        ✖
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                        {% endif %}
+                                    </tr>
+                                    {% endfor %}
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" style="text-align: center; color: #888; font-style: italic; padding: 10px;">
+                                        No concurrent chemotherapy cycles administered yet.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Section 5: Course Status & Completion Evaluation -->
+            <fieldset style="border: 1px solid #b0c4de; padding: 12px; margin-bottom: 14px; background: #fafafa; border-radius: 3px;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+                    5. Course Status & Clinical Completion
+                </legend>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">EBRT Course Status</label>
+                        <select name="course_status_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <option value="">-- Select Status --</option>
+                            {% for st in statuses %}
+                                <option value="{{ st.course_status_id }}" {% if course and course.course_status_id == st.course_status_id %}selected{% endif %}>
+                                    {{ st.status_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <span style="font-size: 9px; color: #888; display: block; margin-top: 2px;">
+                            Cannot be marked 'Completed' if declared concurrent chemo cycles are incomplete.
+                        </span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 14px;">
+                        <input type="checkbox" name="treatment_completed" value="1" 
+                               {% if course and course.treatment_completed %}checked{% endif %}
+                               {% if course and course.approval_locked %}disabled{% endif %}>
+                        <label class="access-label" style="margin: 0; font-weight: bold; color: #2e7d32;">
+                            Mark Full Prescribed RT Course Completed
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="access-label">Completion Remarks / Overall Radiation Tolerance</label>
+                    <textarea name="completion_notes" class="access-textarea" rows="2" 
+                              {% if course and course.approval_locked %}disabled{% endif %}
+                              placeholder="Overall acute tolerance, toxicity grading (dermatitis, cystitis, proctitis), treatment compliance...">{% if course %}{{ course.completion_notes|default:'' }}{% endif %}</textarea>
+                </div>
+            </fieldset>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                {% if not course or not course.approval_locked %}
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save EBRT Course Record
+                </button>
+                {% else %}
+                <span style="font-size: 12px; color: #555; font-style: italic;">
+                    🔒 Record locked. Unlock above to modify parameters.
+                </span>
+                {% endif %}
+                <a href="{% url 'radiotherapy_hub' patient.mr_no %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Add / Edit Concurrent Chemo Cycle (Directly embedded in EBRT Form) -->
+{% if course and not course.approval_locked %}
+<div id="addConcCycleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #fff; width: 480px; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); overflow: hidden; border: 2px solid #003366;">
+        <div style="background: #003366; color: #fff; padding: 10px 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+            <span id="concCycleModalTitle">Record Concurrent Chemo Administration</span>
+            <span style="cursor: pointer; font-size: 16px;" onclick="closeAddConcCycleModal()">&times;</span>
+        </div>
+        <form method="post" id="concCycleForm" action="{% url 'ebrt_concurrent_cycle_add' patient.mr_no course.ebrt_course_id %}">
+            {% csrf_token %}
+            <div style="padding: 16px; font-size: 12px; color: #333;">
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
+                    <input type="date" name="cycle_date" id="modalConcCycleDate" required class="access-input" value="{% now 'Y-m-d' %}">
+                    <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">
+                        Must satisfy: EBRT Start ({% if course.ebrt_start_date %}{{ course.ebrt_start_date|date:'Y-m-d' }}{% else %}TBD{% endif %}) &le; Date &le; EBRT End ({% if course.ebrt_end_date %}{{ course.ebrt_end_date|date:'Y-m-d' }}{% else %}TBD{% endif %})
+                    </span>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label">Cycle Status</label>
+                    <select name="cycle_status" id="modalConcCycleStatus" class="access-select">
+                        <option value="Administered" selected>Administered</option>
+                        <option value="Dose Reduced">Dose Reduced</option>
+                        <option value="Delayed">Delayed</option>
+                        <option value="Omitted">Omitted</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label" style="font-weight: bold; color: #003366;">Chemotherapy Agent</label>
+                    <select name="chemo_agent_id" id="modalConcAgent" class="access-select">
+                        <option value="">-- Select Agent --</option>
+                        {% for a in chemo_agents %}
+                            <option value="{{ a.agent_id }}" {% if a.agent_name == 'Cisplatin' %}selected{% endif %}>{{ a.agent_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                        <label class="access-label">Dose</label>
+                        <input type="number" step="0.01" name="dose" id="modalConcDose" class="access-input" value="40" placeholder="e.g. 40">
+                    </div>
+                    <div>
+                        <label class="access-label">Dose Unit</label>
+                        <select name="dose_unit_id" id="modalConcUnit" class="access-select">
+                            <option value="">-- Unit --</option>
+                            {% for u in dose_units %}
+                                <option value="{{ u.unit_id }}" {% if 'mg/m2' in u.unit_name %}selected{% endif %}>{{ u.unit_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                    <div>
+                        <label class="access-label">Route</label>
+                        <select name="chemo_route_id" id="modalConcRoute" class="access-select">
+                            <option value="">-- Route --</option>
+                            {% for rt in chemo_routes %}
+                                <option value="{{ rt.route_id }}" {% if rt.route_name == 'IV Infusion' %}selected{% endif %}>{{ rt.route_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">No. of Days</label>
+                        <input type="number" name="no_of_days" id="modalConcDays" value="1" min="1" class="access-input">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" class="btn-access" onclick="closeAddConcCycleModal()">Cancel</button>
+                    <button type="submit" class="btn-access btn-primary-action" id="modalConcSubmitBtn">
+                        Save Cycle Administration
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    // Auto calculate dose per fraction
+    const totalDose = document.getElementById('totalDose');
+    const totalFx = document.getElementById('totalFx');
+    const dosePerFx = document.getElementById('dosePerFx');
+
+    function calcDosePerFx() {
+        if (totalDose && totalFx && totalDose.value && totalFx.value) {
+            const d = parseFloat(totalDose.value);
+            const n = parseInt(totalFx.value);
+            if (n > 0) {
+                dosePerFx.value = (d / n).toFixed(2);
+            }
+        }
+    }
+    if (totalDose && totalFx) {
+        totalDose.addEventListener('input', calcDosePerFx);
+        totalFx.addEventListener('input', calcDosePerFx);
+    }
+
+    function toggleConcChemo(isYes) {
+        const container = document.getElementById('concChemoContainer');
+        if (container) {
+            container.style.display = isYes ? 'block' : 'none';
+        }
+    }
+
+    function openAddConcCycleModal() {
+        const modal = document.getElementById('addConcCycleModal');
+        const title = document.getElementById('concCycleModalTitle');
+        const form = document.getElementById('concCycleForm');
+        const submitBtn = document.getElementById('modalConcSubmitBtn');
+        title.textContent = 'Record Concurrent Chemo Administration';
+        submitBtn.textContent = 'Save Cycle Administration';
+        form.action = "{% url 'ebrt_concurrent_cycle_add' patient.mr_no course.ebrt_course_id %}";
+        modal.style.display = 'flex';
+    }
+
+    function openEditConcCycleModal(cycleId, cycleNum, cycleDate, cycleStatus, agentId, dose, unitId, days, routeId) {
+        const modal = document.getElementById('addConcCycleModal');
+        const title = document.getElementById('concCycleModalTitle');
+        const form = document.getElementById('concCycleForm');
+        const submitBtn = document.getElementById('modalConcSubmitBtn');
+        title.textContent = 'Edit Concurrent Chemo Administration — Cycle #' + cycleNum;
+        submitBtn.textContent = 'Update Cycle Administration';
+        form.action = "{% url 'ebrt_concurrent_cycle_edit' patient.mr_no course.ebrt_course_id 999999 %}".replace('999999', cycleId);
+
+        if (cycleDate) document.getElementById('modalConcCycleDate').value = cycleDate;
+        if (cycleStatus) document.getElementById('modalConcCycleStatus').value = cycleStatus;
+        if (agentId) document.getElementById('modalConcAgent').value = agentId;
+        if (dose !== undefined && dose !== null) document.getElementById('modalConcDose').value = dose;
+        if (unitId) document.getElementById('modalConcUnit').value = unitId;
+        if (days) document.getElementById('modalConcDays').value = days;
+        if (routeId) document.getElementById('modalConcRoute').value = routeId;
+
+        modal.style.display = 'flex';
+    }
+
+    function closeAddConcCycleModal() {
+        document.getElementById('addConcCycleModal').style.display = 'none';
+    }
+
+    // Chronological Planning & Treatment Timeline Validation
+    // Simulation Date <= Contouring Date <= Plan Approval Date <= RT Start Date <= RT End Date
+    const simDateInput = document.getElementById('simDate');
+    const contDateInput = document.getElementById('contDate');
+    const planAppDateInput = document.getElementById('planAppDate');
+    const rtStartDateInput = document.getElementById('rtStartDate');
+    const rtEndDateInput = document.getElementById('rtEndDate');
+    const timelineWarning = document.getElementById('timelineWarning');
+
+    function validateChronology() {
+        const dates = [
+            { name: 'Simulation Date', input: simDateInput },
+            { name: 'Contouring Date', input: contDateInput },
+            { name: 'Plan Approval Date', input: planAppDateInput },
+            { name: 'RT Start Date', input: rtStartDateInput },
+            { name: 'RT End Date', input: rtEndDateInput }
+        ];
+
+        // Reset input borders
+        dates.forEach(d => {
+            if (d.input) {
+                d.input.style.borderColor = '';
+                d.input.style.backgroundColor = '';
+            }
+        });
+
+        // Filter entered dates
+        const entered = dates.filter(d => d.input && d.input.value);
+
+        for (let i = 0; i < entered.length - 1; i++) {
+            const curr = entered[i];
+            const next = entered[i + 1];
+            if (curr.input.value > next.input.value) {
+                curr.input.style.borderColor = '#b00000';
+                curr.input.style.backgroundColor = '#fff5f5';
+                next.input.style.borderColor = '#b00000';
+                next.input.style.backgroundColor = '#fff5f5';
+                if (timelineWarning) {
+                    timelineWarning.style.display = 'inline-block';
+                    timelineWarning.innerHTML = `⚠️ Sequence Error: <strong>${curr.name}</strong> (${curr.input.value}) cannot be after <strong>${next.name}</strong> (${next.input.value}).`;
+                }
+                return false;
+            }
+        }
+
+        // Apply dynamic min bounds
+        if (simDateInput && simDateInput.value) {
+            if (contDateInput) contDateInput.min = simDateInput.value;
+            if (planAppDateInput) planAppDateInput.min = (contDateInput && contDateInput.value) ? contDateInput.value : simDateInput.value;
+            if (rtStartDateInput) rtStartDateInput.min = (planAppDateInput && planAppDateInput.value) ? planAppDateInput.value : ((contDateInput && contDateInput.value) ? contDateInput.value : simDateInput.value);
+            if (rtEndDateInput) rtEndDateInput.min = (rtStartDateInput && rtStartDateInput.value) ? rtStartDateInput.value : ((planAppDateInput && planAppDateInput.value) ? planAppDateInput.value : simDateInput.value);
+        }
+
+        if (timelineWarning) {
+            timelineWarning.style.display = 'none';
+            timelineWarning.textContent = '';
+        }
+        return true;
+    }
+
+    [simDateInput, contDateInput, planAppDateInput, rtStartDateInput, rtEndDateInput].forEach(inp => {
+        if (inp) {
+            inp.addEventListener('change', validateChronology);
+            inp.addEventListener('input', validateChronology);
+        }
+    });
+
+    // Run initial validation check on load
+    validateChronology();
+
+    // Form submission validation guard
+    const ebrtMainForm = document.getElementById('ebrtMainForm');
+    if (ebrtMainForm) {
+        ebrtMainForm.addEventListener('submit', function(e) {
+            if (!validateChronology()) {
+                e.preventDefault();
+                alert('Cannot save EBRT Course Parameters:\n\nChronological sequence error detected!\nRule: Simulation Date \u2264 Contouring Date \u2264 Plan Approval Date \u2264 RT Start Date \u2264 RT End Date.\n(Simulation date cannot be after contouring date - it must be on the same day or before).\n\nPlease correct the highlighted date fields before saving.');
+                return false;
+            }
+        });
+    }
+</script>
+{% endblock %}

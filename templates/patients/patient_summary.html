@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+
+{% block title %}Patient Master Summary: {{ patient.mr_no }} - {{ patient.pt_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    @media print {
+        header, nav, .btn-access, .no-print { display: none !important; }
+        body { font-size: 11pt; background: #fff !important; }
+        .access-subform { border: 1px solid #000 !important; margin-bottom: 15px; }
+        .page-break { page-break-after: always; }
+    }
+    .summary-card {
+        border: 1px solid #c0c0c0;
+        background: #fff;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .summary-card-header {
+        background: #e8eef4;
+        border-bottom: 1px solid #b8c4d2;
+        padding: 4px 8px;
+        font-weight: bold;
+        font-size: 11px;
+        color: #003366;
+        display: flex;
+        justify-content: space-between;
+    }
+    .summary-card-body {
+        padding: 8px;
+        font-size: 11px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;" class="no-print">
+    <div style="font-size: 14px; font-weight: bold; color: #003366;">
+        📑 rptPatientSummary: Comprehensive Master Clinical Record
+    </div>
+    <div style="display: flex; gap: 6px;">
+        <a href="{% url 'patient_summary_pdf' patient.mr_no %}" target="_blank" class="btn-access" style="background: #eef6ff; border-color: #003366; color: #003366; font-weight: bold;">📄 A4 Clinical Summary</a>
+        <a href="{% url 'examination_pdf_default' patient.mr_no %}" target="_blank" class="btn-access" style="background: #eef6ff; border-color: #003366; color: #003366; font-weight: bold;">🩺 Examination PDF</a>
+        <a href="{% url 'investigations_pdf' patient.mr_no %}" target="_blank" class="btn-access" style="background: #eef6ff; border-color: #003366; color: #003366; font-weight: bold;">🧪 Investigations PDF</a>
+        <button onclick="window.print()" class="btn-access btn-primary-action">🖨️ Print</button>
+        <a href="{% url 'patient_edit' patient.mr_no %}" class="btn-access">✏️ Edit Demographics</a>
+        {% if user.is_staff or user.is_superuser %}
+            <a href="{% url 'patient_delete' patient.mr_no %}" class="btn-access" style="color: #b00000; border-color: #ffcccc;" title="Delete Patient Record (Admin)">🗑️ Delete</a>
+        {% endif %}
+        <a href="{% url 'dashboard' %}" class="btn-access">🏠 Dashboard</a>
+    </div>
+</div>
+
+<!-- Patient Header Banner -->
+<div style="background: #003366; color: #fff; padding: 10px 14px; margin-bottom: 12px; border-radius: 2px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <span style="font-size: 18px; font-weight: bold;">{{ patient.pt_name }}</span>
+            <span style="margin-left: 10px; background: #fff; color: #003366; padding: 2px 6px; font-weight: bold; border-radius: 2px;">
+                MR No: {{ patient.mr_no }}
+            </span>
+            <span style="margin-left: 10px; font-size: 12px;">
+                {{ patient.sex }} | Age: {{ patient.age|default:'-' }} yrs | Reg: {{ patient.date_of_registration|date:'d-M-Y'|default:'-' }}
+            </span>
+        </div>
+        <div style="font-size: 11px; text-align: right;">
+            <div>Primary Consultant: <strong>{{ patient.primary_consultant.consultant_name|default:'Unassigned' }}</strong></div>
+            <div>Phone: <strong>{{ patient.phone }}</strong> {% if patient.phone_alternate %}/ {{ patient.phone_alternate }}{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Demographics & Location -->
+    <div class="summary-card">
+        <div class="summary-card-header">
+            <span>🏠 1. Demographics & Contact</span>
+            <a href="{% url 'patient_edit' patient.mr_no %}" class="no-print" style="color: #003366; text-decoration: underline;">Edit</a>
+        </div>
+        <div class="summary-card-body">
+            <div style="line-height: 1.6;">
+                <div><strong>Address:</strong> {{ patient.address|default:'-' }}</div>
+                <div><strong>District / State:</strong> {{ patient.district.district_name|default:'-' }}, {{ patient.state.state_name|default:'-' }}</div>
+                <div><strong>Pincode:</strong> {{ patient.pincode|default:'-' }} | <strong>DigiPIN:</strong> {{ patient.digipin|default:'-' }}</div>
+                <div><strong>Country:</strong> {{ patient.country|default:'India' }}</div>
+                {% if patient.notes %}
+                    <div style="margin-top: 4px; padding: 4px; background: #fff8e6; border: 1px solid #e6d09e;">
+                        <strong>Notes:</strong> {{ patient.notes }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Clinical History & Comorbidities -->
+    <div class="summary-card">
+        <div class="summary-card-header">
+            <span>📋 2. Clinical History, Habits & Comorbidities</span>
+            <a href="{% url 'history_detail' patient.mr_no %}" class="no-print" style="color: #003366; text-decoration: underline;">Edit</a>
+        </div>
+        <div class="summary-card-body">
+            {% for h in histories %}
+                <div class="grid-3" style="line-height: 1.5;">
+                    <div>
+                        <strong>Comorbidities:</strong><br>
+                        {% if h.hypertension %}• Hypertension<br>{% endif %}
+                        {% if h.diabetic %}• Diabetes Mellitus<br>{% endif %}
+                        {% if h.hypothyroidism %}• Hypothyroidism<br>{% endif %}
+                        {% if h.seizures %}• Seizures<br>{% endif %}
+                        {% if h.comorbidity_others %}• {{ h.comorbidity_notes }}<br>{% endif %}
+                        {% if not h.hypertension and not h.diabetic and not h.hypothyroidism and not h.seizures and not h.comorbidity_others %}
+                            <span style="color: #666;">None reported</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <strong>Habits:</strong><br>
+                        {% if h.smoking %}• Smoking<br>{% endif %}
+                        {% if h.alcohol %}• Alcohol<br>{% endif %}
+                        {% if h.tobacco_chewing %}• Tobacco Chewing<br>{% endif %}
+                        {% if h.habits_others %}• {{ h.habits_notes }}<br>{% endif %}
+                        {% if not h.smoking and not h.alcohol and not h.tobacco_chewing and not h.habits_others %}
+                            <span style="color: #666;">No toxic habits</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <strong>Symptoms & Prior Tx:</strong><br>
+                        {% if h.bleeding_pv %}• Bleeding P/V<br>{% endif %}
+                        {% if h.water_discharge_pv %}• Watery Discharge P/V<br>{% endif %}
+                        {% if h.dyspareunia %}• Dyspareunia<br>{% endif %}
+                        {% if h.loin_pain %}• Loin Pain<br>{% endif %}
+                        {% if h.prior_radiation %}• Prior RT: {{ h.prior_radiation_details }}<br>{% endif %}
+                        {% if h.previous_surgery %}• Prior Surgery: {{ h.previous_surgery_details }}<br>{% endif %}
+                    </div>
+                </div>
+                {% if h.hpi %}
+                    <div style="margin-top: 6px;"><strong>HPI:</strong> {{ h.hpi }}</div>
+                {% endif %}
+            {% empty %}
+                <div style="color: #666; font-style: italic;">No clinical history logged.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Pelvic Examination & Clinical Diagram Findings -->
+    <div class="summary-card">
+        <div class="summary-card-header">
+            <span>🩺 3. Clinical Pelvic Examination & IBS Diagram Findings</span>
+            <a href="{% url 'examination_detail' patient.mr_no 'baseline' %}" class="no-print" style="color: #003366; text-decoration: underline;">Edit</a>
+        </div>
+        <div class="summary-card-body">
+            {% for enc in encounters %}
+                <div style="border-bottom: 1px dashed #ccc; padding-bottom: 6px; margin-bottom: 6px;">
+                    <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                        <span>{{ enc.encounter_type.encounter_type_name|default:'Encounter' }} — {{ enc.encounter_date|date:'d-M-Y' }}</span>
+                        <span>ECOG: {{ enc.ecog.score|default:'-' }} | Ht: {{ enc.height|default:'-' }} cm | Wt: {{ enc.weight|default:'-' }} kg</span>
+                    </div>
+                    <div style="margin-top: 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                        <div>
+                            <strong>Parametrial:</strong> 
+                            {% if enc.parametrial_invasion %}
+                                Involved ({% if enc.para_left %}Left {{ enc.para_extent_left_cm }}cm{% endif %}{% if enc.para_right %}, Right {{ enc.para_extent_right_cm }}cm{% endif %})
+                            {% else %}Free{% endif %}
+                        </div>
+                        <div>
+                            <strong>Rectal / Bladder:</strong>
+                            Rectal: {% if enc.rectal_invasion %}Involved{% else %}Free{% endif %} | 
+                            Bladder: {% if enc.bladder_invasion %}Involved{% else %}Free{% endif %}
+                        </div>
+                        <div>
+                            <strong>Tumour Size:</strong> {{ enc.tumour_size_cm|default:'-' }} x {{ enc.tumour_size_2_cm|default:'-' }} cm
+                        </div>
+                    </div>
+                    <!-- Marked SVG Regions -->
+                    <div style="margin-top: 4px; font-size: 10px; color: #333;">
+                        <strong>Marked Diagram Regions ({{ enc.svg_findings.count }}):</strong>
+                        {% for f in enc.svg_findings.all %}
+                            <span style="background: #ffebe6; color: #990000; border: 1px solid #ffccd0; padding: 1px 4px; border-radius: 2px; margin-right: 3px; display: inline-block;">
+                                {{ f.region.display_label }}
+                            </span>
+                        {% empty %}
+                            <span style="color: #777;">None marked</span>
+                        {% endfor %}
+                        <span class="no-print" style="margin-left: 6px;">
+                            <a href="{% url 'ibs_diagram' enc.clinical_id %}" style="text-decoration: underline; color: #003366;">[Open Interactive Diagram]</a>
+                        </span>
+                    </div>
+                </div>
+            {% empty %}
+                <div style="color: #666; font-style: italic;">No clinical encounters logged yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Oncologic Diagnoses & Staging (After Investigations/Examination) -->
+    <div class="summary-card">
+        <div class="summary-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>🎯 4. Oncologic Diagnoses & Staging ({{ diagnoses|length }})</span>
+            <div>
+                <a href="{% url 'diagnosis_detail' patient.mr_no %}?action=new" class="no-print" style="color: #2e7d32; text-decoration: underline; margin-right: 8px;">+ Add Diagnosis</a>
+                <a href="{% url 'diagnosis_detail' patient.mr_no %}" class="no-print" style="color: #003366; text-decoration: underline;">Manage Diagnoses</a>
+            </div>
+        </div>
+        <div class="summary-card-body">
+            {% for d in diagnoses %}
+                <div style="border-bottom: 1px dashed #ccc; padding-bottom: 6px; margin-bottom: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            {% if d.is_current %}
+                                <span style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 1px 5px; border-radius: 2px; font-size: 10px; font-weight: bold; margin-right: 4px;">
+                                    ⭐ Primary
+                                </span>
+                            {% else %}
+                                <span style="background: #f0f4f8; color: #666; border: 1px solid #d0d8e0; padding: 1px 5px; border-radius: 2px; font-size: 10px; margin-right: 4px;">
+                                    Secondary #{{ d.diagnosis_sequence }}
+                                </span>
+                            {% endif %}
+                            <strong style="font-size: 12px; color: #b00000;">
+                                {{ d.diagnosis_description|default:d.primary_site.site|default:'Gynae Oncology' }}
+                            </strong>
+                            {% if d.diagnosis_description and d.primary_site %}
+                                <span style="font-size: 11px; color: #555;">({{ d.primary_site.site }})</span>
+                            {% endif %}
+                        </div>
+                        <span style="background: #e8eef4; padding: 2px 8px; font-weight: bold; border-radius: 3px; color: #003366;">
+                            Stage {{ d.stage_text|default:'Unknown' }}
+                        </span>
+                    </div>
+                    <div style="margin-top: 4px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 11px;">
+                        <div><strong>Histology:</strong> {{ d.histology.histology_name|default:d.histology_other|default:'-' }}</div>
+                        <div><strong>Grade:</strong> {{ d.grade.grade_name|default:'-' }}</div>
+                        <div><strong>TNM:</strong> T:{{ d.t_status|default:'-' }} N:{{ d.n_status|default:'-' }} M:{{ d.m_status|default:'-' }}</div>
+                        <div><strong>Date:</strong> {{ d.date_of_diagnosis|date:'d-M-Y' }}</div>
+                    </div>
+                </div>
+            {% empty %}
+                <div style="color: #666; font-style: italic;">No diagnosis recorded yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+<!-- Radiotherapy Course Summary -->
+<div class="summary-card">
+    <div class="summary-card-header">
+        <span>⚡ 5. Radiotherapy: EBRT & Brachytherapy Courses</span>
+        <a href="{% url 'radiotherapy_hub' patient.mr_no %}" class="no-print" style="color: #003366; text-decoration: underline;">View Hub</a>
+    </div>
+    <div class="summary-card-body">
+        <div class="grid-2">
+            <!-- EBRT -->
+            <div>
+                <strong style="color: #003366;">External Beam RT (EBRT):</strong>
+                {% for eb in ebrt_courses %}
+                    <div style="margin-top: 6px; padding-bottom: 8px; border-bottom: 1px dashed #d0d0d0; line-height: 1.5;">
+                        <div>Technique: <strong>{{ eb.ebrt_technique.technique_name|default:'-' }}</strong> | Intent: <strong>{{ eb.ebrt_intent.intent_name|default:'Radical' }}</strong></div>
+                        <div>Total Dose: <strong>{{ eb.total_dose_gy|default:'0' }} Gy</strong> in {{ eb.total_fractions|default:'0' }} fractions ({{ eb.dose_per_fraction_gy|default:'-' }} Gy/#)</div>
+                        <div>
+                            Targets: <strong>
+                            {% for s in eb.sites.all %}
+                                {{ s.ebrt_site.site_name }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                None specified
+                            {% endfor %}
+                            </strong>
+                        </div>
+                        <div>Timeline: Simulation {{ eb.simulation_date|date:'d-M-Y'|default:'-' }} &rarr; Start {{ eb.ebrt_start_date|date:'d-M-Y'|default:'-' }} to End {{ eb.ebrt_end_date|date:'d-M-Y'|default:'-' }}</div>
+                        <div>Status: <strong>{{ eb.course_status.status_name|default:'In Progress' }}</strong> {% if eb.treatment_interrupted %}<span style="color: #b00000;">(Gap: {{ eb.interruption_days }} days lost)</span>{% endif %}</div>
+                        <div>Approval: {% if eb.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ eb.approved_by }} ({{ eb.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
+
+                        <!-- Indented Concurrent Chemotherapy directly beneath EBRT course -->
+                        {% for conc in eb.concurrent_chemo_courses.all %}
+                            {% if conc.concurrent_received %}
+                            <div style="margin-top: 8px; margin-left: 14px; padding: 6px 10px; background: #f0f7ff; border-left: 3px solid #003366; font-size: 11px;">
+                                <div style="font-weight: bold; color: #003366; margin-bottom: 4px;">
+                                    💊 Concurrent Chemotherapy (with EBRT): {{ conc.chemo_regimen.regimen_code|default:'Cisplatin' }} ({{ conc.cycles.count }}/{{ conc.planned_cycles }} cycles)
+                                </div>
+                                {% for ccyc in conc.cycles.all %}
+                                <div style="margin-bottom: 3px;">
+                                    <span>Cycle #{{ ccyc.cycle_number }} ({{ ccyc.cycle_date|date:'d-M-Y' }}):</span>
+                                    <ul style="margin: 2px 0 2px 14px; padding: 0;">
+                                        {% for cd in ccyc.drugs.all %}
+                                        <li><strong>{{ cd.chemo_agent.agent_name }}</strong> {{ cd.dose|default:'' }} {{ cd.dose_unit.unit_name|default:'mg/m2' }} ({{ cd.chemo_route.route_name|default:'IV' }}, {{ cd.no_of_days|default:1 }}d)</li>
+                                        {% empty %}
+                                        <li style="color: #777;">No agent details logged</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% empty %}
+                    <div style="color: #666; font-style: italic;">No EBRT courses logged.</div>
+                {% endfor %}
+            </div>
+
+            <!-- Brachytherapy -->
+            <div>
+                <strong style="color: #003366;">Brachytherapy:</strong>
+                {% for br in brachy_courses %}
+                    <div style="margin-top: 6px; padding-bottom: 8px; border-bottom: 1px dashed #d0d0d0; line-height: 1.5;">
+                        <div>Dosing / Source: <strong>{{ br.brachy_dosing.dosing_point|default:'Point A' }}</strong> ({{ br.brachy_source.source_name|default:'HDR Ir-192' }})</div>
+                        <div>Delivered Fractions: <strong>{{ br.total_fractions_delivered }} / {{ br.total_fractions_planned }}</strong> planned (Prescription: {{ br.prescription_dose_gy|default:0 }} Gy)</div>
+                        <div>Dates: {{ br.brachy_start_date|date:'d-M-Y'|default:'-' }} to {{ br.brachy_end_date|date:'d-M-Y'|default:'-' }}</div>
+                        <div>Sessions Logged: {{ br.sessions.count }} | Status: {{ br.completion_status|default:'Active' }}</div>
+                        <div>Approval: {% if br.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ br.approved_by }} ({{ br.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
+                    </div>
+                {% empty %}
+                    <div style="color: #666; font-style: italic;">No Brachytherapy courses logged.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Systemic Chemotherapy Summary (NACT & Adjuvant) -->
+<div class="summary-card">
+    <div class="summary-card-header">
+        <span>💊 6. Systemic Chemotherapy: NACT & Adjuvant Regimens</span>
+        <a href="{% url 'systemic_hub' patient.mr_no %}" class="no-print" style="color: #003366; text-decoration: underline;">View Hub</a>
+    </div>
+    <div class="summary-card-body">
+        <div class="grid-2">
+            <!-- Neoadjuvant Chemotherapy (NACT) -->
+            <div>
+                <strong style="color: #003366;">Neoadjuvant Chemotherapy (NACT):</strong>
+                {% for nc in nact_courses %}
+                    <div style="margin-top: 6px; padding-bottom: 8px; border-bottom: 1px dashed #d0d0d0; line-height: 1.5;">
+                        <div>Regimen: <strong>{{ nc.chemo_regimen.regimen_code|default:'Regimen' }}</strong> ({{ nc.chemo_regimen.regimen_description|default:'' }})</div>
+                        <div>Cycles: <strong>{{ nc.cycles.count }}</strong> given / {{ nc.planned_cycles }} planned | Status: {{ nc.nact_status.status_name|default:'In Progress' }}</div>
+                        <div>Tumor Response: <strong>{{ nc.response_to_nact.response_code|default:'Pending' }}</strong></div>
+                        <div>Approval: {% if nc.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ nc.approved_by }} ({{ nc.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
+
+                        <!-- Cycles grouped: cycle date shown once, drugs listed beneath -->
+                        <div style="margin-top: 6px; font-size: 11px;">
+                            {% for cyc in nc.cycles.all %}
+                            <div style="margin-bottom: 4px; background: #fafafa; padding: 4px 8px; border: 1px solid #e0e0e0; border-radius: 2px;">
+                                <strong>Cycle #{{ cyc.cycle_number }}</strong> &mdash; Date: <strong>{{ cyc.cycle_date|date:'d-M-Y' }}</strong> ({{ cyc.cycle_status }})
+                                <ul style="margin: 2px 0 2px 14px; padding: 0;">
+                                    {% for d in cyc.drugs.all %}
+                                    <li>{{ d.chemo_agent.agent_name }}: <strong>{{ d.dose|default:'' }} {{ d.dose_unit.unit_name|default:'mg' }}</strong> (Day {{ d.day_of_administration|default:1 }}, {{ d.no_of_days|default:1 }}d, {{ d.chemo_route.route_name|default:'IV' }})</li>
+                                    {% empty %}
+                                    <li style="color: #888;">No drug rows</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% empty %}
+                            <div style="color: #888; font-style: italic;">No cycles administered.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <div style="color: #666; font-style: italic; margin-top: 4px;">No NACT received.</div>
+                {% endfor %}
+            </div>
+
+            <!-- Adjuvant Chemotherapy (Completely omitted when not given) -->
+            <div>
+                <strong style="color: #003366;">Post-Definitive Adjuvant Chemotherapy:</strong>
+                {% for ac in adjuvant_courses %}
+                    <div style="margin-top: 6px; padding-bottom: 8px; border-bottom: 1px dashed #d0d0d0; line-height: 1.5;">
+                        <div>Cycles: <strong>{{ ac.cycles.count }}</strong> given / {{ ac.planned_cycles }} planned | Status: {{ ac.chemo_status.status_name|default:'In Progress' }}</div>
+                        <div>Approval: {% if ac.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ ac.approved_by }} ({{ ac.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
+
+                        <!-- Cycles grouped: cycle date shown once, drugs listed beneath -->
+                        <div style="margin-top: 6px; font-size: 11px;">
+                            {% for cyc in ac.cycles.all %}
+                            <div style="margin-bottom: 4px; background: #fafafa; padding: 4px 8px; border: 1px solid #e0e0e0; border-radius: 2px;">
+                                <strong>Adjuvant Cycle #{{ cyc.cycle_number }}</strong> &mdash; Date: <strong>{{ cyc.cycle_date|date:'d-M-Y' }}</strong> ({{ cyc.cycle_status }})
+                                <ul style="margin: 2px 0 2px 14px; padding: 0;">
+                                    {% for d in cyc.drugs.all %}
+                                    <li>{{ d.chemo_agent.agent_name }}: <strong>{{ d.dose|default:'' }} {{ d.dose_unit.unit_name|default:'mg' }}</strong> (Day {{ d.day_of_administration|default:1 }}, {{ d.no_of_days|default:1 }}d, {{ d.chemo_route.route_name|default:'IV' }})</li>
+                                    {% empty %}
+                                    <li style="color: #888;">No drug rows</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% empty %}
+                            <div style="color: #888; font-style: italic;">No cycles administered.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <div style="color: #666; font-style: italic; margin-top: 4px;">No Adjuvant Chemotherapy received (Omitted).</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Follow-up Surveillance Summary -->
+<div class="summary-card">
+    <div class="summary-card-header">
+        <span>📅 7. Follow-Up & Surveillance Tracking</span>
+        <a href="{% url 'followup_list' patient.mr_no %}" class="no-print" style="color: #003366; text-decoration: underline;">View Follow-Ups</a>
+    </div>
+    <div class="summary-card-body">
+        {% for fu in followups %}
+            <div style="border-bottom: 1px dashed #ccc; padding-bottom: 4px; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                <div>
+                    <strong>{{ fu.follow_up_date|date:'d-M-Y' }}</strong>: 
+                    <span style="font-weight: bold; color: {% if fu.disease_status.status_name == 'No Evidence of Disease' %}#008000{% else %}#b00000{% endif %};">
+                        {{ fu.disease_status.status_name|default:'Contact logged' }}
+                    </span> 
+                    via {{ fu.contact_type.contact_type|default:'Clinic' }}
+                    {% if fu.recurrence_detected %}
+                        <span style="color: #b00000; font-weight: bold;">[RECURRENCE DETECTED]</span>
+                    {% endif %}
+                </div>
+                <div>
+                    Next FU: {{ fu.next_fu_date|date:'d-M-Y'|default:'-' }}
+                </div>
+            </div>
+        {% empty %}
+            <div style="color: #666; font-style: italic;">No follow-up visits logged yet.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Private Documents & Media Files -->
+<div class="summary-card">
+    <div class="summary-card-header">
+        <span>📁 8. Private Documents, Photos & Scans ({{ documents.count }})</span>
+        <a href="{% url 'document_list' patient.mr_no %}" class="no-print" style="color: #003366; text-decoration: underline;">Manage Uploads</a>
+    </div>
+    <div class="summary-card-body">
+        {% if documents %}
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                {% for doc in documents %}
+                    <div style="border: 1px solid #c0d0e0; padding: 6px; background: #fafafa; border-radius: 2px; width: 180px;">
+                        <div style="font-weight: bold; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            {{ doc.title }}
+                        </div>
+                        <div style="font-size: 10px; color: #666;">
+                            {{ doc.get_category_display }}<br>
+                            Uploaded: {{ doc.uploaded_on|date:'d-M-Y' }}
+                        </div>
+                        <div style="margin-top: 4px;">
+                            <a href="{% url 'download_document' doc.document_id %}" class="btn-access" style="font-size: 9px; padding: 1px 4px;" target="_blank">
+                                ⬇️ Download / View
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="color: #666; font-style: italic;">No private documents or media uploaded.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

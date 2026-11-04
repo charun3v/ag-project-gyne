@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Applicator Measurement Rules Configuration - Admin{% endblock %}
+
+{% block content %}
+<div class="access-subform">
+    <div class="access-subform-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>⚙️ Administrator Configuration: Brachytherapy Applicator Measurement & Validation Rules</span>
+        <div style="font-size: 11px;">
+            <a href="{% url 'lookup_manager' 'applicator' %}" style="color: #fff; text-decoration: underline; margin-right: 12px;">Applicator Master List</a>
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Dashboard</a>
+        </div>
+    </div>
+    
+    <div class="access-subform-body" style="padding: 12px;">
+        <div style="background: #eef5fc; border-left: 4px solid #003366; padding: 10px; margin-bottom: 14px; font-size: 11px; color: #333;">
+            <strong>📋 Clinical Rule Engine Instructions:</strong>
+            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                <li>Enable/Disable physical measurement fields per applicator type. Disabled fields are hidden from clinical users and rejected on save.</li>
+                <li>Mark fields as <strong>Required</strong> to mandate entry before an application/session can be saved or marked completed/approved.</li>
+                <li>Custom range overrides (Min / Max) take precedence over default definition limits without changing Python source code.</li>
+                <li><strong>Historical Integrity:</strong> Previously approved applications retain their approved rule snapshot and will not be modified or invalidated by configuration updates here.</li>
+            </ul>
+        </div>
+
+        <!-- Add New Applicator Type Form -->
+        <fieldset style="border: 1px solid #c0d0e0; background: #fafcff; padding: 10px; margin-bottom: 16px; border-radius: 3px;">
+            <legend style="font-weight: bold; color: #003366; font-size: 11px; padding: 0 5px;">➕ Add New Custom Applicator Type</legend>
+            <form method="post" action="" style="display: flex; gap: 12px; align-items: flex-end;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_applicator">
+                <div>
+                    <label class="access-label" style="font-weight: bold;">New Applicator Name *</label>
+                    <input type="text" name="new_applicator_name" class="access-input" style="width: 280px;" required placeholder="e.g. Geneva Universal Applicator">
+                </div>
+                <div>
+                    <label class="access-label">Display Order</label>
+                    <input type="number" name="new_applicator_order" class="access-input" style="width: 80px;" value="10">
+                </div>
+                <button type="submit" class="btn-access btn-primary-action" style="font-size: 11px; padding: 4px 12px;">
+                    ➕ Create Applicator Type
+                </button>
+            </form>
+        </fieldset>
+
+        <!-- Measurement Definitions Reference Strip -->
+        <div style="background: #fdfaf3; border: 1px solid #e8dcbf; padding: 8px 12px; margin-bottom: 14px; font-size: 11px; border-radius: 3px;">
+            <strong style="color: #856404;">Standard Measurement Definitions in System:</strong>
+            <div style="display: flex; gap: 16px; margin-top: 4px; flex-wrap: wrap;">
+                {% for mdef in measurement_defs %}
+                    <span style="background: #fff; border: 1px solid #d4c49c; padding: 2px 6px; border-radius: 2px;">
+                        <strong>{{ mdef.label }}</strong> (<code>{{ mdef.code }}</code>) - {{ mdef.unit|default:'count' }} [Min: {{ mdef.minimum_value|default:'-' }} | Max: {{ mdef.maximum_value|default:'-' }}]
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Applicator Rules Matrix Form -->
+        <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_rules">
+
+            <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold; color: #003366; font-size: 13px;">Applicator Type Field Activation & Validation Rules Matrix</span>
+                <button type="submit" class="btn-access btn-primary-action" style="font-size: 11px; padding: 5px 14px; font-weight: bold;">
+                    💾 Save All Applicator Rule Changes
+                </button>
+            </div>
+
+            {% for item in matrix %}
+            <div style="border: 1px solid #b8c8d8; margin-bottom: 14px; background: #fff; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="background: #e8f0f8; border-bottom: 1px solid #b8c8d8; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: #003366; font-size: 12px;">#{{ item.applicator.display_order }}: {{ item.applicator.name }}</strong>
+                        <span style="font-size: 10px; margin-left: 8px; color: {% if item.applicator.active %}#15803d{% else %}#b91c1c{% endif %}; font-weight: bold;">
+                            [{% if item.applicator.active %}ACTIVE{% else %}DEACTIVATED{% endif %}]
+                        </span>
+                    </div>
+                    <div>
+                        <form method="post" action="" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="toggle_applicator">
+                            <input type="hidden" name="applicator_id" value="{{ item.applicator.id }}">
+                            <button type="submit" class="btn-access" style="font-size: 10px; padding: 1px 6px;">
+                                {% if item.applicator.active %}Deactivate{% else %}Activate{% endif %}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 10px; overflow-x: auto;">
+                    <table class="access-table" style="margin: 0; font-size: 11px;">
+                        <thead>
+                            <tr style="background: #f8fafc;">
+                                <th style="width: 170px;">Measurement Field</th>
+                                <th style="width: 80px; text-align: center;">Enabled?</th>
+                                <th style="width: 80px; text-align: center;">Required?</th>
+                                <th style="width: 70px; text-align: center;">Order</th>
+                                <th style="width: 120px;">Min Override</th>
+                                <th style="width: 120px;">Max Override</th>
+                                <th>Clinical Validation Rule Summary</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in item.measurements %}
+                            <tr style="{% if not m.enabled %}background: #fafafa; opacity: 0.85;{% endif %}">
+                                <td>
+                                    <strong>{{ m.mdef.label }}</strong>
+                                    {% if m.mdef.unit %}<span style="color: #666; font-size: 10px;">({{ m.mdef.unit }})</span>{% endif %}
+                                    <div style="font-size: 9px; color: #888;"><code>{{ m.mdef.code }}</code></div>
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" name="rule_{{ item.applicator.id }}_{{ m.mdef.id }}_enabled" value="1" 
+                                           {% if m.enabled %}checked{% endif %} style="cursor: pointer;">
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" name="rule_{{ item.applicator.id }}_{{ m.mdef.id }}_required" value="1" 
+                                           {% if m.required %}checked{% endif %} style="cursor: pointer;">
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="number" name="rule_{{ item.applicator.id }}_{{ m.mdef.id }}_order" 
+                                           value="{{ m.order }}" class="access-input" style="width: 50px; text-align: center;">
+                                </td>
+                                <td>
+                                    <input type="number" step="0.1" name="rule_{{ item.applicator.id }}_{{ m.mdef.id }}_min" 
+                                           value="{{ m.min }}" class="access-input" style="width: 90px;" placeholder="Def: {{ m.mdef.minimum_value|default:'None' }}">
+                                </td>
+                                <td>
+                                    <input type="number" step="0.1" name="rule_{{ item.applicator.id }}_{{ m.mdef.id }}_max" 
+                                           value="{{ m.max }}" class="access-input" style="width: 90px;" placeholder="Def: {{ m.mdef.maximum_value|default:'None' }}">
+                                </td>
+                                <td style="font-size: 10px; color: #444;">
+                                    {% if m.enabled and m.required %}
+                                        <span style="color: #b00000; font-weight: bold;">Mandatory</span>: Entry required before saving or approving.
+                                    {% elif m.enabled %}
+                                        <span style="color: #003366;">Optional</span>: Clinical user may optionally supply value.
+                                    {% else %}
+                                        <span style="color: #888;">Disabled</span>: Field will be hidden and rejected.
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 10px; border: 1px solid #b8c4d2; margin-top: 10px;">
+                <button type="submit" class="btn-access btn-primary-action" style="font-size: 12px; padding: 5px 16px; font-weight: bold;">
+                    💾 Save All Applicator Rule Changes
+                </button>
+                <a href="{% url 'dashboard' %}" class="btn-access" style="color: #555;">
+                    ✖️ Cancel / Back to Dashboard
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

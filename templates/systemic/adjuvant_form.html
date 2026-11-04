@@ -1,0 +1,474 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if course %}Adjuvant Chemo Course #{{ course.adjuvant_course_id }}{% else %}New Adjuvant Chemo Course{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<!-- 1. Patient Header & Senior Clinician Approval/Lock Banner -->
+{% include 'includes/treatment_patient_header.html' with form_type='adjuvant' course_id=course.adjuvant_course_id %}
+
+<div class="access-subform">
+    <div class="access-subform-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>⏳ frmAdjuvantCourse: Post-Definitive Adjuvant Chemotherapy</span>
+        <div style="font-size: 11px;">
+            <a href="{% url 'systemic_hub' patient.mr_no %}?tab=adjuvant" style="color: #fff; text-decoration: underline;">Systemic Hub</a> |
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Dashboard</a>
+        </div>
+    </div>
+
+    <div class="access-subform-body">
+        <form method="post" action="{% if course %}{% url 'adjuvant_edit' patient.mr_no course.adjuvant_course_id %}{% else %}{% url 'adjuvant_add' patient.mr_no %}{% endif %}" id="adjuvantMainForm">
+            {% csrf_token %}
+
+            <!-- Question 1: Was Adjuvant Chemo Received? (Defaults to No) -->
+            <div style="background: #e8eef4; border: 2px solid #003366; padding: 12px 16px; margin-bottom: 14px; border-radius: 3px;">
+                <label style="font-weight: bold; font-size: 13px; color: #003366; display: block; margin-bottom: 8px;">
+                    1. Was Post-Definitive Adjuvant Chemotherapy Given?
+                </label>
+                <div style="display: flex; gap: 24px; align-items: center; font-size: 13px;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: bold; color: #2e7d32;">
+                        <input type="radio" name="adjuvant_received" id="adjYes" value="1" 
+                               {% if course and course.adjuvant_received %}checked{% endif %} 
+                               {% if course and course.approval_locked %}disabled{% endif %}
+                               onchange="toggleAdjDetails(true)">
+                        <span>✓ YES — Adjuvant Chemotherapy Given</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: bold; color: #b00000;">
+                        <input type="radio" name="adjuvant_received" id="adjNo" value="0" 
+                               {% if not course or not course.adjuvant_received %}checked{% endif %} 
+                               {% if course and course.approval_locked %}disabled{% endif %}
+                               onchange="toggleAdjDetails(false)">
+                        <span>✗ NO — No Adjuvant Chemotherapy Given</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Message displayed when NO is selected -->
+            <div id="adjNoMessage" style="{% if course and course.adjuvant_received %}display: none;{% else %}display: block;{% endif %} background: #fff8e6; border: 1px solid #ffd591; padding: 12px; margin-bottom: 14px; border-radius: 2px; font-size: 12px; color: #873800;">
+                ℹ️ <strong>Record Marked: No Adjuvant Chemotherapy Given.</strong> Child cycle records and drug administration entries remain inactive. Click <strong>"Save Adjuvant Course Parameters"</strong> below to confirm.
+            </div>
+
+            <!-- Detailed Adjuvant Course Parameters (Active when YES is selected) -->
+            <div id="adjDetailsContainer" style="{% if course and course.adjuvant_received %}display: block;{% else %}display: none;{% endif %}">
+                
+                <!-- Cycle Count Scheduling & Status -->
+                <fieldset style="border: 1px solid #b0c4de; padding: 12px; margin-bottom: 14px; background: #fafafa; border-radius: 3px;">
+                    <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+                        2. Cycle Limits & Course Status
+                    </legend>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 10px;">
+                        <div>
+                            <label class="access-label">Number of Cycles Planned</label>
+                            <input type="number" name="planned_cycles" min="1" max="12" 
+                                   value="{% if course %}{{ course.planned_cycles }}{% else %}4{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                        </div>
+                        <div>
+                            <label class="access-label" style="font-weight: bold; color: #b00000;">Total Cycles Given (Limit)</label>
+                            <input type="number" name="received_cycles" min="0" max="12" 
+                                   value="{% if course %}{{ course.received_cycles }}{% else %}4{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">Controls cycle entry count</span>
+                        </div>
+                        <div>
+                            <label class="access-label">Chemotherapy Status</label>
+                            <select name="chemo_status_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
+                                <option value="">-- Select Status --</option>
+                                {% for st in statuses %}
+                                    <option value="{{ st.status_id }}" {% if course and course.chemo_status_id == st.status_id %}selected{% endif %}>
+                                        {{ st.status_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Backward Link to Prior Definitive Treatment -->
+                <fieldset style="border: 1px solid #b0c4de; padding: 12px; margin-bottom: 14px; background: #fdfefe; border-radius: 3px;">
+                    <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+                        3. Backward Links to Prior Radical Treatment
+                    </legend>
+                    <div style="font-size: 11px; color: #555; margin-bottom: 8px;">
+                        Adjuvant chemotherapy links backward to completed prior radical therapy. Adjuvant cycle dates must strictly follow the completion of the linked treatment (last brachytherapy fraction date or EBRT completion date).
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                        <div>
+                            <label class="access-label">Prior EBRT Course</label>
+                            <select name="linked_ebrt_course_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
+                                <option value="">-- No Linked Prior EBRT --</option>
+                                {% for e in ebrt_courses %}
+                                    <option value="{{ e.ebrt_course_id }}" {% if course and course.linked_ebrt_course_id == e.ebrt_course_id %}selected{% endif %}>
+                                        EBRT Course #{{ e.course_sequence }} (Completed: {{ e.ebrt_end_date|default:'In Progress' }} | {{ e.total_dose_gy|default:0 }} Gy)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="access-label">Prior Brachytherapy Course</label>
+                            <select name="linked_brachy_course_id" class="access-select" {% if course and course.linked_brachy_course_id == b.brachy_course_id %}selected{% endif %}>
+                                <option value="">-- No Linked Prior Brachy --</option>
+                                {% for b in brachy_courses %}
+                                    <option value="{{ b.brachy_course_id }}" {% if course and course.linked_brachy_course_id == b.brachy_course_id %}selected{% endif %}>
+                                        Brachy Course #{{ b.course_sequence }} (Completed: {{ b.brachy_end_date|default:'In Progress' }} | {{ b.prescription_dose_gy|default:0 }} Gy)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- Notes field -->
+            <div style="margin-bottom: 14px;">
+                <label class="access-label">Course Remarks / Clinical Notes</label>
+                <textarea name="notes" class="access-textarea" rows="2" 
+                          {% if course and course.approval_locked %}disabled{% endif %}
+                          placeholder="Adjuvant regimen reasoning, dose modifications, tolerance...">{% if course %}{{ course.notes|default:'' }}{% endif %}</textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2; margin-bottom: 18px;">
+                {% if not course or not course.approval_locked %}
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Adjuvant Course Parameters
+                </button>
+                {% else %}
+                <span style="font-size: 12px; color: #555; font-style: italic;">
+                    🔒 Record locked. Unlock above to modify course parameters.
+                </span>
+                {% endif %}
+                <a href="{% url 'systemic_hub' patient.mr_no %}?tab=adjuvant" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+
+        <!-- 4. CHILD CYCLE & GRANDCHILD DRUG GRID SUBFORM -->
+        {% if course and course.adjuvant_received %}
+        <div style="border-top: 2px solid #003366; padding-top: 14px; margin-top: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div>
+                    <h3 style="font-size: 13px; font-weight: bold; color: #003366; margin: 0;">
+                        📋 Adjuvant Chemotherapy Cycles & Administered Drug Hierarchy
+                    </h3>
+                    <span style="font-size: 11px; color: #555;">
+                        Recorded Cycles: <strong>{{ cycles|length }}</strong> / Total Given Limit: <strong>{{ course.received_cycles }}</strong>
+                        (Planned: {{ course.planned_cycles }})
+                    </span>
+                </div>
+
+                {% if not course.approval_locked %}
+                <div>
+                    {% if cycles|length < course.received_cycles %}
+                        <button type="button" class="btn-access btn-primary-action" onclick="openAddCycleModal()">
+                            ➕ Add Cycle #{{ cycles|length|add:1 }}
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn-access" disabled title="Received cycle limit reached. Increase 'Total Cycles Given' in course parameters to enable." style="opacity: 0.6; cursor: not-allowed;">
+                            ➕ Add Cycle (Limit {{ course.received_cycles }} Reached)
+                        </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Existing Cycles List -->
+            {% for cycle in cycles %}
+            <div style="border: 1px solid #b0c4de; margin-bottom: 14px; background: #fff; border-radius: 3px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+                <!-- Cycle Header Bar -->
+                <div style="background: #e6edf5; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #b0c4de;">
+                    <div style="display: flex; align-items: center; gap: 14px; font-size: 12px;">
+                        <span style="background: #003366; color: #fff; font-weight: bold; padding: 2px 8px; border-radius: 2px;">
+                            Cycle #{{ cycle.cycle_number }}
+                        </span>
+                        <span>Date: <strong>{{ cycle.cycle_date|date:"d M Y" }}</strong></span>
+                        <span>Status: <strong>{{ cycle.cycle_status|default:"Administered" }}</strong></span>
+                        {% if cycle.cycle_toxicity %}
+                            <span style="color: #b00000; font-size: 11px;">Toxicity: {{ cycle.cycle_toxicity }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if not course.approval_locked %}
+                    <div style="display: flex; gap: 6px;">
+                        {% if cycle.cycle_number > 1 %}
+                            <form method="post" action="{% url 'adjuvant_copy_previous_cycle' patient.mr_no course.adjuvant_course_id cycle.adjuvant_cycle_id %}" style="display: inline;" onsubmit="return confirm('Copy drug regimen from Cycle #{{ cycle.cycle_number|add:-1 }} into this cycle?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-access" style="background: #f0f7ff; border: 1px solid #003366; color: #003366; font-size: 11px; padding: 2px 8px;" title="Replicate agents, doses, units, and days from preceding cycle">
+                                    📋 Copy Previous Cycle
+                                </button>
+                            </form>
+                        {% endif %}
+                        <button type="button" class="btn-access" onclick="openAddDrugModal('{{ cycle.adjuvant_cycle_id }}', '{{ cycle.cycle_number }}')" style="font-size: 11px; padding: 2px 8px;">
+                            ➕ Add Drug
+                        </button>
+                        <form method="post" action="{% url 'adjuvant_cycle_delete' patient.mr_no course.adjuvant_course_id cycle.adjuvant_cycle_id %}" style="display: inline;" onsubmit="return confirm('Delete Cycle #{{ cycle.cycle_number }} and its drug administrations?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-access" style="color: #b00000; font-size: 11px; padding: 2px 6px;" title="Delete this cycle">
+                                🗑️
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Grandchild Drug Administration Grid -->
+                <div style="padding: 8px 12px;">
+                    <table class="access-table" style="width: 100%; max-width: 880px; font-size: 11px; margin-bottom: 0;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="width: 35px; text-align: center;">#</th>
+                                <th style="width: 180px;">Drug (Chemo Agent)</th>
+                                <th style="width: 75px; text-align: right;">Dose</th>
+                                <th style="width: 75px;">Unit</th>
+                                <th style="width: 80px; text-align: center;">No. of Days</th>
+                                <th style="width: 85px; text-align: center;">Day of Admin</th>
+                                <th style="width: 110px;">Route</th>
+                                <th style="width: 85px; text-align: center;">Administered</th>
+                                {% if not course.approval_locked %}
+                                <th style="width: 110px; text-align: center;">Action</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for drug in cycle.drugs.all %}
+                            <tr>
+                                <td style="text-align: center; color: #666;">{{ forloop.counter }}</td>
+                                <td style="font-weight: bold; color: #003366;">{{ drug.chemo_agent.agent_name }}</td>
+                                <td style="text-align: right; font-weight: 600;">{{ drug.dose|default:"--" }}</td>
+                                <td>{{ drug.dose_unit.unit_name|default:"mg" }}</td>
+                                <td style="text-align: center;">{{ drug.no_of_days|default:1 }}</td>
+                                <td style="text-align: center;">Day {{ drug.day_of_administration|default:1 }}</td>
+                                <td>{{ drug.chemo_route.route_name|default:"IV Infusion" }}</td>
+                                <td style="text-align: center;">
+                                    {% if drug.administered %}
+                                        <span style="color: #2e7d32; font-weight: bold;">✓ Yes</span>
+                                    {% else %}
+                                        <span style="color: #b00000; font-weight: bold;">✗ No</span>
+                                    {% endif %}
+                                </td>
+                                {% if not course.approval_locked %}
+                                <td style="text-align: center;">
+                                    <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                                        <button type="button" class="btn-access" 
+                                                onclick="openEditDrugModal('{{ cycle.adjuvant_cycle_id }}', '{{ cycle.cycle_number }}', '{{ drug.adjuvant_drug_id }}', '{{ drug.chemo_agent_id }}', '{{ drug.dose|default:'' }}', '{{ drug.dose_unit_id|default:'' }}', '{{ drug.no_of_days|default:1 }}', '{{ drug.day_of_administration|default:1 }}', '{{ drug.chemo_route_id|default:'' }}', '{{ drug.administered|yesno:'1,0' }}')"
+                                                style="font-size: 10px; padding: 2px 6px; color: #003366; background: #f0f7ff; border: 1px solid #b0c4de;" 
+                                                title="Edit drug details">
+                                            ✏️ Edit
+                                        </button>
+                                        <form method="post" action="{% url 'adjuvant_drug_delete' patient.mr_no course.adjuvant_course_id cycle.adjuvant_cycle_id drug.adjuvant_drug_id %}" style="display: inline;" onsubmit="return confirm('Remove {{ drug.chemo_agent.agent_name }}?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn-access" style="color: #b00000; font-size: 10px; padding: 2px 6px; border: 1px solid #ffccd0; background: #fff5f5;" title="Delete drug">
+                                                ✖
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" style="text-align: center; color: #888; font-style: italic; padding: 10px;">
+                                    No drugs recorded for this cycle. Click "➕ Add Drug" or "📋 Copy Previous Cycle" above.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% empty %}
+            <div style="background: #fafafa; border: 1px dashed #c0c0c0; padding: 16px; text-align: center; color: #666; font-size: 12px;">
+                No adjuvant cycles recorded yet. Click <strong>"➕ Add Cycle #1"</strong> above to start entering treatment administrations.
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal: Add Cycle -->
+{% if course and not course.approval_locked %}
+<div id="addCycleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #fff; width: 440px; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); overflow: hidden; border: 2px solid #003366;">
+        <div style="background: #003366; color: #fff; padding: 10px 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+            <span>Add New Adjuvant Chemotherapy Cycle</span>
+            <span style="cursor: pointer; font-size: 16px;" onclick="closeAddCycleModal()">&times;</span>
+        </div>
+        <form method="post" action="{% url 'adjuvant_cycle_add' patient.mr_no course.adjuvant_course_id %}">
+            {% csrf_token %}
+            <div style="padding: 16px; font-size: 12px; color: #333;">
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
+                    <input type="date" name="cycle_date" required class="access-input" value="{% now 'Y-m-d' %}">
+                    <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">
+                        Must strictly follow linked prior treatment completion date.
+                    </span>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label">Cycle Status</label>
+                    <select name="cycle_status" class="access-select">
+                        <option value="Administered" selected>Administered</option>
+                        <option value="Dose Reduced">Dose Reduced</option>
+                        <option value="Delayed">Delayed</option>
+                        <option value="Omitted">Omitted</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label">Pre-Cycle Clinical / Lab Notes</label>
+                    <input type="text" name="pre_cycle_notes" class="access-input" placeholder="e.g. CBC OK, Creatinine normal">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label class="access-label">Toxicity Observations</label>
+                    <input type="text" name="cycle_toxicity" class="access-input" placeholder="e.g. Mild fatigue">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" class="btn-access" onclick="closeAddCycleModal()">Cancel</button>
+                    <button type="submit" class="btn-access btn-primary-action">
+                        Create Cycle
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Add Drug Row -->
+<div id="addDrugModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #fff; width: 480px; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); overflow: hidden; border: 2px solid #003366;">
+        <div style="background: #003366; color: #fff; padding: 10px 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+            <span id="drugModalTitle">Add Drug to Cycle</span>
+            <span style="cursor: pointer; font-size: 16px;" onclick="closeAddDrugModal()">&times;</span>
+        </div>
+        <form method="post" id="addDrugForm" action="">
+            {% csrf_token %}
+            <div style="padding: 16px; font-size: 12px; color: #333;">
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label" style="font-weight: bold; color: #b00000;">1. Drug (Chemo Agent) *</label>
+                    <select name="chemo_agent_id" id="modalDrugAgent" required class="access-select">
+                        <option value="">-- Select Agent --</option>
+                        {% for a in agents %}
+                            <option value="{{ a.agent_id }}">{{ a.agent_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                        <label class="access-label">2. Dose</label>
+                        <input type="number" step="0.01" name="dose" id="modalDrugDose" class="access-input" placeholder="e.g. 175">
+                    </div>
+                    <div>
+                        <label class="access-label">3. Dose Unit</label>
+                        <select name="dose_unit_id" id="modalDrugUnit" class="access-select">
+                            <option value="">-- Unit --</option>
+                            {% for u in dose_units %}
+                                <option value="{{ u.unit_id }}">{{ u.unit_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                        <label class="access-label">4. No. of Days</label>
+                        <input type="number" name="no_of_days" id="modalDrugDays" value="1" min="1" class="access-input">
+                    </div>
+                    <div>
+                        <label class="access-label">5. Day of Administration</label>
+                        <input type="number" name="day_of_administration" id="modalDrugDayAdmin" value="1" min="1" class="access-input">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 14px;">
+                    <div>
+                        <label class="access-label">6. Route of Administration</label>
+                        <select name="chemo_route_id" id="modalDrugRoute" class="access-select">
+                            <option value="">-- Route --</option>
+                            {% for rt in routes %}
+                                <option value="{{ rt.route_id }}" {% if rt.route_name == 'IV Infusion' %}selected{% endif %}>{{ rt.route_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Administered?</label>
+                        <select name="administered" id="modalDrugAdministered" class="access-select">
+                            <option value="1" selected>Yes</option>
+                            <option value="0">No</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" class="btn-access" onclick="closeAddDrugModal()">Cancel</button>
+                    <button type="submit" class="btn-access btn-primary-action" id="modalDrugSubmitBtn">
+                        Save Drug Administration
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function toggleAdjDetails(isYes) {
+    const container = document.getElementById('adjDetailsContainer');
+    const noMsg = document.getElementById('adjNoMessage');
+    if (isYes) {
+        container.style.display = 'block';
+        noMsg.style.display = 'none';
+    } else {
+        container.style.display = 'none';
+        noMsg.style.display = 'block';
+    }
+}
+
+function openAddCycleModal() {
+    document.getElementById('addCycleModal').style.display = 'flex';
+}
+
+function closeAddCycleModal() {
+    document.getElementById('addCycleModal').style.display = 'none';
+}
+
+function openAddDrugModal(cycleId, cycleNum) {
+    const modal = document.getElementById('addDrugModal');
+    const title = document.getElementById('drugModalTitle');
+    const form = document.getElementById('addDrugForm');
+    const submitBtn = document.getElementById('modalDrugSubmitBtn');
+    title.textContent = 'Add Drug to Cycle #' + cycleNum;
+    submitBtn.textContent = 'Save Drug Administration';
+    form.action = "{% url 'adjuvant_drug_add' patient.mr_no course.adjuvant_course_id 0 %}".replace('/0/', '/' + cycleId + '/');
+    
+    document.getElementById('modalDrugAgent').value = '';
+    document.getElementById('modalDrugDose').value = '';
+    document.getElementById('modalDrugUnit').value = '';
+    document.getElementById('modalDrugDays').value = '1';
+    document.getElementById('modalDrugDayAdmin').value = '1';
+    document.getElementById('modalDrugRoute').value = '';
+    document.getElementById('modalDrugAdministered').value = '1';
+
+    modal.style.display = 'flex';
+}
+
+function openEditDrugModal(cycleId, cycleNum, drugId, agentId, dose, unitId, days, dayAdmin, routeId, adminVal) {
+    const modal = document.getElementById('addDrugModal');
+    const title = document.getElementById('drugModalTitle');
+    const form = document.getElementById('addDrugForm');
+    const submitBtn = document.getElementById('modalDrugSubmitBtn');
+    title.textContent = 'Edit Drug Details — Cycle #' + cycleNum;
+    submitBtn.textContent = 'Update Drug Details';
+    form.action = "{% url 'adjuvant_drug_edit' patient.mr_no course.adjuvant_course_id 0 999999 %}".replace('/0/', '/' + cycleId + '/').replace('/999999/', '/' + drugId + '/');
+
+    document.getElementById('modalDrugAgent').value = agentId || '';
+    document.getElementById('modalDrugDose').value = dose || '';
+    document.getElementById('modalDrugUnit').value = unitId || '';
+    document.getElementById('modalDrugDays').value = days || '1';
+    document.getElementById('modalDrugDayAdmin').value = dayAdmin || '1';
+    document.getElementById('modalDrugRoute').value = routeId || '';
+    document.getElementById('modalDrugAdministered').value = (adminVal === '1' || adminVal === true || adminVal === 'True') ? '1' : '0';
+
+    modal.style.display = 'flex';
+}
+
+function closeAddDrugModal() {
+    document.getElementById('addDrugModal').style.display = 'none';
+}
+</script>
+{% endblock %}

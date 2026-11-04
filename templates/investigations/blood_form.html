@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if blood %}Edit Blood Investigation{% else %}New Blood Investigation{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Blood Investigations</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>🩸 frmBlood: Complete Hematology, RFT, LFT & Electrolyte Panels</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'investigations_hub' patient.mr_no %}?tab=blood" style="color: #fff; text-decoration: underline;">Back to Hub</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label" style="font-weight: bold;">Test Date *</label>
+                    <input type="date" name="test_date" 
+                           value="{% if blood and blood.test_date %}{{ blood.test_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                           class="access-input" required>
+                </div>
+                <div>
+                    <label class="access-label">Lab Reference / Sample No.</label>
+                    <input type="text" name="lab_reference_no" 
+                           value="{% if blood %}{{ blood.lab_reference_no|default:'' }}{% endif %}" 
+                           class="access-input" placeholder="e.g. LAB-2026-4421">
+                </div>
+                <div>
+                    <label class="access-label">Specimen Type</label>
+                    <input type="text" name="specimen_type" 
+                           value="{% if blood %}{{ blood.specimen_type }}{% else %}Blood{% endif %}" 
+                           class="access-input">
+                </div>
+            </div>
+
+            <!-- CBC Panel -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. Complete Blood Count (CBC)</legend>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+                    <div>
+                        <label class="access-label">Hemoglobin (Hb) [g/dL]</label>
+                        <input type="number" step="0.1" name="hb" value="{% if blood and blood.hb %}{{ blood.hb }}{% endif %}" class="access-input" placeholder="e.g. 11.5">
+                    </div>
+                    <div>
+                        <label class="access-label">Total Leukocytes (TC) [/uL]</label>
+                        <input type="number" step="1" name="tc" value="{% if blood and blood.tc %}{{ blood.tc }}{% endif %}" class="access-input" placeholder="e.g. 7400">
+                    </div>
+                    <div>
+                        <label class="access-label">Platelet Count [lakhs/uL]</label>
+                        <input type="number" step="0.01" name="platelet" value="{% if blood and blood.platelet %}{{ blood.platelet }}{% endif %}" class="access-input" placeholder="e.g. 2.40">
+                    </div>
+                    <div>
+                        <label class="access-label">Abs. Neutrophil Count (ANC)</label>
+                        <input type="number" step="1" name="anc" value="{% if blood and blood.anc %}{{ blood.anc }}{% endif %}" class="access-input" placeholder="e.g. 4500">
+                    </div>
+                    <div>
+                        <label class="access-label">Abs. Lymphocyte Count (ALC)</label>
+                        <input type="number" step="1" name="alc" value="{% if blood and blood.alc %}{{ blood.alc }}{% endif %}" class="access-input" placeholder="e.g. 1800">
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Renal & Liver Panel -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">2. Renal & Liver Function Tests (RFT / LFT)</legend>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label">Serum Urea [mg/dL]</label>
+                        <input type="number" step="0.1" name="serum_urea" value="{% if blood and blood.serum_urea %}{{ blood.serum_urea }}{% endif %}" class="access-input" placeholder="e.g. 28.0">
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Serum Creatinine [mg/dL]</label>
+                        <input type="number" step="0.01" name="serum_creatinine" value="{% if blood and blood.serum_creatinine %}{{ blood.serum_creatinine }}{% endif %}" class="access-input" placeholder="e.g. 0.85">
+                    </div>
+                    <div>
+                        <label class="access-label">Total Protein [g/dL]</label>
+                        <input type="number" step="0.1" name="total_protein" value="{% if blood and blood.total_protein %}{{ blood.total_protein }}{% endif %}" class="access-input" placeholder="e.g. 6.8">
+                    </div>
+                    <div>
+                        <label class="access-label">Serum Albumin [g/dL]</label>
+                        <input type="number" step="0.1" name="serum_albumin" value="{% if blood and blood.serum_albumin %}{{ blood.serum_albumin }}{% endif %}" class="access-input" placeholder="e.g. 3.9">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div>
+                        <label class="access-label">SGOT / AST [U/L]</label>
+                        <input type="number" step="1" name="sgot" value="{% if blood and blood.sgot %}{{ blood.sgot }}{% endif %}" class="access-input" placeholder="e.g. 24">
+                    </div>
+                    <div>
+                        <label class="access-label">SGPT / ALT [U/L]</label>
+                        <input type="number" step="1" name="sgpt" value="{% if blood and blood.sgpt %}{{ blood.sgpt }}{% endif %}" class="access-input" placeholder="e.g. 22">
+                    </div>
+                    <div>
+                        <label class="access-label">Alkaline Phosphatase (ALP) [U/L]</label>
+                        <input type="number" step="1" name="alp" value="{% if blood and blood.alp %}{{ blood.alp }}{% endif %}" class="access-input" placeholder="e.g. 95">
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Electrolytes -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">3. Serum Electrolytes</legend>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div>
+                        <label class="access-label">Sodium (Na+) [mEq/L]</label>
+                        <input type="number" step="0.1" name="serum_sodium" value="{% if blood and blood.serum_sodium %}{{ blood.serum_sodium }}{% endif %}" class="access-input" placeholder="e.g. 138.0">
+                    </div>
+                    <div>
+                        <label class="access-label">Potassium (K+) [mEq/L]</label>
+                        <input type="number" step="0.1" name="serum_potassium" value="{% if blood and blood.serum_potassium %}{{ blood.serum_potassium }}{% endif %}" class="access-input" placeholder="e.g. 4.2">
+                    </div>
+                    <div>
+                        <label class="access-label">Calcium (Ca2+) [mg/dL]</label>
+                        <input type="number" step="0.1" name="serum_calcium" value="{% if blood and blood.serum_calcium %}{{ blood.serum_calcium }}{% endif %}" class="access-input" placeholder="e.g. 9.1">
+                    </div>
+                </div>
+            </fieldset>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label">Clinical Details / Other Labs</label>
+                    <textarea name="details" class="access-textarea" rows="2" placeholder="Urine routine, viral serology, etc...">{% if blood %}{{ blood.details|default:'' }}{% endif %}</textarea>
+                </div>
+                <div>
+                    <label class="access-label">Lab Impression / Toxicities</label>
+                    <textarea name="impression" class="access-textarea" rows="2" placeholder="Clinically significant findings...">{% if blood %}{{ blood.impression|default:'' }}{% endif %}</textarea>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Blood Test Record
+                </button>
+                <a href="{% url 'investigations_hub' patient.mr_no %}?tab=blood" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

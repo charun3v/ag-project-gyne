@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}User Management - MS Access frmUsers{% endblock %}
+
+{% block content %}
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>👥 frmUsers: System User Accounts & Role-Based Access Control (RBAC)</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Back to Dashboard</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 11px; color: #444;">
+                Active system accounts: <strong>{{ users|length }} user{{ users|length|pluralize }}</strong>
+            </span>
+            <div style="display: flex; gap: 8px;">
+                <a href="{% url 'user_create' %}" class="btn-access btn-primary-action">
+                    ➕ Create New User Account
+                </a>
+                <a href="{% url 'lookup_manager_default' %}" class="btn-access">
+                    ⚙️ Dropdown Options Manager
+                </a>
+            </div>
+        </div>
+
+        <table class="access-table">
+            <thead>
+                <tr>
+                    <th style="width: 140px;">Username</th>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Assigned Role</th>
+                    <th style="width: 80px; text-align: center;">Status</th>
+                    <th style="width: 130px;">Last Login</th>
+                    <th style="width: 150px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td>
+                            <strong style="color: #003366;">{{ u.username }}</strong>
+                            {% if u.is_superuser %}
+                                <span style="background: #e8eef4; color: #003366; font-size: 9px; padding: 1px 4px; border-radius: 2px; margin-left: 4px;">Admin</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ u.get_full_name|default:'-' }}</td>
+                        <td>{{ u.email|default:'-' }}</td>
+                        <td>
+                            {% if u.profile.role %}
+                                <span style="background: #eef2f7; color: #003366; border: 1px solid #b8c4d2; padding: 2px 6px; border-radius: 2px; font-weight: bold; font-size: 10px;">
+                                    🛡️ {{ u.profile.role.role_name }}
+                                </span>
+                            {% else %}
+                                <span style="color: #777;">No Role Assigned</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if u.is_active %}
+                                <span style="color: #2e7d32; font-weight: bold;">✓ Active</span>
+                            {% else %}
+                                <span style="color: #b00000; font-weight: bold;">✗ Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ u.last_login|date:'d-M-Y H:i'|default:'Never' }}</td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            <a href="{% url 'user_edit' u.id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                ✏️ Edit
+                            </a>
+                            {% if u != request.user %}
+                                <a href="{% url 'user_toggle_active' u.id %}" class="btn-access" 
+                                   style="font-size: 10px; padding: 2px 6px; {% if u.is_active %}color: #b00000;{% else %}color: #2e7d32;{% endif %}"
+                                   onclick="return confirm('Change active status for {{ u.username }}?');">
+                                    {% if u.is_active %}🔒 Deactivate{% else %}🔓 Activate{% endif %}
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
+                            No user accounts found.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- RBAC Capabilities Overview -->
+        <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-top: 14px; background: #fafafa;">
+            <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
+                Role-Based Capability Privileges (sbtblRole)
+            </legend>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 11px;">
+                {% for r in roles %}
+                    <div style="border: 1px solid #d0dae5; background: #fff; padding: 6px; border-radius: 2px;">
+                        <strong style="color: #003366;">{{ r.role_name }}</strong>
+                        <div style="color: #666; font-size: 10px; margin-top: 2px;">{{ r.role_description|default:'Standard role' }}</div>
+                        <div style="margin-top: 4px; font-size: 9px; color: #444;">
+                            {% if r.cap_register_patient %}• Register Patients {% endif %}
+                            {% if r.cap_enter_clinical %}• Clinical Entry {% endif %}
+                            {% if r.cap_enter_treatment %}• Radiotherapy {% endif %}
+                            {% if r.cap_approve %}• Approval Authority {% endif %}
+                            {% if r.cap_manage_users %}• Manage Users {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </fieldset>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Patient - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge" style="background: #dc2626;">ADMIN RECORD MANAGEMENT</span>
+    </div>
+</div>
+
+<div class="access-subform" style="max-width: 600px; margin: 25px auto;">
+    <div class="access-subform-header" style="background: #990000;">
+        <span>⚠️ Administrator Confirmation: Delete Patient</span>
+    </div>
+    <div class="access-subform-body" style="padding: 20px;">
+        <p style="font-size: 13px; color: #333; margin-bottom: 12px;">
+            Are you sure you want to delete the patient record for <strong>{{ patient.pt_name }}</strong> (MR No: <strong>{{ patient.mr_no }}</strong>)?
+        </p>
+        <div style="background: #fff5f5; border: 1px solid #fed7d7; padding: 10px; border-radius: 3px; font-size: 11px; color: #9b2c2c; margin-bottom: 16px;">
+            <strong>Warning:</strong> Deleting this record will remove the patient from all active clinical dashboards, search results, and worklists. This administrative action is permanently logged in the audit trail.
+        </div>
+        <form method="post" action="">
+            {% csrf_token %}
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button type="submit" class="btn-access" style="background: #dc2626; color: #fff; font-weight: bold; border-color: #b91c1c; padding: 6px 16px;">
+                    🗑️ Yes, Delete Patient
+                </button>
+                <a href="{% url 'dashboard' %}" class="btn-access" style="padding: 6px 14px;">
+                    Cancel / Back to Dashboard
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

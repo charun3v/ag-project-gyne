@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+
+{% block title %}Clinical History - {{ patient.mr_no }} {{ patient.pt_name }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Clinical History & Comorbidities</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>📋 frmHistory: Medical & Surgical History, Comorbidities, Habits</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Back to Dashboard</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center;">
+                <div>
+                    <label class="access-label" style="font-weight: bold;">History Snapshot Date</label>
+                    <input type="date" name="snapshot_date" 
+                           value="{% if history and history.snapshot_date %}{{ history.snapshot_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                           class="access-input" style="width: 160px;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <!-- Comorbidities -->
+                <fieldset style="border: 1px solid #c0c0c0; padding: 10px; background: #fafafa;">
+                    <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. Systemic Comorbidities</legend>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="hypertension" value="1" {% if history and history.hypertension %}checked{% endif %}>
+                            Hypertension (HTN)
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="diabetic" value="1" {% if history and history.diabetic %}checked{% endif %}>
+                            Diabetes Mellitus (DM)
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="hypothyroidism" value="1" {% if history and history.hypothyroidism %}checked{% endif %}>
+                            Hypothyroidism
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="seizures" value="1" {% if history and history.seizures %}checked{% endif %}>
+                            Seizure Disorder
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="comorbidity_others" value="1" {% if history and history.comorbidity_others %}checked{% endif %}>
+                            Other Medical Comorbidities
+                        </label>
+                    </div>
+                    <div>
+                        <label class="access-label">Comorbidity Details / Medication</label>
+                        <textarea name="comorbidity_notes" class="access-textarea" rows="2" placeholder="Details of comorbidities and active medications...">{% if history %}{{ history.comorbidity_notes|default:'' }}{% endif %}</textarea>
+                    </div>
+                </fieldset>
+
+                <!-- Habits -->
+                <fieldset style="border: 1px solid #c0c0c0; padding: 10px; background: #fafafa;">
+                    <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">2. Personal Habits</legend>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="smoking" value="1" {% if history and history.smoking %}checked{% endif %}>
+                            Smoking (Cigarettes/Bidi)
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="alcohol" value="1" {% if history and history.alcohol %}checked{% endif %}>
+                            Alcohol Intake
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="tobacco_chewing" value="1" {% if history and history.tobacco_chewing %}checked{% endif %}>
+                            Tobacco Chewing / Gutkha
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="habits_others" value="1" {% if history and history.habits_others %}checked{% endif %}>
+                            Other Habits
+                        </label>
+                    </div>
+                    <div>
+                        <label class="access-label">Habits Specifics / Frequency</label>
+                        <textarea name="habits_notes" class="access-textarea" rows="2" placeholder="Pack years, duration, frequency...">{% if history %}{{ history.habits_notes|default:'' }}{% endif %}</textarea>
+                    </div>
+                </fieldset>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <!-- Presenting Complaints -->
+                <fieldset style="border: 1px solid #c0c0c0; padding: 10px; background: #fafafa;">
+                    <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">3. Presenting Gynecological Symptoms</legend>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="bleeding_pv" value="1" {% if history and history.bleeding_pv %}checked{% endif %}>
+                            Bleeding P/V (Post-coital/Post-menopausal)
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="water_discharge_pv" value="1" {% if history and history.water_discharge_pv %}checked{% endif %}>
+                            Foul / Watery Discharge P/V
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="dyspareunia" value="1" {% if history and history.dyspareunia %}checked{% endif %}>
+                            Dyspareunia
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="loin_pain" value="1" {% if history and history.loin_pain %}checked{% endif %}>
+                            Loin / Flank Pain
+                        </label>
+                    </div>
+                    <div>
+                        <label class="access-label">History of Present Illness (HPI)</label>
+                        <textarea name="hpi" class="access-textarea" rows="3" placeholder="Duration of symptoms, progression, initial presentation...">{% if history %}{{ history.hpi|default:'' }}{% endif %}</textarea>
+                    </div>
+                </fieldset>
+
+                <!-- Prior Oncology Treatment & Surgeries -->
+                <fieldset style="border: 1px solid #c0c0c0; padding: 10px; background: #fafafa;">
+                    <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">4. Prior Oncology Treatments & Surgeries</legend>
+                    <div style="margin-bottom: 6px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="prior_radiation" value="1" {% if history and history.prior_radiation %}checked{% endif %}>
+                            Prior Radiation Therapy (Pelvic / Abdominal)
+                        </label>
+                        <input type="text" name="prior_radiation_details" 
+                               value="{% if history %}{{ history.prior_radiation_details|default:'' }}{% endif %}" 
+                               class="access-input" placeholder="Prior RT dose, fields, dates, institution...">
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="previous_surgery" value="1" {% if history and history.previous_surgery %}checked{% endif %}>
+                            Previous Pelvic / Abdominal Surgeries
+                        </label>
+                        <input type="text" name="previous_surgery_details" 
+                               value="{% if history %}{{ history.previous_surgery_details|default:'' }}{% endif %}" 
+                               class="access-input" placeholder="TAH-BSO, laparotomy, cesarean, dates...">
+                    </div>
+                    <div>
+                        <label class="access-label">Past Medical / Surgical Remarks</label>
+                        <textarea name="past_med_surg" class="access-textarea" rows="2" placeholder="Other surgeries, allergies, family history...">{% if history %}{{ history.past_med_surg|default:'' }}{% endif %}</textarea>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- Access Command Button Ribbon -->
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" name="save_stay" class="btn-access btn-primary-action">
+                    💾 Save History Record
+                </button>
+                <button type="submit" name="save_next" class="btn-access">
+                    ➡️ Save & Proceed to Baseline Exam
+                </button>
+                <a href="{% url 'diagnosis_detail' patient.mr_no %}" class="btn-access">
+                    🎯 View Diagnosis
+                </a>
+                <div style="flex-grow: 1;"></div>
+                <a href="{% url 'dashboard' %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

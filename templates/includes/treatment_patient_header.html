@@ -1,0 +1,125 @@
+<!-- Reusable Locked Patient Header & Approval Banner for Oncology Treatment Forms -->
+<div class="access-subform" style="margin-bottom: 12px; border: 1px solid #7f9db9;">
+    <!-- Patient Demographic & Diagnosis Header (Strictly Read-Only / Locked) -->
+    <div style="background: #e6edf5; border-bottom: 1px solid #b0c4de; padding: 10px 14px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 2fr; gap: 12px; align-items: center; font-size: 12px;">
+        <div>
+            <div style="font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold;">Patient Name</div>
+            <div style="font-size: 14px; font-weight: bold; color: #003366;">{{ patient.pt_name }}</div>
+        </div>
+        <div>
+            <div style="font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold;">MR Number</div>
+            <div style="font-size: 13px; font-weight: bold; color: #222; font-family: monospace;">{{ patient.mr_no }}</div>
+        </div>
+        <div>
+            <div style="font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold;">Age / Sex</div>
+            <div style="font-size: 12px; font-weight: 600; color: #333;">{{ patient.age|default:"--" }} Yrs / {{ patient.sex }}</div>
+        </div>
+        <div>
+            <div style="font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold;">Reg Date</div>
+            <div style="font-size: 12px; color: #444;">{{ patient.date_of_registration|date:"d M Y" }}</div>
+        </div>
+        <div>
+            <div style="font-size: 10px; color: #555; text-transform: uppercase; font-weight: bold;">Confirmed Diagnosis & Stage</div>
+            <div style="font-size: 12px; font-weight: bold; color: #873800;">{{ patient.diagnosis_display }}</div>
+        </div>
+    </div>
+
+    <!-- Formal Approval & Locking Status Bar -->
+    <div style="background: {% if course and course.is_approved %}#f6ffed{% else %}#fffbe6{% endif %}; border-top: 1px solid {% if course and course.is_approved %}#b7eb8f{% else %}#ffe58f{% endif %}; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            {% if course and course.is_approved %}
+                <span style="display: inline-flex; align-items: center; gap: 4px; background: #52c41a; color: #fff; font-weight: bold; padding: 3px 8px; border-radius: 3px; font-size: 11px;">
+                    🔒 APPROVED & LOCKED
+                </span>
+                <span style="color: #274916;">
+                    Formally signed off by <strong>{{ course.approved_by }}</strong> on <strong>{{ course.approved_on|date:"d M Y H:i" }}</strong>. Routine editing is prohibited.
+                </span>
+            {% else %}
+                <span style="display: inline-flex; align-items: center; gap: 4px; background: #faad14; color: #000; font-weight: bold; padding: 3px 8px; border-radius: 3px; font-size: 11px;">
+                    📝 DRAFT / UNAPPROVED
+                </span>
+                <span style="color: #874d00;">
+                    Treatment episode is editable. Formal consultant/administrator sign-off is required upon course finalization.
+                </span>
+            {% endif %}
+        </div>
+
+        {% if course %}
+        <div>
+            {% if course.is_approved %}
+                <button type="button" class="btn-access" onclick="openApprovalModal('unapprove')" style="background: #fff; border: 1px solid #d9d9d9; color: #cf1322; font-weight: bold;">
+                    🔓 Unlock / Unapprove Course
+                </button>
+            {% else %}
+                <button type="button" class="btn-access" onclick="openApprovalModal('approve')" style="background: #003366; color: #fff; font-weight: bold;">
+                    🔒 Consultant Sign-Off & Approve
+                </button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal for Consultant Password Verification -->
+{% if course %}
+<div id="approvalModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #fff; width: 440px; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); overflow: hidden; border: 2px solid #003366;">
+        <div style="background: #003366; color: #fff; padding: 10px 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+            <span id="modalTitle">Consultant Sign-Off & Lock</span>
+            <span style="cursor: pointer; font-size: 16px;" onclick="closeApprovalModal()">&times;</span>
+        </div>
+        <form method="post" action="{% url 'treatment_approve_toggle' form_type course_id %}" id="modalForm">
+            {% csrf_token %}
+            <input type="hidden" name="action_type" id="modalActionType" value="approve">
+            <div style="padding: 16px; font-size: 12px; color: #333;">
+                <p id="modalDescription" style="margin-bottom: 12px; line-height: 1.4;">
+                    Please confirm consultant sign-off for this treatment course. Once approved, all planning parameters, cycle entries, and drug administrations will be locked against editing.
+                </p>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 4px;">Senior Clinician / Approver Username</label>
+                    <input type="text" name="approver_username" value="{{ request.user.username }}" readonly class="access-input" style="background: #f0f0f0;">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 4px;">Confirm Your Password</label>
+                    <input type="password" name="password" required class="access-input" placeholder="Enter password to verify identity" autofocus>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" class="btn-access" onclick="closeApprovalModal()">Cancel</button>
+                    <button type="submit" class="btn-access btn-primary-action" id="modalSubmitBtn">
+                        Confirm Sign-Off
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openApprovalModal(action) {
+    const modal = document.getElementById('approvalModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDesc = document.getElementById('modalDescription');
+    const modalAction = document.getElementById('modalActionType');
+    const submitBtn = document.getElementById('modalSubmitBtn');
+
+    if (action === 'unapprove') {
+        modalTitle.textContent = 'Unlock / Unapprove Treatment Record';
+        modalDesc.innerHTML = '<strong>Caution:</strong> Unapproving this course will remove the lock and allow data modifications. This action is audited under senior clinician oversight.';
+        modalAction.value = 'unapprove';
+        submitBtn.textContent = 'Confirm Unlock';
+        submitBtn.style.background = '#cf1322';
+    } else {
+        modalTitle.textContent = 'Consultant Sign-Off & Lock';
+        modalDesc.innerHTML = 'Confirming formal sign-off will lock this treatment record against routine editing. All dates, cycles, and drugs will be marked as verified.';
+        modalAction.value = 'approve';
+        submitBtn.textContent = 'Confirm Sign-Off & Lock';
+        submitBtn.style.background = '#003366';
+    }
+    modal.style.display = 'flex';
+}
+
+function closeApprovalModal() {
+    document.getElementById('approvalModal').style.display = 'none';
+}
+</script>
+{% endif %}

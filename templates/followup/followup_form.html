@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if fu %}Edit Follow-Up Record{% else %}New Follow-Up Visit{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Follow-Up & Surveillance Visit</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>📅 frmFollowUpStatus: Surveillance Visit, Recurrence Assessment & Vital Status</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'followup_list' patient.mr_no %}" style="color: #fff; text-decoration: underline;">Back to Follow-Up List</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <!-- Section 1: Visit Meta & General Disease Status -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. Visit Contact & Overall Oncologic Status</legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Visit Date *</label>
+                        <input type="date" name="follow_up_date" 
+                               value="{% if fu and fu.follow_up_date %}{{ fu.follow_up_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                               class="access-input" required>
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Contact Type *</label>
+                        <select name="contact_type_id" class="access-select" required>
+                            <option value="">-- Select Contact Type --</option>
+                            {% for ct in contact_types %}
+                                <option value="{{ ct.contact_type_id }}" {% if fu and fu.contact_type_id == ct.contact_type_id %}selected{% endif %}>
+                                    {{ ct.contact_type }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Current Disease Status *</label>
+                        <select name="disease_status_id" class="access-select" required>
+                            <option value="">-- Select Disease Status --</option>
+                            {% for ds in disease_statuses %}
+                                <option value="{{ ds.disease_status_id }}" {% if fu and fu.disease_status_id == ds.disease_status_id %}selected{% endif %}>
+                                    {{ ds.status_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Proxy Status</label>
+                        <select name="proxy_status_id" class="access-select">
+                            <option value="">-- Direct Patient Encounter --</option>
+                            {% for ps in proxy_statuses %}
+                                <option value="{{ ps.proxy_status_id }}" {% if fu and fu.proxy_status_id == ps.proxy_status_id %}selected{% endif %}>
+                                    {{ ps.status_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="access-label">Clinical Performance & Quality of Life Notes</label>
+                    <textarea name="performance_notes" class="access-textarea" rows="2" placeholder="Late radiation toxicities (radiation proctitis, vaginal stenosis, lymphedema), ECOG performance, bladder/bowel habits...">{% if fu %}{{ fu.performance_notes|default:'' }}{% endif %}</textarea>
+                </div>
+            </fieldset>
+
+            <!-- Section 2: Recurrence Monitoring & Salvage Strategy -->
+            <fieldset style="border: 2px solid #b00000; padding: 10px; margin-bottom: 12px; background: #fffdfd;">
+                <legend style="font-weight: bold; color: #b00000; padding: 0 5px; font-size: 11px;">
+                    ⚠️ 2. Cancer Recurrence & Progression Monitoring
+                </legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" name="recurrence_detected" value="1" {% if fu and fu.recurrence_detected %}checked{% endif %}>
+                        <label class="access-label" style="margin: 0; font-weight: bold; color: #b00000;">Recurrence Detected at this Visit</label>
+                    </div>
+                    <div>
+                        <label class="access-label">Date of Recurrence Confirmation</label>
+                        <input type="date" name="date_of_recurrence" 
+                               value="{% if fu and fu.date_of_recurrence %}{{ fu.date_of_recurrence|date:'Y-m-d' }}{% endif %}" 
+                               class="access-input">
+                    </div>
+                    <div>
+                        <label class="access-label">Confirmed By</label>
+                        <input type="text" name="recurrence_confirmed_by" 
+                               value="{% if fu %}{{ fu.recurrence_confirmed_by|default:'' }}{% endif %}" 
+                               class="access-input" placeholder="e.g. Biopsy vault, PET-CT scan">
+                    </div>
+                </div>
+
+                <!-- Recurrence Patterns -->
+                <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 8px; margin-bottom: 8px;">
+                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #003366;">Recurrence Pattern & Sites:</div>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="recurrence_local" value="1" {% if fu and fu.recurrence_local %}checked{% endif %}>
+                            Local / Vaginal Vault
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="recurrence_nodal" value="1" {% if fu and fu.recurrence_nodal %}checked{% endif %}>
+                            Regional Nodal
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="recurrence_distant" value="1" {% if fu and fu.recurrence_distant %}checked{% endif %}>
+                            Distant Visceral
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="second_primary" value="1" {% if fu and fu.second_primary %}checked{% endif %}>
+                            Second Primary Malignancy
+                        </label>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+                    <div>
+                        <label class="access-label">Primary Recurrence Site</label>
+                        <select name="recurrence_site_id" class="access-select">
+                            <option value="">-- Select Recurrence Site --</option>
+                            {% for rs in recurrence_sites %}
+                                <option value="{{ rs.recurrence_site_id }}" {% if fu and fu.recurrence_site_id == rs.recurrence_site_id %}selected{% endif %}>
+                                    {{ rs.site_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Salvage / Palliative Treatment Plan</label>
+                        <input type="text" name="recurrence_treatment_plan" 
+                               value="{% if fu %}{{ fu.recurrence_treatment_plan|default:'' }}{% endif %}" 
+                               class="access-input" placeholder="e.g. Pembrolizumab + Lenvatinib, Palliative SBRT, Pelvic Exenteration...">
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Section 3: Vital Status, Death Reporting & Next Follow-Up -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">3. Vital Status & Scheduling</legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" name="death_reported" value="1" {% if fu and fu.death_reported %}checked{% endif %}>
+                        <label class="access-label" style="margin: 0; font-weight: bold; color: #000;">Patient Deceased (Death Reported)</label>
+                    </div>
+                    <div>
+                        <label class="access-label">Date of Death</label>
+                        <input type="date" name="date_of_death" 
+                               value="{% if fu and fu.date_of_death %}{{ fu.date_of_death|date:'Y-m-d' }}{% endif %}" 
+                               class="access-input">
+                    </div>
+                    <div>
+                        <label class="access-label">Cause of Death</label>
+                        <select name="cause_of_death_id" class="access-select">
+                            <option value="">-- Select Cause --</option>
+                            {% for cod in causes_of_death %}
+                                <option value="{{ cod.cause_of_death_id }}" {% if fu and fu.cause_of_death_id == cod.cause_of_death_id %}selected{% endif %}>
+                                    {{ cod.cause_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">Next Scheduled Follow-Up Date</label>
+                        <input type="date" name="next_fu_date" 
+                               value="{% if fu and fu.next_fu_date %}{{ fu.next_fu_date|date:'Y-m-d' }}{% endif %}" 
+                               class="access-input">
+                    </div>
+                    <div>
+                        <label class="access-label">Next Visit Instructions</label>
+                        <input type="text" name="next_fu_notes" 
+                               value="{% if fu %}{{ fu.next_fu_notes|default:'' }}{% endif %}" 
+                               class="access-input" placeholder="e.g. Review with MRI Pelvis and serum creatinine in 3 months">
+                    </div>
+                </div>
+            </fieldset>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Follow-Up Record
+                </button>
+                {% if fu and user.is_staff or user.is_superuser %}
+                    <button type="submit" formaction="{% url 'followup_delete' patient.mr_no fu.follow_up_status_id %}" 
+                            onclick="return confirm('Are you sure you want to delete this follow-up visit on {{ fu.follow_up_date|date:\'d-M-Y\' }}?');"
+                            class="btn-access" style="color: #b00000; border-color: #ffcccc;">
+                        🗑️ Delete Entry
+                    </button>
+                {% endif %}
+                <a href="{% url 'followup_list' patient.mr_no %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

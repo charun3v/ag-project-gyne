@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if cycle %}Edit Cycle #{{ cycle.cycle_number }}{% else %}New Concurrent Cycle{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Concurrent Chemotherapy Cycle</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>💊 frmConcurrentChemoCycles: Chemotherapy Infusion Administration</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'concurrent_edit' patient.mr_no course.conc_chemo_course_id %}" style="color: #fff; text-decoration: underline;">Back to Course</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label" style="font-weight: bold;">Cycle Number *</label>
+                    <input type="number" name="cycle_number" 
+                           value="{% if cycle %}{{ cycle.cycle_number }}{% else %}{{ course.received_cycles|add:1 }}{% endif %}" 
+                           class="access-input" required>
+                </div>
+                <div>
+                    <label class="access-label" style="font-weight: bold;">Cycle Administration Date *</label>
+                    <input type="date" name="cycle_date" 
+                           value="{% if cycle and cycle.cycle_date %}{{ cycle.cycle_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                           class="access-input" required>
+                </div>
+                <div>
+                    <label class="access-label">Cycle Status</label>
+                    <select name="cycle_status" class="access-select">
+                        <option value="Administered" {% if not cycle or cycle.cycle_status == 'Administered' %}selected{% endif %}>Administered</option>
+                        <option value="Reduced Dose" {% if cycle and cycle.cycle_status == 'Reduced Dose' %}selected{% endif %}>Reduced Dose</option>
+                        <option value="Delayed" {% if cycle and cycle.cycle_status == 'Delayed' %}selected{% endif %}>Delayed</option>
+                        <option value="Omitted" {% if cycle and cycle.cycle_status == 'Omitted' %}selected{% endif %}>Omitted</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Drug Administration -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">Drug Dosimetry & Route</legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Chemotherapy Agent *</label>
+                        <select name="chemo_agent_id" class="access-select" required>
+                            <option value="">-- Select Agent --</option>
+                            {% for a in agents %}
+                                <option value="{{ a.agent_id }}" {% if drug and drug.chemo_agent_id == a.agent_id %}selected{% elif a.agent_name == 'Cisplatin' %}selected{% endif %}>
+                                    {{ a.agent_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Dose *</label>
+                        <input type="number" step="0.1" name="dose" 
+                               value="{% if drug and drug.dose %}{{ drug.dose }}{% else %}40.0{% endif %}" 
+                               class="access-input" required placeholder="e.g. 40.0">
+                    </div>
+                    <div>
+                        <label class="access-label">Dose Unit</label>
+                        <select name="dose_unit_id" class="access-select">
+                            <option value="">-- Select Unit --</option>
+                            {% for u in dose_units %}
+                                <option value="{{ u.unit_id }}" {% if drug and drug.dose_unit_id == u.unit_id %}selected{% elif u.unit_name == 'mg/m2' %}selected{% endif %}>
+                                    {{ u.unit_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Route</label>
+                        <select name="chemo_route_id" class="access-select">
+                            <option value="">-- Select Route --</option>
+                            {% for r in routes %}
+                                <option value="{{ r.route_id }}" {% if drug and drug.chemo_route_id == r.route_id %}selected{% elif r.route_name == 'IV Infusion' %}selected{% endif %}>
+                                    {{ r.route_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div>
+                        <label class="access-label">Total Dose (mg absolute)</label>
+                        <input type="number" step="0.1" name="dose_mg" 
+                               value="{% if drug and drug.dose_mg %}{{ drug.dose_mg }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 60.0">
+                    </div>
+                    <div>
+                        <label class="access-label">BSA (m²)</label>
+                        <input type="number" step="0.01" name="bsa_m2" 
+                               value="{% if drug and drug.bsa_m2 %}{{ drug.bsa_m2 }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 1.50">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px; padding-top: 14px;">
+                        <input type="checkbox" name="administered" value="1" {% if not drug or drug.administered %}checked{% endif %}>
+                        <label class="access-label" style="margin: 0; font-weight: bold; color: #2e7d32;">Fully Administered</label>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label">Toxicity / Adverse Events Observed</label>
+                    <textarea name="cycle_toxicity" class="access-textarea" rows="2" placeholder="Nausea, vomiting, neuropathy, drop in ANC/platelets...">{% if cycle %}{{ cycle.cycle_toxicity|default:'' }}{% endif %}</textarea>
+                </div>
+                <div>
+                    <label class="access-label">Pre / Post-Cycle Clinical Notes</label>
+                    <textarea name="post_cycle_notes" class="access-textarea" rows="2" placeholder="Pre-hydration liters, post-hydration urine output, antiemetics...">{% if cycle %}{{ cycle.post_cycle_notes|default:'' }}{% endif %}</textarea>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Cycle Administration
+                </button>
+                <a href="{% url 'concurrent_edit' patient.mr_no course.conc_chemo_course_id %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

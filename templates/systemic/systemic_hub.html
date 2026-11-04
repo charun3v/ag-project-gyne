@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block title %}Systemic Chemotherapy Hub - {{ patient.mr_no }} {{ patient.pt_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .chemo-tab-bar {
+        display: flex;
+        background: #d8e2eb;
+        border-bottom: 2px solid #003366;
+        padding-left: 6px;
+        margin-bottom: 10px;
+    }
+    .chemo-tab {
+        padding: 6px 14px;
+        font-size: 11px;
+        font-weight: bold;
+        color: #333;
+        text-decoration: none;
+        border: 1px solid #b0c4de;
+        border-bottom: none;
+        background: #eef2f7;
+        margin-right: 4px;
+        border-top-left-radius: 3px;
+        border-top-right-radius: 3px;
+    }
+    .chemo-tab.active {
+        background: #fff;
+        color: #003366;
+        border-color: #003366;
+        border-bottom: 2px solid #fff;
+        margin-bottom: -2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Systemic Chemotherapy: Concurrent, NACT & Adjuvant</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>💊 frmSystemic: Medical Oncology & Chemotherapy Regimens</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Back to Dashboard</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <!-- Tabs -->
+        <div class="chemo-tab-bar">
+            <a href="?tab=concurrent" class="chemo-tab {% if active_tab == 'concurrent' %}active{% endif %}">
+                ⚡ Concurrent Chemotherapy ({{ concurrent_courses.count }})
+            </a>
+            <a href="?tab=nact" class="chemo-tab {% if active_tab == 'nact' %}active{% endif %}">
+                ⏳ Neoadjuvant Chemotherapy (NACT) ({{ nact_courses.count }})
+            </a>
+            <a href="?tab=adjuvant" class="chemo-tab {% if active_tab == 'adjuvant' %}active{% endif %}">
+                🛡️ Adjuvant Chemotherapy ({{ adjuvant_courses.count }})
+            </a>
+        </div>
+
+        <!-- TAB 1: CONCURRENT CHEMO -->
+        {% if active_tab == 'concurrent' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: bold; color: #003366; font-size: 11px;">Concurrent Cisplatin / Chemotherapy Administered with Pelvic EBRT</span>
+                <a href="{% url 'concurrent_add' patient.mr_no %}" class="btn-access btn-primary-action">
+                    ➕ Add Concurrent Course
+                </a>
+            </div>
+            <table class="access-table">
+                <thead>
+                    <tr>
+                        <th>Regimen Code</th>
+                        <th>Cycle Frequency</th>
+                        <th>Cycles (Delivered / Planned)</th>
+                        <th>Dates (Start - End)</th>
+                        <th>Cycles Administered Details</th>
+                        <th>Status</th>
+                        <th style="width: 140px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cc in concurrent_courses %}
+                        <tr>
+                            <td><strong style="color: #003366;">{{ cc.chemo_regimen.regimen_code|default:'Cisplatin' }}</strong></td>
+                            <td>Every {{ cc.cycle_frequency_days }} days</td>
+                            <td><strong>{{ cc.received_cycles }}</strong> / {{ cc.planned_cycles }} cycles</td>
+                            <td>{{ cc.conc_chemo_start_date|date:'d-M-Y'|default:'-' }} to {{ cc.conc_chemo_end_date|date:'d-M-Y'|default:'-' }}</td>
+                            <td>
+                                {% for cy in cc.cycles.all %}
+                                    <span style="background: #e8eef4; padding: 1px 4px; border-radius: 2px; margin-right: 3px; font-size: 10px;">
+                                        #{{ cy.cycle_number }} ({{ cy.cycle_date|date:'d-M' }})
+                                    </span>
+                                {% empty %}
+                                    <span style="color: #777;">No cycles logged yet</span>
+                                {% endfor %}
+                            </td>
+                            <td>{{ cc.completion_status|default:'Active' }}</td>
+                            <td style="text-align: center; white-space: nowrap;">
+                                <a href="{% url 'concurrent_edit' patient.mr_no cc.conc_chemo_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                    ✏️ Course & Cycles
+                                </a>
+                                <a href="{% url 'concurrent_cycle_add' patient.mr_no cc.conc_chemo_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                    ➕ Cycle
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                                No concurrent chemotherapy course recorded. Click "Add Concurrent Course" above.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <!-- TAB 2: NACT -->
+        {% if active_tab == 'nact' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: bold; color: #003366; font-size: 11px;">Neoadjuvant Chemotherapy (NACT) & Clinical Response Assessment</span>
+                <a href="{% url 'nact_add' patient.mr_no %}" class="btn-access btn-primary-action">
+                    ➕ Add NACT Course
+                </a>
+            </div>
+            <table class="access-table">
+                <thead>
+                    <tr>
+                        <th>Regimen Code</th>
+                        <th>Cycle Frequency</th>
+                        <th>Cycles (Delivered / Planned)</th>
+                        <th>Dates</th>
+                        <th>Objective Response</th>
+                        <th>Post-NACT Evaluation</th>
+                        <th style="width: 80px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for nc in nact_courses %}
+                        <tr>
+                            <td><strong style="color: #003366;">{{ nc.chemo_regimen.regimen_code|default:'TP' }}</strong></td>
+                            <td>Every {{ nc.cycle_frequency_days }} days</td>
+                            <td><strong>{{ nc.received_cycles }}</strong> / {{ nc.planned_cycles }} cycles</td>
+                            <td>{{ nc.nact_start_date|date:'d-M-Y'|default:'-' }} to {{ nc.nact_end_date|date:'d-M-Y'|default:'-' }}</td>
+                            <td>
+                                <span style="background: #e8eef4; padding: 1px 6px; font-weight: bold; border-radius: 2px;">
+                                    {{ nc.response_to_nact.response_code|default:'Pending Assessment' }}
+                                </span>
+                            </td>
+                            <td>
+                                Assessment: {% if nc.post_nact_assessment_done %}Done{% else %}Pending{% endif %} | 
+                                MRI: {% if nc.post_nact_mri_done %}Done{% else %}Pending{% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                <a href="{% url 'nact_edit' patient.mr_no nc.nact_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                    ✏️ Edit
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                                No NACT course recorded. Click "Add NACT Course" above.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <!-- TAB 3: ADJUVANT -->
+        {% if active_tab == 'adjuvant' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: bold; color: #003366; font-size: 11px;">Post-Operative Adjuvant Chemotherapy</span>
+                <a href="{% url 'adjuvant_add' patient.mr_no %}" class="btn-access btn-primary-action">
+                    ➕ Add Adjuvant Course
+                </a>
+            </div>
+            <table class="access-table">
+                <thead>
+                    <tr>
+                        <th>Course #</th>
+                        <th>Cycles Planned</th>
+                        <th>Cycles Received</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                        <th style="width: 80px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ac in adjuvant_courses %}
+                        <tr>
+                            <td><strong>#{{ ac.course_sequence }}</strong></td>
+                            <td>{{ ac.planned_cycles }}</td>
+                            <td>{{ ac.received_cycles }}</td>
+                            <td>{{ ac.chemo_status.status_name|default:'Completed' }}</td>
+                            <td>{{ ac.notes|default:'-' }}</td>
+                            <td style="text-align: center;">
+                                <a href="{% url 'adjuvant_edit' patient.mr_no ac.adjuvant_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                    ✏️ Edit
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                                No adjuvant chemotherapy courses logged. Click "Add Adjuvant Course" above.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <!-- Navigation Ribbon -->
+        <div style="margin-top: 14px; display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+            <a href="{% url 'radiotherapy_hub' patient.mr_no %}" class="btn-access">
+                ⚡ Radiotherapy Hub
+            </a>
+            <a href="{% url 'followup_list' patient.mr_no %}" class="btn-access btn-primary-action">
+                ➡️ Follow-Up & Surveillance Tracking
+            </a>
+            <a href="{% url 'document_list' patient.mr_no %}" class="btn-access">
+                📁 Document Uploads
+            </a>
+            <div style="flex-grow: 1;"></div>
+            <a href="{% url 'dashboard' %}" class="btn-access" style="color: #666;">
+                🏠 Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

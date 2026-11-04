@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if imaging %}Edit Imaging Study{% else %}New Imaging Study{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Diagnostic Radiology & MRI Pelvis</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>🩻 frmImaging: Diagnostic Radiology, Pelvic MRI & Staging Scans</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'investigations_hub' patient.mr_no %}?tab=imaging" style="color: #fff; text-decoration: underline;">Back to Hub</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <!-- Section 1: Study Metadata -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. Imaging Study Metadata</legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Imaging Date *</label>
+                        <input type="date" name="imaging_date" 
+                               value="{% if imaging and imaging.imaging_date %}{{ imaging.imaging_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                               class="access-input" required>
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Imaging Modality *</label>
+                        <select name="imaging_type_id" id="imagingTypeSelect" class="access-select" required>
+                            <option value="">-- Select Modality --</option>
+                            {% for it in imaging_types %}
+                                <option value="{{ it.imaging_type_id }}" {% if imaging and imaging.imaging_type_id == it.imaging_type_id %}selected{% endif %}>
+                                    {{ it.imaging_type_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Anatomical Site</label>
+                        <select name="imaging_site_id" class="access-select">
+                            <option value="">-- Select Site --</option>
+                            {% for is in imaging_sites %}
+                                <option value="{{ is.imaging_site_id }}" {% if imaging and imaging.imaging_site_id == is.imaging_site_id %}selected{% endif %}>
+                                    {{ is.imaging_site_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Radiology / PACS Ref No.</label>
+                        <input type="text" name="lab_reference_no" 
+                               value="{% if imaging %}{{ imaging.lab_reference_no|default:'' }}{% endif %}" 
+                               class="access-input" placeholder="e.g. RAD-2026-9021">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="access-label">Overall Imaging Impression</label>
+                    <textarea name="impression" class="access-textarea" rows="2" placeholder="Key radiological impression and stage correlation...">{% if imaging %}{{ imaging.impression|default:'' }}{% endif %}</textarea>
+                </div>
+            </fieldset>
+
+            <!-- Section 2: High-Resolution Pelvic MRI Detailed Metrics -->
+            <input type="hidden" name="has_pelvis_detail" value="1">
+            <fieldset style="border: 2px solid #003366; padding: 10px; margin-bottom: 12px; background: #fcfcfc;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
+                    🎯 2. Pelvic MRI Anatomical Staging Metrics (tblMRIPelvisDetail)
+                </legend>
+
+                <!-- Dimensions & Volume -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label">Tumour Dimension 1 (cm)</label>
+                        <input type="number" step="0.1" name="tumour_dimension_1_cm" 
+                               value="{% if pelvis_detail and pelvis_detail.tumour_dimension_1_cm %}{{ pelvis_detail.tumour_dimension_1_cm }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 4.8">
+                    </div>
+                    <div>
+                        <label class="access-label">Tumour Dimension 2 (cm)</label>
+                        <input type="number" step="0.1" name="tumour_dimension_2_cm" 
+                               value="{% if pelvis_detail and pelvis_detail.tumour_dimension_2_cm %}{{ pelvis_detail.tumour_dimension_2_cm }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 3.6">
+                    </div>
+                    <div>
+                        <label class="access-label">Tumour Dimension 3 (cm)</label>
+                        <input type="number" step="0.1" name="tumour_dimension_3_cm" 
+                               value="{% if pelvis_detail and pelvis_detail.tumour_dimension_3_cm %}{{ pelvis_detail.tumour_dimension_3_cm }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 4.2">
+                    </div>
+                    <div>
+                        <label class="access-label">Tumour Volume (cc)</label>
+                        <input type="number" step="0.1" name="tumour_volume_cc" 
+                               value="{% if pelvis_detail and pelvis_detail.tumour_volume_cc %}{{ pelvis_detail.tumour_volume_cc }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 38.5">
+                    </div>
+                </div>
+
+                <!-- Cervix, Corpus, Vagina -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 6px;">
+                        <label style="font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="cervix_involved" value="1" {% if pelvis_detail and pelvis_detail.cervix_involved %}checked{% endif %}>
+                            Cervix Involved
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; margin-top: 4px;">
+                            <input type="checkbox" name="cervical_stromal_invasion" value="1" {% if pelvis_detail and pelvis_detail.cervical_stromal_invasion %}checked{% endif %}>
+                            Stromal Invasion &gt; 50%
+                        </label>
+                    </div>
+                    <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 6px;">
+                        <label style="font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="uterine_corpus_involved" value="1" {% if pelvis_detail and pelvis_detail.uterine_corpus_involved %}checked{% endif %}>
+                            Uterine Corpus Extension
+                        </label>
+                    </div>
+                    <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 6px;">
+                        <label style="font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="vaginal_involvement" value="1" {% if pelvis_detail and pelvis_detail.vaginal_involvement %}checked{% endif %}>
+                            Vaginal Involvement
+                        </label>
+                        <select name="vaginal_extent" class="access-select" style="margin-top: 4px;">
+                            <option value="">-- Vaginal Extent --</option>
+                            <option value="Upper Third" {% if pelvis_detail and pelvis_detail.vaginal_extent == 'Upper Third' %}selected{% endif %}>Upper 1/3 only</option>
+                            <option value="Middle Third" {% if pelvis_detail and pelvis_detail.vaginal_extent == 'Middle Third' %}selected{% endif %}>Middle 1/3</option>
+                            <option value="Lower Third" {% if pelvis_detail and pelvis_detail.vaginal_extent == 'Lower Third' %}selected{% endif %}>Lower 1/3</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Parametrial Involvement -->
+                <div style="background: #f0f4f8; border: 1px solid #c8d8e8; padding: 8px; margin-bottom: 8px;">
+                    <div style="margin-bottom: 6px;">
+                        <label style="font-weight: bold; color: #003366; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="parametrium_involved" value="1" {% if pelvis_detail and pelvis_detail.parametrium_involved %}checked{% endif %}>
+                            Parametrial Involvement on MRI
+                        </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="para_left_involved" value="1" {% if pelvis_detail and pelvis_detail.para_left_involved %}checked{% endif %}>
+                            Left Parametrium
+                        </label>
+                        <input type="number" step="0.1" name="para_left_extent_cm" 
+                               value="{% if pelvis_detail and pelvis_detail.para_left_extent_cm %}{{ pelvis_detail.para_left_extent_cm }}{% endif %}" 
+                               class="access-input" placeholder="Left extent (cm)">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="para_right_involved" value="1" {% if pelvis_detail and pelvis_detail.para_right_involved %}checked{% endif %}>
+                            Right Parametrium
+                        </label>
+                        <input type="number" step="0.1" name="para_right_extent_cm" 
+                               value="{% if pelvis_detail and pelvis_detail.para_right_extent_cm %}{{ pelvis_detail.para_right_extent_cm }}{% endif %}" 
+                               class="access-input" placeholder="Right extent (cm)">
+                    </div>
+                </div>
+
+                <!-- Bladder, Rectum & Hydronephrosis -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label">Bladder Status</label>
+                        <select name="bladder_status_id" class="access-select">
+                            <option value="">-- Select Status --</option>
+                            {% for st in organ_statuses %}
+                                <option value="{{ st.status_id }}" {% if pelvis_detail and pelvis_detail.bladder_status_id == st.status_id %}selected{% endif %}>
+                                    {{ st.status_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Rectum Status</label>
+                        <select name="rectum_status_id" class="access-select">
+                            <option value="">-- Select Status --</option>
+                            {% for st in organ_statuses %}
+                                <option value="{{ st.status_id }}" {% if pelvis_detail and pelvis_detail.rectum_status_id == st.status_id %}selected{% endif %}>
+                                    {{ st.status_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="hydronephrosis_left" value="1" {% if pelvis_detail and pelvis_detail.hydronephrosis_left %}checked{% endif %}>
+                            Left Hydronephrosis (HDN)
+                        </label>
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="hydronephrosis_right" value="1" {% if pelvis_detail and pelvis_detail.hydronephrosis_right %}checked{% endif %}>
+                            Right Hydronephrosis (HDN)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Lymph Node Stations -->
+                <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 6px; margin-bottom: 8px;">
+                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #003366;">
+                        Lymph Node Metastasis Assessment
+                    </div>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="nodes_present" value="1" {% if pelvis_detail and pelvis_detail.nodes_present %}checked{% endif %}>
+                            Significant Lymph Nodes Present
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="pelvic_nodes_present" value="1" {% if pelvis_detail and pelvis_detail.pelvic_nodes_present %}checked{% endif %}>
+                            Pelvic Nodes Positive
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="pa_nodes_present" value="1" {% if pelvis_detail and pelvis_detail.pa_nodes_present %}checked{% endif %}>
+                            Para-aortic (PA) Nodes Positive
+                        </label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="inguinal_nodes_present" value="1" {% if pelvis_detail and pelvis_detail.inguinal_nodes_present %}checked{% endif %}>
+                            Inguinal Nodes Positive
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="access-label">Radiologist Detailed Notes & Distant Findings</label>
+                    <textarea name="radiologist_impression" class="access-textarea" rows="2" placeholder="Specific nodal stations, diffusion restriction, capsular breach...">{% if pelvis_detail %}{{ pelvis_detail.radiologist_impression|default:'' }}{% endif %}</textarea>
+                </div>
+            </fieldset>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Imaging Investigation
+                </button>
+                <a href="{% url 'investigations_hub' patient.mr_no %}?tab=imaging" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

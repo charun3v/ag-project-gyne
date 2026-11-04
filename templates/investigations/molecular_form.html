@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if molecular %}Edit Molecular Test{% else %}New Molecular Test{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Molecular Biomarkers & IHC</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>🧬 frmMolecular: Molecular Pathology, IHC Biomarkers & NGS</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'investigations_hub' patient.mr_no %}?tab=molecular" style="color: #fff; text-decoration: underline;">Back to Hub</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label" style="font-weight: bold;">Test Date *</label>
+                    <input type="date" name="test_date" 
+                           value="{% if molecular and molecular.test_date %}{{ molecular.test_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                           class="access-input" required>
+                </div>
+                <div>
+                    <label class="access-label">Test Type (IHC / NGS / PCR)</label>
+                    <select name="molecular_type_id" class="access-select">
+                        <option value="">-- Select Type --</option>
+                        {% for mt in mol_types %}
+                            <option value="{{ mt.molecular_type_id }}" {% if molecular and molecular.molecular_type_id == mt.molecular_type_id %}selected{% endif %}>
+                                {{ mt.test_type_mol }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="access-label">Specimen</label>
+                    <select name="specimen_id" class="access-select">
+                        <option value="">-- Select Specimen --</option>
+                        {% for s in specimens %}
+                            <option value="{{ s.specimen_id }}" {% if molecular and molecular.specimen_id == s.specimen_id %}selected{% endif %}>
+                                {{ s.specimen_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="access-label">Testing Reference Lab</label>
+                    <input type="text" name="testing_lab" 
+                           value="{% if molecular %}{{ molecular.testing_lab|default:'' }}{% endif %}" 
+                           class="access-input" placeholder="e.g. Oncquest / Metropolis">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label class="access-label" style="font-weight: bold; color: #b00000;">Biomarker Impression / Summary *</label>
+                <textarea name="impression" class="access-textarea" rows="2" required placeholder="e.g. p16 strongly positive (diffuse block positivity), p53 wild type, MMR proficient (MSS)...">{% if molecular %}{{ molecular.impression|default:'' }}{% endif %}</textarea>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label class="access-label">Detailed Marker Quantification & Genomic Alterations</label>
+                <textarea name="details" class="access-textarea" rows="4" placeholder="PD-L1 CPS / TPS score, BRCA1/2 mutation status, MSI/MMR status, TMB...">{% if molecular %}{{ molecular.details|default:'' }}{% endif %}</textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Molecular Test Record
+                </button>
+                <a href="{% url 'investigations_hub' patient.mr_no %}?tab=molecular" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

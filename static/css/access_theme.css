@@ -1,0 +1,436 @@
+/* MS Access Workstation Theme for Oncology MDT Database */
+:root {
+    --ms-bg: #ece9d8;
+    --ms-form-bg: #f5f5f5;
+    --ms-border: #999999;
+    --ms-border-dark: #7a7a7a;
+    --ms-header-bg: #003366;
+    --ms-header-text: #ffffff;
+    --ms-toolbar-bg: #e4e2d5;
+    --ms-btn-bg: #e1e1e1;
+    --ms-btn-border: #707070;
+    --ms-btn-hover: #e5f1fb;
+    --ms-btn-hover-border: #0078d7;
+    --ms-tile-empty: #f8f9fa;
+    --ms-tile-done: #d4edda;
+    --ms-tile-done-text: #155724;
+    --ms-tile-done-border: #c3e6cb;
+    --ms-tile-partial: #fff3cd;
+    --ms-tile-partial-text: #856404;
+    --ms-tile-partial-border: #ffeeba;
+    --ms-row-alt: #f0f4f8;
+    --ms-grid-line: #d0d7de;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--ms-bg);
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 13px;
+    color: #222222;
+}
+
+/* Access Header Bar */
+.access-app-header {
+    background: linear-gradient(to bottom, #0d3b66, #002244);
+    color: #ffffff;
+    padding: 6px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #00172e;
+}
+
+.access-app-header .app-title {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.access-app-header .app-user {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.access-app-header .app-user a {
+    color: #ffdd80;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.access-app-header .app-user a:hover {
+    text-decoration: underline;
+}
+
+/* Access Ribbon Toolbar */
+.access-toolbar {
+    background-color: var(--ms-toolbar-bg);
+    border-bottom: 1px solid var(--ms-border);
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.btn-access {
+    background-color: var(--ms-btn-bg);
+    border: 1px solid var(--ms-btn-border);
+    padding: 5px 12px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+    color: #111111;
+    font-weight: 500;
+}
+
+.btn-access:hover {
+    background-color: var(--ms-btn-hover);
+    border-color: var(--ms-btn-hover-border);
+}
+
+.btn-access.btn-primary-action {
+    background-color: #005a9e;
+    color: #ffffff;
+    border-color: #004578;
+    font-weight: 600;
+}
+
+.btn-access.btn-primary-action:hover {
+    background-color: #0078d7;
+}
+
+.btn-access.btn-approve {
+    background-color: #107c41;
+    color: #ffffff;
+    border-color: #0b5a30;
+    font-weight: 600;
+}
+
+.btn-access.btn-approve:hover {
+    background-color: #169c53;
+}
+
+.btn-access.btn-danger {
+    background-color: #d13438;
+    color: #ffffff;
+    border-color: #a80000;
+}
+
+.btn-access.btn-danger:hover {
+    background-color: #e81123;
+}
+
+/* Patient Context Banner */
+.patient-banner {
+    background-color: #e7eff8;
+    border: 1px solid #b3d1ff;
+    border-radius: 2px;
+    padding: 8px 14px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.patient-banner .pt-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: #003366;
+}
+
+.patient-banner .pt-meta {
+    font-size: 13px;
+    color: #333333;
+}
+
+.patient-banner .pt-badge {
+    background: #003366;
+    color: #ffffff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Main Container Frame */
+.access-container {
+    padding: 12px 16px;
+    max-width: 1500px;
+    margin: 0 auto;
+}
+
+.access-form-box {
+    background-color: var(--ms-form-bg);
+    border: 1px solid var(--ms-border);
+    box-shadow: 1px 1px 4px rgba(0,0,0,0.15);
+    border-radius: 2px;
+    margin-bottom: 16px;
+}
+
+.access-form-header {
+    background: linear-gradient(to bottom, #f2f2f2, #e0e0e0);
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--ms-border);
+    font-weight: bold;
+    font-size: 13px;
+    color: #003366;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.access-form-body {
+    padding: 14px;
+}
+
+/* High-Density Form Controls */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 6px;
+}
+
+.form-group label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #444444;
+    margin-bottom: 2px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group input[type="time"],
+.form-group input[type="password"],
+.form-group select,
+.form-group textarea {
+    font-family: inherit;
+    font-size: 12px;
+    padding: 4px 6px;
+    border: 1px solid var(--ms-border);
+    background-color: #ffffff;
+    border-radius: 1px;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #0078d7;
+    outline: 1px solid #0078d7;
+}
+
+.form-group.checkbox-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding-top: 14px;
+}
+
+.form-group.checkbox-group label {
+    margin-bottom: 0;
+    cursor: pointer;
+}
+
+/* High-Density Continuous Subform Grid */
+.subform-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #ffffff;
+    border: 1px solid var(--ms-grid-line);
+    font-size: 12px;
+}
+
+.subform-table th {
+    background: #e9ecef;
+    border: 1px solid var(--ms-grid-line);
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: #003366;
+    font-size: 11px;
+}
+
+.subform-table td {
+    border: 1px solid var(--ms-grid-line);
+    padding: 5px 8px;
+    vertical-align: middle;
+}
+
+.subform-table tr:nth-child(even) {
+    background-color: #fbfbfb;
+}
+
+.subform-table tr:hover {
+    background-color: #f0f7fd;
+}
+
+/* Dashboard Patient Row Action Tiles */
+.dashboard-tile-grid {
+    display: grid;
+    grid-template-columns: 180px repeat(11, minmax(75px, 1fr));
+    gap: 4px;
+    align-items: stretch;
+    padding: 6px 0;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+.dashboard-tile-grid:hover {
+    background-color: #f5f9ff;
+}
+
+.pt-main-col {
+    padding: 2px 6px;
+}
+
+.pt-main-col .mr-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #003366;
+}
+
+.pt-main-col .pt-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: #005a9e;
+    text-decoration: none;
+    display: block;
+}
+
+.pt-main-col .pt-link:hover {
+    text-decoration: underline;
+}
+
+.pt-main-col .pt-site-badge {
+    font-size: 10px;
+    background: #e1e4e8;
+    color: #333333;
+    padding: 1px 5px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-top: 2px;
+}
+
+.dash-tile {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 4px;
+    border-radius: 2px;
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: center;
+    border: 1px solid var(--ms-border);
+    background-color: var(--ms-tile-empty);
+    color: #555555;
+    transition: all 0.15s;
+    min-height: 44px;
+}
+
+.dash-tile:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dash-tile.tile-done {
+    background-color: var(--ms-tile-done);
+    color: var(--ms-tile-done-text);
+    border-color: var(--ms-tile-done-border);
+}
+
+.dash-tile.tile-partial {
+    background-color: var(--ms-tile-partial);
+    color: var(--ms-tile-partial-text);
+    border-color: var(--ms-tile-partial-border);
+}
+
+.dash-tile .tile-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.dash-tile .tile-status {
+    font-size: 11px;
+}
+
+/* Tab Navigation inside Forms */
+.access-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--ms-border);
+    background: #e9ecef;
+    padding: 4px 6px 0 6px;
+    gap: 4px;
+}
+
+.access-tab {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #444444;
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.access-tab.active {
+    background: var(--ms-form-bg);
+    border-color: var(--ms-border);
+    color: #003366;
+    margin-bottom: -1px;
+    padding-bottom: 7px;
+}
+
+/* Status Messages & Alerts */
+.msg-alert {
+    padding: 8px 14px;
+    margin-bottom: 12px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+
+.msg-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.msg-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.msg-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}

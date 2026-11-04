@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ encounter_type.encounter_type_name }} Examination - {{ patient.mr_no }} {{ patient.pt_name }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">{{ encounter_type.encounter_type_name }} Clinical Examination</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>🩺 frmEncounter: {{ encounter_type.encounter_type_name }} Physical & Pelvic Examination</span>
+        <div style="font-weight: normal; font-size: 11px; display: flex; gap: 8px; align-items: center;">
+            <a href="{% url 'examination_pdf' patient.mr_no enc_slug %}" target="_blank" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; border-color: #70a0d0; padding: 2px 8px;" title="Printable A4 report with populated IBS vector diagram">
+                📄 Examination PDF Report
+            </a>
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Back to Dashboard</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <!-- Section 1: Encounter Vitals & General Exam -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. Encounter Meta & Physical Assessment</legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Encounter Date</label>
+                        <input type="date" name="encounter_date" 
+                               value="{% if encounter and encounter.encounter_date %}{{ encounter.encounter_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                               class="access-input">
+                    </div>
+                    <div>
+                        <label class="access-label">ECOG Performance Status</label>
+                        <select name="ecog_id" class="access-select">
+                            <option value="">-- Select ECOG --</option>
+                            {% for e in ecog_scores %}
+                                <option value="{{ e.ecog_id }}" {% if encounter and encounter.ecog_id == e.ecog_id %}selected{% endif %}>
+                                    ECOG {{ e.score }} ({{ e.description }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Height (cm)</label>
+                        <input type="number" step="0.1" name="height" id="htInput" 
+                               value="{% if encounter and encounter.height %}{{ encounter.height }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 155.0">
+                    </div>
+                    <div>
+                        <label class="access-label">Weight (kg)</label>
+                        <input type="number" step="0.1" name="weight" id="wtInput" 
+                               value="{% if encounter and encounter.weight %}{{ encounter.weight }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 58.5">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label class="access-label">Presenting Complaints at this Visit</label>
+                        <textarea name="presenting_complaints" class="access-textarea" rows="2" placeholder="Symptoms reported today...">{% if encounter %}{{ encounter.presenting_complaints|default:'' }}{% endif %}</textarea>
+                    </div>
+                    <div>
+                        <label class="access-label">General & Systemic Examination</label>
+                        <textarea name="examination_findings" class="access-textarea" rows="2" placeholder="Pallor, edema, lymphadenopathy, chest/CVS...">{% if encounter %}{{ encounter.examination_findings|default:'' }}{% endif %}</textarea>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Section 2: Clinical Pelvic Examination Findings -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">2. Gynecological & Pelvic Examination Findings</legend>
+                
+                <!-- Parametrial assessment -->
+                <div style="background: #eef2f7; border: 1px solid #d0dae5; padding: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 6px;">
+                        <label style="font-weight: bold; color: #003366; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="parametrial_invasion" value="1" {% if encounter and encounter.parametrial_invasion %}checked{% endif %}>
+                            Parametrial Invasion Present
+                        </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <input type="checkbox" name="para_left" value="1" {% if encounter and encounter.para_left %}checked{% endif %}>
+                            <label class="access-label" style="margin: 0;">Left Parametrium</label>
+                        </div>
+                        <div>
+                            <input type="number" step="0.1" name="para_extent_left_cm" 
+                                   value="{% if encounter and encounter.para_extent_left_cm %}{{ encounter.para_extent_left_cm }}{% endif %}" 
+                                   class="access-input" placeholder="Left extent (cm)">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <input type="checkbox" name="para_right" value="1" {% if encounter and encounter.para_right %}checked{% endif %}>
+                            <label class="access-label" style="margin: 0;">Right Parametrium</label>
+                        </div>
+                        <div>
+                            <input type="number" step="0.1" name="para_extent_right_cm" 
+                                   value="{% if encounter and encounter.para_extent_right_cm %}{{ encounter.para_extent_right_cm }}{% endif %}" 
+                                   class="access-input" placeholder="Right extent (cm)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rectal, Bladder, Tumour size, Tandem -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label">Rectal Mucosa / Vaginal Wall</label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; margin-top: 4px;">
+                            <input type="checkbox" name="rectal_invasion" value="1" {% if encounter and encounter.rectal_invasion %}checked{% endif %}>
+                            Rectal Invasion Present
+                        </label>
+                    </div>
+                    <div>
+                        <label class="access-label">Bladder Mucosa</label>
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; margin-top: 4px;">
+                            <input type="checkbox" name="bladder_invasion" value="1" {% if encounter and encounter.bladder_invasion %}checked{% endif %}>
+                            Bladder Invasion Present
+                        </label>
+                    </div>
+                    <div>
+                        <label class="access-label">Tumour Dimension 1 (cm)</label>
+                        <input type="number" step="0.1" name="tumour_size_cm" 
+                               value="{% if encounter and encounter.tumour_size_cm %}{{ encounter.tumour_size_cm }}{% endif %}" 
+                               class="access-input" placeholder="Diameter e.g. 4.5">
+                    </div>
+                    <div>
+                        <label class="access-label">Tumour Dimension 2 (cm)</label>
+                        <input type="number" step="0.1" name="tumour_size_2_cm" 
+                               value="{% if encounter and encounter.tumour_size_2_cm %}{{ encounter.tumour_size_2_cm }}{% endif %}" 
+                               class="access-input" placeholder="Thickness / Height">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="tandem_sounded" value="1" {% if encounter and encounter.tandem_sounded %}checked{% endif %}>
+                            Uterine Sounding Performed
+                        </label>
+                        <input type="number" step="0.1" name="tandem_length_cm" 
+                               value="{% if encounter and encounter.tandem_length_cm %}{{ encounter.tandem_length_cm }}{% endif %}" 
+                               class="access-input" style="width: 140px;" placeholder="Sound length (cm)">
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Section 3: Anatomical Pelvic IBS Clinical Diagram Section -->
+            <fieldset style="border: 2px solid #003366; padding: 10px; margin-bottom: 12px; background: #fdfdfd;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 12px;">
+                    📍 3. Interactive IBS Clinical Pelvic Diagram (65 Anatomical Zones)
+                </legend>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div>
+                        <span style="font-size: 11px; color: #444;">
+                            Marked Anatomical Findings in Database: 
+                            <strong>{{ svg_findings|length }} zone{{ svg_findings|length|pluralize }}</strong>
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        {% if encounter and encounter.clinical_id %}
+                            {% if enc_slug != 'baseline' %}
+                            <a href="{% url 'auto_populate_previous_diagram' encounter.clinical_id %}?redirect=exam" class="btn-access" style="background: #eef2ff; color: #1e40af; border-color: #c7d2fe; font-weight: bold; padding: 4px 10px; font-size: 11px;" title="Auto-populate previous selected areas from Baseline or Post-NACT">
+                                ⚡ Auto-populate Previous Findings
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'auto_populate_svg' encounter.clinical_id %}" class="btn-access" style="background: #fff4e6; color: #b35900; border-color: #ffd8a8; font-weight: bold; padding: 4px 10px; font-size: 11px;" title="Automatically infer and mark SVG anatomical zones based on physical exam findings above">
+                                ⚡ Auto-populate SVG from Examination
+                            </a>
+                            <a href="{% url 'ibs_diagram' encounter.clinical_id %}" class="btn-access btn-primary-action" style="padding: 4px 10px; font-size: 12px;">
+                                🖌️ Open Interactive Clinical Diagram
+                            </a>
+                        {% else %}
+                            <button type="submit" name="auto_populate_svg" value="1" class="btn-access" style="background: #fff4e6; color: #b35900; border-color: #ffd8a8; font-weight: bold; padding: 4px 10px; font-size: 11px;">
+                                ⚡ Auto-populate SVG & Save
+                            </button>
+                            <button type="submit" name="open_diagram" class="btn-access btn-primary-action" style="padding: 4px 10px; font-size: 12px;">
+                                💾 Save & Launch Interactive Diagram
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Display currently marked regions as badges -->
+                <div style="min-height: 40px; background: #fafafa; border: 1px dashed #c0c0c0; padding: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+                    {% for f in svg_findings %}
+                        <span style="background: #ffebe6; color: #990000; border: 1px solid #ffccd0; padding: 2px 6px; border-radius: 2px; font-size: 11px;">
+                            📍 {{ f.region.display_label }}
+                        </span>
+                    {% empty %}
+                        <span style="color: #777; font-style: italic; font-size: 11px;">
+                            No anatomical pelvic regions currently marked. Click "Open Interactive Clinical Diagram" to map involved zones.
+                        </span>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <!-- Access Command Button Ribbon -->
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" name="save_stay" class="btn-access btn-primary-action">
+                    💾 Save Examination Record
+                </button>
+                {% if encounter and encounter.clinical_id %}
+                    <a href="{% url 'ibs_diagram' encounter.clinical_id %}" class="btn-access">
+                        🖌️ Open Clinical Diagram
+                    </a>
+                {% endif %}
+                <button type="submit" name="save_next" class="btn-access">
+                    ➡️ Save & Proceed to Investigations Hub
+                </button>
+                <a href="{% url 'examination_pdf' patient.mr_no enc_slug %}" target="_blank" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; border-color: #70a0d0;">
+                    📄 Generate Examination PDF Report
+                </a>
+                <div style="flex-grow: 1;"></div>
+                <a href="{% url 'dashboard' %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

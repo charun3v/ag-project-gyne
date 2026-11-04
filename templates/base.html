@@ -1,0 +1,71 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ APP_TITLE }}{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/access_theme.css' %}">
+    <style>
+        .region-marked { fill: #ff2a2a !important; opacity: 0.8 !important; }
+        .region-hover { stroke: #003366 !important; stroke-width: 0.8 !important; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- MS Access Title Bar -->
+    <header class="access-app-header">
+        <div class="app-title" style="display: flex; flex-direction: column; line-height: 1.25; padding: 2px 0;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">🏥</span>
+                <span style="font-size: 15px; font-weight: bold; letter-spacing: 0.5px;">Radiation Oncology</span>
+                <span style="font-size: 10px; font-weight: normal; opacity: 0.85; margin-left: 6px;">[{{ APP_VERSION }}]</span>
+            </div>
+            <div style="font-size: 11px; opacity: 0.92; font-weight: 500; margin-left: 24px; color: #e2edfa;">
+                Kidwai Memorial Institute of Oncology
+            </div>
+        </div>
+        <div class="app-user">
+            {% if user.is_authenticated %}
+                <span>👤 <strong>{{ user.first_name|default:user.username }}</strong> {% if CURRENT_ROLE %}({{ CURRENT_ROLE.role_name }}){% endif %}</span>
+                <span style="opacity: 0.5;">|</span>
+                <a href="{% url 'logout' %}">Logout</a>
+            {% else %}
+                <a href="{% url 'login' %}">Login</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Ribbon Action Toolbar -->
+    {% if user.is_authenticated %}
+    <nav class="access-toolbar">
+        <a href="{% url 'dashboard' %}" class="btn-access btn-primary-action">🏠 Patient Dashboard</a>
+        <a href="{% url 'patient_register' %}" class="btn-access">➕ Register New Patient</a>
+        <a href="{% url 'patient_search' %}" class="btn-access">🔍 Search Patients</a>
+        <a href="{% url 'export_data' %}?format=wide" class="btn-access" title="One row per patient analytical dataset">📊 Export Patients (Wide)</a>
+        <a href="{% url 'export_data' %}?format=long" class="btn-access" title="Event and drug administration level longitudinal dataset for R/statistics">📈 Export Events (Long)</a>
+        {% if user.is_staff or user.is_superuser or user.profile.role.cap_manage_users %}
+        <a href="{% url 'user_list' %}" class="btn-access" style="color: #003366; font-weight: bold;">👥 User Management</a>
+        <a href="{% url 'lookup_manager_default' %}" class="btn-access" style="color: #003366; font-weight: bold;">⚙️ Dropdown Options</a>
+        {% endif %}
+        <div style="flex-grow: 1;"></div>
+        <span style="font-size: 11px; color: #555555; margin-right: 6px;">{{ "now"|date:"D, d M Y" }}</span>
+    </nav>
+    {% endif %}
+
+    <!-- Main Content Frame -->
+    <main class="access-container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="msg-alert msg-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

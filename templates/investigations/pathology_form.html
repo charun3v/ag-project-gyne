@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if path_report %}Edit Pathology Report{% else %}New Pathology Report{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Pathology & Cytology</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>🔬 frmPathology: Histopathology, Biopsy & Cytology Report Entry</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'investigations_hub' patient.mr_no %}?tab=pathology" style="color: #fff; text-decoration: underline;">Back to Hub</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label" style="font-weight: bold;">Report Date *</label>
+                    <input type="date" name="path_date" 
+                           value="{% if path_report and path_report.path_date %}{{ path_report.path_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                           class="access-input" required>
+                </div>
+                <div>
+                    <label class="access-label">Biopsy Lab Ref / Block No.</label>
+                    <input type="text" name="lab_reference_no" 
+                           value="{% if path_report %}{{ path_report.lab_reference_no|default:'' }}{% endif %}" 
+                           class="access-input" placeholder="e.g. HP-2026-1109">
+                </div>
+                <div>
+                    <label class="access-label">Test Type</label>
+                    <select name="path_type_id" class="access-select">
+                        <option value="">-- Select Type --</option>
+                        {% for pt in path_types %}
+                            <option value="{{ pt.path_type_id }}" {% if path_report and path_report.path_type_id == pt.path_type_id %}selected{% endif %}>
+                                {{ pt.path_type_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="access-label">Specimen</label>
+                    <select name="specimen_id" class="access-select">
+                        <option value="">-- Select Specimen --</option>
+                        {% for s in specimens %}
+                            <option value="{{ s.specimen_id }}" {% if path_report and path_report.specimen_id == s.specimen_id %}selected{% endif %}>
+                                {{ s.specimen_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label">Biopsy Site</label>
+                    <select name="biopsy_site_id" class="access-select">
+                        <option value="">-- Select Biopsy Site --</option>
+                        {% for bs in biopsy_sites %}
+                            <option value="{{ bs.biopsy_site_id }}" {% if path_report and path_report.biopsy_site_id == bs.biopsy_site_id %}selected{% endif %}>
+                                {{ bs.biopsy_site_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="access-label">FNAC Site (if Cytology)</label>
+                    <select name="fnac_site_id" class="access-select">
+                        <option value="">-- Select FNAC Site --</option>
+                        {% for fs in fnac_sites %}
+                            <option value="{{ fs.fnac_site_id }}" {% if path_report and path_report.fnac_site_id == fs.fnac_site_id %}selected{% endif %}>
+                                {{ fs.fnac_site_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label class="access-label" style="font-weight: bold; color: #b00000;">Histopathological Impression / Diagnosis *</label>
+                <textarea name="impression" class="access-textarea" rows="3" required placeholder="e.g. Non-keratinizing Large Cell Squamous Cell Carcinoma, Grade 2...">{% if path_report %}{{ path_report.impression|default:'' }}{% endif %}</textarea>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label class="access-label">Microscopic Description & Margin Status</label>
+                <textarea name="details" class="access-textarea" rows="4" placeholder="Tissue architecture, nuclear pleomorphism, necrosis, lymphovascular invasion (LVSI), perineural invasion, stromal invasion depth...">{% if path_report %}{{ path_report.details|default:'' }}{% endif %}</textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Pathology Report
+                </button>
+                <a href="{% url 'investigations_hub' patient.mr_no %}?tab=pathology" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

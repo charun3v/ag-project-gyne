@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if course %}Edit Concurrent Chemo{% else %}New Concurrent Chemo{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Concurrent Chemoradiation Course</span>
+    </div>
+</div>
+
+<div class="access-subform" style="margin-bottom: 14px;">
+    <div class="access-subform-header">
+        <span>⚡ frmConcurrentChemo: Concurrent Chemotherapy Course Details</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'systemic_hub' patient.mr_no %}?tab=concurrent" style="color: #fff; text-decoration: underline;">Back to Hub</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label" style="font-weight: bold; color: #b00000;">Chemotherapy Regimen *</label>
+                    <select name="chemo_regimen_id" class="access-select" required>
+                        <option value="">-- Select Regimen --</option>
+                        {% for r in regimens %}
+                            <option value="{{ r.regimen_id }}" {% if course and course.chemo_regimen_id == r.regimen_id %}selected{% endif %}>
+                                {{ r.regimen_code }} ({{ r.regimen_description }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="access-label">Planned Cycles</label>
+                    <input type="number" name="planned_cycles" 
+                           value="{% if course %}{{ course.planned_cycles }}{% else %}5{% endif %}" 
+                           class="access-input">
+                </div>
+                <div>
+                    <label class="access-label">Frequency (Days between cycles)</label>
+                    <input type="number" name="cycle_frequency_days" 
+                           value="{% if course %}{{ course.cycle_frequency_days }}{% else %}7{% endif %}" 
+                           class="access-input">
+                </div>
+                <div>
+                    <label class="access-label">Linked EBRT Course</label>
+                    <select name="linked_ebrt_course_id" class="access-select">
+                        <option value="">-- Auto-select Active EBRT --</option>
+                        {% for eb in ebrt_courses %}
+                            <option value="{{ eb.ebrt_course_id }}" {% if course and course.linked_ebrt_course_id == eb.ebrt_course_id %}selected{% endif %}>
+                                EBRT #{{ eb.course_sequence }} ({{ eb.total_dose_gy }} Gy)
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label">Start Date</label>
+                    <input type="date" name="conc_chemo_start_date" 
+                           value="{% if course and course.conc_chemo_start_date %}{{ course.conc_chemo_start_date|date:'Y-m-d' }}{% endif %}" 
+                           class="access-input">
+                </div>
+                <div>
+                    <label class="access-label">End Date</label>
+                    <input type="date" name="conc_chemo_end_date" 
+                           value="{% if course and course.conc_chemo_end_date %}{{ course.conc_chemo_end_date|date:'Y-m-d' }}{% endif %}" 
+                           class="access-input">
+                </div>
+                <div>
+                    <label class="access-label">Completion Status</label>
+                    <input type="text" name="completion_status" 
+                           value="{% if course %}{{ course.completion_status|default:'' }}{% else %}Completed{% endif %}" 
+                           class="access-input" placeholder="e.g. Completed 5/5">
+                </div>
+                <div>
+                    <label class="access-label">Discontinuation Reason (if any)</label>
+                    <input type="text" name="discontinuation_reason" 
+                           value="{% if course %}{{ course.discontinuation_reason|default:'' }}{% endif %}" 
+                           class="access-input" placeholder="e.g. Grade 3 nephrotoxicity">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label class="access-label">Clinical Chemo Notes</label>
+                <textarea name="notes" class="access-textarea" rows="2" placeholder="Premedications, antiemetics, hydration protocol...">{% if course %}{{ course.notes|default:'' }}{% endif %}</textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Concurrent Chemo Course
+                </button>
+                {% if course %}
+                    <a href="{% url 'concurrent_cycle_add' patient.mr_no course.conc_chemo_course_id %}" class="btn-access">
+                        ➕ Add Administered Cycle
+                    </a>
+                {% endif %}
+                <a href="{% url 'systemic_hub' patient.mr_no %}?tab=concurrent" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cycles Subform -->
+{% if course %}
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>💊 Administered Weekly Cycles ({{ cycles|length }})</span>
+        <a href="{% url 'concurrent_cycle_add' patient.mr_no course.conc_chemo_course_id %}" class="btn-access btn-primary-action" style="font-size: 10px;">
+            ➕ Add Cycle
+        </a>
+    </div>
+    <div class="access-subform-body">
+        <table class="access-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">Cycle #</th>
+                    <th style="width: 100px;">Date</th>
+                    <th>Status</th>
+                    <th>Agent & Dose Administered</th>
+                    <th>Toxicity Recorded</th>
+                    <th style="width: 70px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cy in cycles %}
+                    <tr>
+                        <td><strong>#{{ cy.cycle_number }}</strong></td>
+                        <td>{{ cy.cycle_date|date:'d-M-Y' }}</td>
+                        <td><span style="font-weight: bold; color: #2e7d32;">{{ cy.cycle_status }}</span></td>
+                        <td>
+                            {% for d in cy.drugs.all %}
+                                <strong style="color: #003366;">{{ d.chemo_agent.agent_name }}</strong>: 
+                                {{ d.dose }} {{ d.dose_unit.unit_name|default:'mg/m2' }}
+                                {% if d.dose_mg %}({{ d.dose_mg }} mg total){% endif %}
+                            {% empty %}
+                                <span style="color: #777;">No drug dosage logged</span>
+                            {% endfor %}
+                        </td>
+                        <td>{{ cy.cycle_toxicity|default:'None' }}</td>
+                        <td style="text-align: center;">
+                            <a href="{% url 'concurrent_cycle_edit' patient.mr_no course.conc_chemo_course_id cy.conc_chemo_cycle_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                ✏️ Edit
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                            No cycles logged yet. Click "Add Cycle" above to record administered chemotherapy infusions.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

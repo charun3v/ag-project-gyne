@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+
+{% block title %}Dropdown & Reference Tables Manager - {{ cfg.title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .lookup-sidebar-link {
+        display: block;
+        padding: 6px 10px;
+        font-size: 11px;
+        color: #003366;
+        text-decoration: none;
+        border-bottom: 1px solid #e0e0e0;
+        background: #fafafa;
+    }
+    .lookup-sidebar-link:hover {
+        background: #eef2f7;
+    }
+    .lookup-sidebar-link.active {
+        background: #003366;
+        color: #fff;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>⚙️ frmLookupManager: Configure Dropdown Options & Clinical Reference Tables</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Back to Dashboard</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        
+        <div style="display: grid; grid-template-columns: 240px 1fr; gap: 14px;">
+            <!-- Category Sidebar -->
+            <div style="border: 1px solid #b8c4d2; background: #fff; border-radius: 2px;">
+                <div style="background: #e4eaf0; padding: 6px 10px; font-weight: bold; font-size: 11px; color: #003366; border-bottom: 1px solid #b8c4d2;">
+                    📋 Dropdown Categories
+                </div>
+                <div>
+                    {% for cat_key, cat_data in lookup_categories.items %}
+                        <a href="{% url 'lookup_manager' cat_key %}" 
+                           class="lookup-sidebar-link {% if category == cat_key %}active{% endif %}">
+                            {{ cat_data.title }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Content Area for Selected Category -->
+            <div>
+                <!-- Add New Option Box -->
+                <fieldset style="border: 1px solid #003366; padding: 10px; margin-bottom: 14px; background: #f8fafc;">
+                    <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
+                        ➕ Add New Option to: <u>{{ cfg.title }}</u> ({{ cfg.table_name }})
+                    </legend>
+
+                    <form method="post" action="{% url 'lookup_add' category %}">
+                        {% csrf_token %}
+                        <div style="display: grid; grid-template-columns: {% if cfg.secondary_field %}2fr 2fr 1fr 1fr auto{% else %}3fr 1fr 1fr auto{% endif %}; gap: 8px; align-items: flex-end;">
+                            <div>
+                                <label class="access-label" style="font-weight: bold;">{{ cfg.name_label }} *</label>
+                                <input type="text" name="name_value" class="access-input" required placeholder="Enter new option name...">
+                            </div>
+
+                            {% if cfg.secondary_field %}
+                                <div>
+                                    <label class="access-label">{{ cfg.secondary_label }}</label>
+                                    <input type="text" name="secondary_value" class="access-input" placeholder="e.g. Code / Description...">
+                                </div>
+                            {% endif %}
+
+                            <div>
+                                <label class="access-label">Display Order</label>
+                                <input type="number" name="display_order" value="{{ items|length|add:1 }}" class="access-input">
+                            </div>
+
+                            <div style="padding-bottom: 4px;">
+                                <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                    <input type="checkbox" name="is_active" value="1" checked>
+                                    Active
+                                </label>
+                            </div>
+
+                            <div>
+                                <button type="submit" class="btn-access btn-primary-action" style="padding: 4px 10px;">
+                                    ➕ Add Option
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </fieldset>
+
+                <!-- Existing Options Table -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-weight: bold; font-size: 11px; color: #003366;">
+                        Current Options in Database ({{ items|length }} total):
+                    </span>
+                    <span style="font-size: 10px; color: #666;">
+                        Options marked active appear immediately in clinical dropdowns.
+                    </span>
+                </div>
+
+                <table class="access-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">Order</th>
+                            <th>{{ cfg.name_label }}</th>
+                            {% if cfg.secondary_field %}
+                                <th>{{ cfg.secondary_label }}</th>
+                            {% endif %}
+                            <th style="width: 80px; text-align: center;">Status</th>
+                            <th style="width: 140px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                            <tr>
+                                <td style="text-align: center;">{{ item.display_order }}</td>
+                                <td>
+                                    <strong>
+                                        {% if category == 'source' %}{{ item.source_name }}
+                                        {% elif category == 'machine' %}{{ item.machine_name }}
+                                        {% elif category == 'centre' %}{{ item.centre_name }}
+                                        {% elif category == 'intent' %}{{ item.intent_name }}
+                                        {% elif category == 'technique' %}{{ item.technique_name }}
+                                        {% elif category == 'dosing' %}{{ item.dosing_point }}
+                                        {% elif category == 'applicator' %}{{ item.applicator_name }}
+                                        {% elif category == 'guidance' %}{{ item.guidance_name }}
+                                        {% elif category == 'interruption' %}{{ item.reason_name }}
+                                        {% elif category == 'site' %}{{ item.site }}
+                                        {% elif category == 'histology' %}{{ item.histology_name }}
+                                        {% elif category == 'consultant' %}{{ item.consultant_name }}
+                                        {% elif category == 'regimen' %}{{ item.regimen_code }}
+                                        {% elif category == 'agent' %}{{ item.agent_name }}
+                                        {% endif %}
+                                    </strong>
+                                </td>
+
+                                {% if cfg.secondary_field %}
+                                    <td>
+                                        {% if category == 'centre' %}{{ item.centre_code|default:'-' }}
+                                        {% elif category == 'dosing' %}{{ item.dosing_system|default:'-' }}
+                                        {% elif category == 'regimen' %}{{ item.regimen_description|default:'-' }}
+                                        {% elif category == 'agent' %}{{ item.agent_class|default:'-' }}
+                                        {% endif %}
+                                    </td>
+                                {% endif %}
+
+                                <td style="text-align: center;">
+                                    {% if item.is_active %}
+                                        <span style="color: #2e7d32; font-weight: bold;">✓ Active</span>
+                                    {% else %}
+                                        <span style="color: #b00000; font-weight: bold;">✗ Inactive</span>
+                                    {% endif %}
+                                </td>
+
+                                <td style="text-align: center; white-space: nowrap;">
+                                    <button type="button" class="btn-access" style="font-size: 10px; padding: 2px 6px;"
+                                            onclick="openEditModal(
+                                                '{% if category == 'source' %}{{ item.source_id }}{% elif category == 'machine' %}{{ item.machine_id }}{% elif category == 'centre' %}{{ item.centre_id }}{% elif category == 'intent' %}{{ item.intent_id }}{% elif category == 'technique' %}{{ item.technique_id }}{% elif category == 'dosing' %}{{ item.dosing_id }}{% elif category == 'applicator' %}{{ item.applicator_id }}{% elif category == 'guidance' %}{{ item.guidance_id }}{% elif category == 'interruption' %}{{ item.reason_id }}{% elif category == 'site' %}{{ item.site_id }}{% elif category == 'histology' %}{{ item.histology_id }}{% elif category == 'consultant' %}{{ item.consultant_id }}{% elif category == 'regimen' %}{{ item.regimen_id }}{% elif category == 'agent' %}{{ item.agent_id }}{% endif %}',
+                                                '{% if category == 'source' %}{{ item.source_name|escapejs }}{% elif category == 'machine' %}{{ item.machine_name|escapejs }}{% elif category == 'centre' %}{{ item.centre_name|escapejs }}{% elif category == 'intent' %}{{ item.intent_name|escapejs }}{% elif category == 'technique' %}{{ item.technique_name|escapejs }}{% elif category == 'dosing' %}{{ item.dosing_point|escapejs }}{% elif category == 'applicator' %}{{ item.applicator_name|escapejs }}{% elif category == 'guidance' %}{{ item.guidance_name|escapejs }}{% elif category == 'interruption' %}{{ item.reason_name|escapejs }}{% elif category == 'site' %}{{ item.site|escapejs }}{% elif category == 'histology' %}{{ item.histology_name|escapejs }}{% elif category == 'consultant' %}{{ item.consultant_name|escapejs }}{% elif category == 'regimen' %}{{ item.regimen_code|escapejs }}{% elif category == 'agent' %}{{ item.agent_name|escapejs }}{% endif %}',
+                                                '{% if category == 'centre' %}{{ item.centre_code|default:''|escapejs }}{% elif category == 'dosing' %}{{ item.dosing_system|default:''|escapejs }}{% elif category == 'regimen' %}{{ item.regimen_description|default:''|escapejs }}{% elif category == 'agent' %}{{ item.agent_class|default:''|escapejs }}{% endif %}',
+                                                '{{ item.display_order }}',
+                                                {{ item.is_active|yesno:'true,false' }}
+                                            )">
+                                        ✏️ Edit
+                                    </button>
+
+                                    <a href="{% url 'lookup_toggle_active' category item.pk %}" class="btn-access" 
+                                       style="font-size: 10px; padding: 2px 6px; {% if item.is_active %}color: #b00000;{% else %}color: #2e7d32;{% endif %}">
+                                        {% if item.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="{% if cfg.secondary_field %}5{% else %}4{% endif %}" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
+                                    No options found in this lookup table. Use the form above to add an option.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal Dialog for Editing an Option -->
+<div id="editModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+    <div style="background: #fff; border: 2px solid #003366; width: 440px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); border-radius: 3px; overflow: hidden;">
+        <div style="background: #003366; color: #fff; padding: 8px 12px; font-weight: bold; font-size: 12px; display: flex; justify-content: space-between;">
+            <span>✏️ Edit Dropdown Option</span>
+            <span style="cursor: pointer;" onclick="closeEditModal()">✖</span>
+        </div>
+        <form id="editForm" method="post" action="">
+            {% csrf_token %}
+            <div style="padding: 12px;">
+                <div style="margin-bottom: 8px;">
+                    <label class="access-label" style="font-weight: bold;">{{ cfg.name_label }} *</label>
+                    <input type="text" id="editName" name="name_value" class="access-input" required>
+                </div>
+
+                {% if cfg.secondary_field %}
+                    <div style="margin-bottom: 8px;">
+                        <label class="access-label">{{ cfg.secondary_label }}</label>
+                        <input type="text" id="editSec" name="secondary_value" class="access-input">
+                    </div>
+                {% endif %}
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label">Display Order</label>
+                        <input type="number" id="editOrder" name="display_order" class="access-input">
+                    </div>
+                    <div style="display: flex; align-items: center; padding-top: 14px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" id="editActive" name="is_active" value="1">
+                            Active in Dropdown
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: #e0e6ed; padding: 8px 12px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Changes
+                </button>
+                <button type="button" class="btn-access" onclick="closeEditModal()">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditModal(id, name, sec, order, isActive) {
+    document.getElementById('editForm').action = '/admin-panel/lookups/{{ category }}/' + id + '/edit/';
+    document.getElementById('editName').value = name;
+    if (document.getElementById('editSec')) {
+        document.getElementById('editSec').value = sec || '';
+    }
+    document.getElementById('editOrder').value = order;
+    document.getElementById('editActive').checked = isActive;
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+</script>
+{% endblock %}

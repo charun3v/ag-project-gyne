@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if edit_user %}Edit User: {{ edit_user.username }}{% else %}New System User{% endif %} - MS Access frmUsers{% endblock %}
+
+{% block content %}
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>{% if edit_user %}✏️ Edit User Account [{{ edit_user.username }}]{% else %}➕ Create New System User Account{% endif %}</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'user_list' %}" style="color: #fff; text-decoration: underline;">Back to Users List</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <fieldset style="border: 1px solid #c0c0c0; padding: 12px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. User Credentials & Identity</legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Username *</label>
+                        <input type="text" name="username" 
+                               value="{% if edit_user %}{{ edit_user.username }}{% endif %}" 
+                               class="access-input" {% if edit_user %}readonly style="background-color: #f0f0f0;"{% else %}required autofocus{% endif %} 
+                               placeholder="e.g. dr.sharma or staff1">
+                    </div>
+                    <div>
+                        <label class="access-label">First Name</label>
+                        <input type="text" name="first_name" 
+                               value="{% if edit_user %}{{ edit_user.first_name }}{% endif %}" 
+                               class="access-input" placeholder="First name">
+                    </div>
+                    <div>
+                        <label class="access-label">Last Name</label>
+                        <input type="text" name="last_name" 
+                               value="{% if edit_user %}{{ edit_user.last_name }}{% endif %}" 
+                               class="access-input" placeholder="Last name">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div>
+                        <label class="access-label">Email Address</label>
+                        <input type="email" name="email" 
+                               value="{% if edit_user %}{{ edit_user.email }}{% endif %}" 
+                               class="access-input" placeholder="user@hospital.org">
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">
+                            {% if edit_user %}Reset Password (leave blank to keep current){% else %}Account Password *{% endif %}
+                        </label>
+                        <input type="password" name="password" 
+                               class="access-input" {% if not edit_user %}required{% endif %} 
+                               placeholder="{% if edit_user %}Enter new password to change{% else %}Set user password{% endif %}">
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">Assigned Role (RBAC) *</label>
+                        <select name="role_id" class="access-select" required>
+                            <option value="">-- Select Role --</option>
+                            {% for r in roles %}
+                                <option value="{{ r.role_id }}" {% if edit_user and edit_user.profile.role_id == r.role_id %}selected{% endif %}>
+                                    {{ r.role_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset style="border: 1px solid #c0c0c0; padding: 12px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">2. Account Status & Permissions</legend>
+                
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" name="is_active" value="1" {% if not edit_user or edit_user.is_active %}checked{% endif %}>
+                        <strong>Account Active</strong> (User can log in to the database)
+                    </label>
+
+                    <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" name="is_staff" value="1" {% if edit_user and edit_user.is_staff %}checked{% endif %}>
+                        <strong>Administrator Privileges</strong> (Access to user and lookup management)
+                    </label>
+                </div>
+            </fieldset>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save User Account
+                </button>
+                <a href="{% url 'user_list' %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

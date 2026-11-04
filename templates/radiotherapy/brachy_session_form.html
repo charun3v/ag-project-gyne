@@ -1,0 +1,466 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if session %}Edit Session #{{ session.session_number }}{% else %}New Brachy Session{% endif %} - {{ patient.mr_no }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Brachytherapy Applicator Insertion & Fraction Dosimetry</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>💉 frmBrachySessions: Applicator Insertion & 3D Image-Guided Dosimetry</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'brachy_edit' patient.mr_no course.brachy_course_id %}" style="color: #fff; text-decoration: underline;">Back to Course</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <form method="post" action="" id="brachySessionForm">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div style="background: #ffebee; border: 1px solid #ffcdd2; color: #b71c1c; padding: 8px 12px; margin-bottom: 12px; font-size: 11px; border-radius: 2px;">
+                    {% for error in form.non_field_errors %}
+                        <div>⚠️ {{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Section 1: Procedure Meta & Applicator Selection -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. Procedure Meta & Applicator Selection</legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Session Number *</label>
+                        <input type="number" name="session_number" 
+                               value="{% if form.session_number.value %}{{ form.session_number.value }}{% elif session %}{{ session.session_number }}{% else %}1{% endif %}" 
+                               class="access-input" required>
+                        {% if form.session_number.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.session_number.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Insertion Date *</label>
+                        <input type="date" name="session_date" 
+                               value="{% if form.session_date.value %}{{ form.session_date.value|date:'Y-m-d'|default:form.session_date.value }}{% elif session and session.session_date %}{{ session.session_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                               max="{% now 'Y-m-d' %}"
+                               class="access-input" required>
+                        {% if form.session_date.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.session_date.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">
+                            Applicator Type *
+                            {% if user.is_staff or user.is_superuser %}
+                                <a href="{% url 'applicator_rules_admin' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Field Activation & Validation Rules">[⚙️ Configure Rules]</a>
+                            {% endif %}
+                        </label>
+                        <select name="applicator" id="id_applicator" class="access-select" required onchange="onApplicatorChange(this)">
+                            <option value="">-- Select Applicator --</option>
+                            {% for a in applicators %}
+                                <option value="{{ a.id }}" 
+                                    {% if form.applicator.value|stringformat:"s" == a.id|stringformat:"s" %}selected
+                                    {% elif session and session.applicator_id == a.id %}selected{% endif %}>
+                                    {{ a.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.applicator.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.applicator.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Image Guidance *</label>
+                        <select name="image_guidance" class="access-select" required>
+                            <option value="">-- Select Guidance --</option>
+                            {% for g in guidances %}
+                                <option value="{{ g.guidance_id }}" 
+                                    {% if form.image_guidance.value|stringformat:"s" == g.guidance_id|stringformat:"s" %}selected
+                                    {% elif session and session.image_guidance_id == g.guidance_id %}selected{% endif %}>
+                                    {{ g.guidance_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.image_guidance.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.image_guidance.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label">Anaesthesia Type</label>
+                        <select name="anaesthesia_type" class="access-select">
+                            <option value="">-- Select Anaesthesia --</option>
+                            {% for an in anaesthesias %}
+                                <option value="{{ an.anaesthesia_id }}" 
+                                    {% if form.anaesthesia_type.value|stringformat:"s" == an.anaesthesia_id|stringformat:"s" %}selected
+                                    {% elif session and session.anaesthesia_type_id == an.anaesthesia_id %}selected{% endif %}>
+                                    {{ an.anaesthesia_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label">Session Status</label>
+                        <select name="session_status" class="access-select">
+                            <option value="">-- Select Status --</option>
+                            {% for st in session_statuses %}
+                                <option value="{{ st.status_id }}" 
+                                    {% if form.session_status.value|stringformat:"s" == st.status_id|stringformat:"s" %}selected
+                                    {% elif session and session.session_status_id == st.status_id %}selected{% endif %}>
+                                    {{ st.status_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="access-label">Procedure Performed By</label>
+                        <input type="text" name="procedure_performed_by" 
+                               value="{% if form.procedure_performed_by.value %}{{ form.procedure_performed_by.value }}{% elif session %}{{ session.procedure_performed_by }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}" 
+                               class="access-input">
+                    </div>
+                </div>
+
+                <!-- Applicator Measurements Section (Dynamic activation based on selected ApplicatorType) -->
+                <div style="background: #eef2f7; padding: 10px; border: 1px solid #b8c8d8; border-radius: 3px; margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+                        <span style="font-weight: bold; color: #003366; font-size: 11px;">
+                            📏 Applicator Measurements
+                        </span>
+                        <span style="font-size: 10px; color: #555;">
+                            Required measurements depend on the selected applicator.
+                        </span>
+                    </div>
+
+                    <div id="noApplicableFieldsMsg" style="display: none; padding: 8px; color: #666; font-style: italic; font-size: 11px;">
+                        No physical measurement fields are configured for the selected applicator type.
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr) 90px 90px; gap: 10px; align-items: start;">
+                        <!-- 1. Tandem length (cm) -->
+                        <div id="container_tandem_length_cm" style="display: none;">
+                            <label class="access-label" style="font-weight: bold;" for="id_tandem_length_cm">
+                                <span class="field-label">Tandem length (cm)</span>
+                                <span class="req-indicator" style="color: #b00000; display: none;">*</span>
+                            </label>
+                            <input type="number" step="0.1" name="tandem_length_cm" id="id_tandem_length_cm"
+                                   value="{% if form.tandem_length_cm.value != None %}{{ form.tandem_length_cm.value }}{% elif session and session.tandem_length_cm != None %}{{ session.tandem_length_cm }}{% endif %}" 
+                                   class="access-input" placeholder="e.g. 6.0">
+                            {% if form.tandem_length_cm.errors %}
+                                <div style="color: #b00000; font-size: 10px; margin-top: 2px;">{{ form.tandem_length_cm.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 2. Ovoid diameter (mm) -->
+                        <div id="container_ovoid_diameter_mm" style="display: none;">
+                            <label class="access-label" style="font-weight: bold;" for="id_ovoid_diameter_mm">
+                                <span class="field-label">Ovoid diameter (mm)</span>
+                                <span class="req-indicator" style="color: #b00000; display: none;">*</span>
+                            </label>
+                            <input type="number" step="0.1" name="ovoid_diameter_mm" id="id_ovoid_diameter_mm"
+                                   value="{% if form.ovoid_diameter_mm.value != None %}{{ form.ovoid_diameter_mm.value }}{% elif session and session.ovoid_diameter_mm != None %}{{ session.ovoid_diameter_mm }}{% endif %}" 
+                                   class="access-input" placeholder="e.g. 20">
+                            {% if form.ovoid_diameter_mm.errors %}
+                                <div style="color: #b00000; font-size: 10px; margin-top: 2px;">{{ form.ovoid_diameter_mm.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 3. Ovoid length (mm) -->
+                        <div id="container_ovoid_length_mm" style="display: none;">
+                            <label class="access-label" style="font-weight: bold;" for="id_ovoid_length_mm">
+                                <span class="field-label">Ovoid length (mm)</span>
+                                <span class="req-indicator" style="color: #b00000; display: none;">*</span>
+                            </label>
+                            <input type="number" step="0.1" name="ovoid_length_mm" id="id_ovoid_length_mm"
+                                   value="{% if form.ovoid_length_mm.value != None %}{{ form.ovoid_length_mm.value }}{% elif session and session.ovoid_length_mm != None %}{{ session.ovoid_length_mm }}{% endif %}" 
+                                   class="access-input" placeholder="e.g. 30">
+                            {% if form.ovoid_length_mm.errors %}
+                                <div style="color: #b00000; font-size: 10px; margin-top: 2px;">{{ form.ovoid_length_mm.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 4. Ring diameter (mm) -->
+                        <div id="container_ring_diameter_mm" style="display: none;">
+                            <label class="access-label" style="font-weight: bold;" for="id_ring_diameter_mm">
+                                <span class="field-label">Ring diameter (mm)</span>
+                                <span class="req-indicator" style="color: #b00000; display: none;">*</span>
+                            </label>
+                            <input type="number" step="0.1" name="ring_diameter_mm" id="id_ring_diameter_mm"
+                                   value="{% if form.ring_diameter_mm.value != None %}{{ form.ring_diameter_mm.value }}{% elif session and session.ring_diameter_mm != None %}{{ session.ring_diameter_mm }}{% endif %}" 
+                                   class="access-input" placeholder="e.g. 30">
+                            {% if form.ring_diameter_mm.errors %}
+                                <div style="color: #b00000; font-size: 10px; margin-top: 2px;">{{ form.ring_diameter_mm.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 5. Number of needles -->
+                        <div id="container_needle_count" style="display: none;">
+                            <label class="access-label" style="font-weight: bold;" for="id_needle_count">
+                                <span class="field-label">Number of needles</span>
+                                <span class="req-indicator" style="color: #b00000; display: none;">*</span>
+                            </label>
+                            <input type="number" name="needle_count" id="id_needle_count"
+                                   value="{% if form.needle_count.value != None %}{{ form.needle_count.value }}{% elif session and session.needle_count != None %}{{ session.needle_count }}{% endif %}" 
+                                   class="access-input" placeholder="e.g. 12" min="1">
+                            {% if form.needle_count.errors %}
+                                <div style="color: #b00000; font-size: 10px; margin-top: 2px;">{{ form.needle_count.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Non-metric clinical checkboxes -->
+                        <div style="display: flex; align-items: center; gap: 4px; padding-top: 18px;">
+                            <input type="checkbox" name="packing_adequate" id="id_packing_adequate" value="1" {% if not session or session.packing_adequate %}checked{% endif %}>
+                            <label for="id_packing_adequate" class="access-label" style="margin: 0; cursor: pointer;">Packing OK</label>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px; padding-top: 18px;">
+                            <input type="checkbox" name="imaging_done" id="id_imaging_done" value="1" {% if not session or session.imaging_done %}checked{% endif %}>
+                            <label for="id_imaging_done" class="access-label" style="margin: 0; cursor: pointer;">Imaging Done</label>
+                        </div>
+                    </div>
+
+                    {% if session and session.legacy_ovoid_size_mm != None %}
+                        <div style="margin-top: 8px; font-size: 10px; color: #856404; background: #fff3cd; border: 1px solid #ffeeba; padding: 4px 8px; border-radius: 2px;">
+                            ℹ️ <strong>Historical Note:</strong> Preserved legacy unseparated Ovoid measurement: <strong>{{ session.legacy_ovoid_size_mm }} mm</strong>. Please enter specific Ovoid Diameter and Length above.
+                        </div>
+                    {% endif %}
+                </div>
+            </fieldset>
+
+            <!-- Section 2: Fraction Dosimetry & Target/OAR Dose Metrics -->
+            <fieldset style="border: 2px solid #003366; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
+                    🎯 2. Fraction Dosimetry, Target Volumes & OAR Constraints (tblBrachyFractions)
+                </legend>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Dose Delivered (Gy) *</label>
+                        <input type="number" step="0.1" name="dose_delivered_gy" 
+                               value="{% if fraction and fraction.dose_delivered_gy %}{{ fraction.dose_delivered_gy }}{% endif %}" 
+                               class="access-input" required placeholder="e.g. 7.0">
+                    </div>
+                    <div>
+                        <label class="access-label">Total Dwell Time (seconds)</label>
+                        <input type="number" step="0.1" name="total_dwell_time_seconds" 
+                               value="{% if fraction and fraction.total_dwell_time_seconds %}{{ fraction.total_dwell_time_seconds }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 345.5">
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #1b5e20;">Target HRCTV D90 (Gy)</label>
+                        <input type="number" step="0.1" name="hrctv_d90_gy" 
+                               value="{% if fraction and fraction.hrctv_d90_gy %}{{ fraction.hrctv_d90_gy }}{% endif %}" 
+                               class="access-input" style="font-weight: bold;" placeholder="e.g. 7.4">
+                    </div>
+                    <div>
+                        <label class="access-label">Target HRCTV Volume (cc)</label>
+                        <input type="number" step="0.1" name="volume_hrctv_cc" 
+                               value="{% if fraction and fraction.volume_hrctv_cc %}{{ fraction.volume_hrctv_cc }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 26.5">
+                    </div>
+                </div>
+
+                <!-- Organs at Risk (OAR D2cc) -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #fff3e0; padding: 8px; border: 1px solid #ffe0b2;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #e65100;">Bladder D2cc (Gy)</label>
+                        <input type="number" step="0.1" name="bladder_dose_2cc_gy" 
+                               value="{% if fraction and fraction.bladder_dose_2cc_gy %}{{ fraction.bladder_dose_2cc_gy }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 5.1">
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #e65100;">Rectum D2cc (Gy)</label>
+                        <input type="number" step="0.1" name="rectum_dose_2cc_gy" 
+                               value="{% if fraction and fraction.rectum_dose_2cc_gy %}{{ fraction.rectum_dose_2cc_gy }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 4.2">
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #e65100;">Sigmoid D2cc (Gy)</label>
+                        <input type="number" step="0.1" name="sigmoid_dose_2cc_gy" 
+                               value="{% if fraction and fraction.sigmoid_dose_2cc_gy %}{{ fraction.sigmoid_dose_2cc_gy }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 3.8">
+                    </div>
+                </div>
+            </fieldset>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <label class="access-label">Procedure Notes</label>
+                    <textarea name="procedure_notes" class="access-textarea" rows="2" placeholder="Applicator orientation, tandem angle, cervical os dilation...">{% if session %}{{ session.procedure_notes|default:'' }}{% endif %}</textarea>
+                </div>
+                <div>
+                    <label class="access-label">Complications</label>
+                    <textarea name="insertion_complications" class="access-textarea" rows="2" placeholder="Uterine perforation, excessive bleeding, etc...">{% if session %}{{ session.insertion_complications|default:'None' }}{% else %}None{% endif %}</textarea>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+                <button type="submit" class="btn-access btn-primary-action">
+                    💾 Save Session & Fraction Record
+                </button>
+                <a href="{% url 'brachy_edit' patient.mr_no course.brachy_course_id %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Safe embedded JSON data of applicator measurement rules -->
+<script id="applicatorRulesData" type="application/json">
+{{ applicator_rules_json|safe }}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Parse embedded rules configuration
+let APPLICATOR_RULES = {};
+try {
+    const rawData = document.getElementById('applicatorRulesData').textContent;
+    APPLICATOR_RULES = JSON.parse(rawData || '{}');
+} catch (e) {
+    console.error("Failed to parse applicator rules JSON:", e);
+}
+
+let currentApplicatorId = document.getElementById('id_applicator').value;
+
+// Field DOM references and metadata
+const FIELD_CONFIG = {
+    'tandem_length_cm': {
+        input: document.getElementById('id_tandem_length_cm'),
+        container: document.getElementById('container_tandem_length_cm'),
+        label: 'Tandem length (cm)'
+    },
+    'ovoid_diameter_mm': {
+        input: document.getElementById('id_ovoid_diameter_mm'),
+        container: document.getElementById('container_ovoid_diameter_mm'),
+        label: 'Ovoid diameter (mm)'
+    },
+    'ovoid_length_mm': {
+        input: document.getElementById('id_ovoid_length_mm'),
+        container: document.getElementById('container_ovoid_length_mm'),
+        label: 'Ovoid length (mm)'
+    },
+    'ring_diameter_mm': {
+        input: document.getElementById('id_ring_diameter_mm'),
+        container: document.getElementById('container_ring_diameter_mm'),
+        label: 'Ring diameter (mm)'
+    },
+    'needle_count': {
+        input: document.getElementById('id_needle_count'),
+        container: document.getElementById('container_needle_count'),
+        label: 'Number of needles'
+    }
+};
+
+function onApplicatorChange(selectElem) {
+    const newAppId = selectElem.value;
+    const oldAppId = currentApplicatorId;
+    
+    if (newAppId === oldAppId) return;
+
+    // Check if any non-empty field will be discarded/cleared
+    const newRules = APPLICATOR_RULES[newAppId] || [];
+    const enabledCodes = new Set(newRules.filter(r => r.enabled).map(r => r.code));
+    
+    const discardedFields = [];
+    for (const [code, cfg] of Object.entries(FIELD_CONFIG)) {
+        if (cfg.input && cfg.input.value && cfg.input.value.trim() !== '') {
+            if (code === 'needle_count' && (cfg.input.value === '0' || cfg.input.value === '')) {
+                continue;
+            }
+            if (!enabledCodes.has(code)) {
+                discardedFields.push(cfg.label);
+            }
+        }
+    }
+
+    if (discardedFields.length > 0) {
+        const confirmMsg = `Changing applicator will clear entered measurement values that do not apply to the new applicator:\n\n• ${discardedFields.join('\n• ')}\n\nDo you want to proceed and discard these values?`;
+        if (!confirm(confirmMsg)) {
+            // Revert select dropdown to previous value
+            selectElem.value = oldAppId;
+            return;
+        }
+    }
+
+    currentApplicatorId = newAppId;
+    applyApplicatorRules(newAppId, true);
+}
+
+function applyApplicatorRules(appId, shouldClearNonApplicable = false) {
+    const rules = APPLICATOR_RULES[appId] || [];
+    const ruleMap = {};
+    rules.forEach(r => { ruleMap[r.code] = r; });
+
+    let anyEnabled = false;
+
+    for (const [code, cfg] of Object.entries(FIELD_CONFIG)) {
+        const input = cfg.input;
+        const container = cfg.container;
+        const rule = ruleMap[code];
+
+        if (!input || !container) continue;
+
+        const isEnabled = rule ? Boolean(rule.enabled) : false;
+        const isRequired = rule ? Boolean(rule.required) : false;
+
+        const reqStar = container.querySelector('.req-indicator');
+
+        if (isEnabled) {
+            anyEnabled = true;
+            container.style.display = '';
+            input.disabled = false;
+            container.setAttribute('aria-hidden', 'false');
+            input.removeAttribute('tabindex');
+
+            if (isRequired) {
+                input.required = true;
+                input.setAttribute('aria-required', 'true');
+                if (reqStar) reqStar.style.display = 'inline';
+            } else {
+                input.required = false;
+                input.setAttribute('aria-required', 'false');
+                if (reqStar) reqStar.style.display = 'none';
+            }
+
+            // Set min / max limits if configured
+            if (rule.min_value !== null && rule.min_value !== undefined) {
+                input.min = rule.min_value;
+            }
+            if (rule.max_value !== null && rule.max_value !== undefined) {
+                input.max = rule.max_value;
+            }
+        } else {
+            // Disabled & hidden
+            container.style.display = 'none';
+            input.disabled = true;
+            input.required = false;
+            input.removeAttribute('required');
+            input.setAttribute('aria-required', 'false');
+            container.setAttribute('aria-hidden', 'true');
+            input.setAttribute('tabindex', '-1');
+            if (reqStar) reqStar.style.display = 'none';
+
+            if (shouldClearNonApplicable) {
+                input.value = '';
+            }
+        }
+    }
+
+    const noFieldsMsg = document.getElementById('noApplicableFieldsMsg');
+    if (noFieldsMsg) {
+        noFieldsMsg.style.display = (!appId || !anyEnabled) ? 'block' : 'none';
+    }
+}
+
+// Initial activation on page load (preserves existing saved values)
+document.addEventListener('DOMContentLoaded', function() {
+    const initialAppId = document.getElementById('id_applicator').value;
+    if (initialAppId) {
+        applyApplicatorRules(initialAppId, false);
+    }
+});
+</script>
+{% endblock %}

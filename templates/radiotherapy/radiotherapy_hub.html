@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+
+{% block title %}Radiotherapy Hub - {{ patient.mr_no }} {{ patient.pt_name }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Radiotherapy: EBRT & Brachytherapy Hub</span>
+    </div>
+</div>
+
+<!-- Radiobiology EQD2 Cumulative Dosimetry Banner -->
+<div style="background: #eef6f0; border: 2px solid #2e7d32; padding: 10px 14px; margin-bottom: 12px; border-radius: 2px;">
+    <div style="font-weight: bold; font-size: 12px; color: #1b5e20; margin-bottom: 6px;">
+        📐 Cumulative Radiobiological EQD2 Dosimetry (LQ Model: EBRT + Brachytherapy)
+    </div>
+    {% if eqd2_summary %}
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            {% for eq in eqd2_summary %}
+                <div style="background: #fff; border: 1px solid #a5d6a7; padding: 6px; text-align: center;">
+                    <div style="font-size: 10px; color: #555;">Target HRCTV D90 EQD2</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #1b5e20;">{{ eq.tumor_eqd2 }} Gy₁₀</div>
+                    <div style="font-size: 9px; color: #777;">Goal &gt; 85 Gy₁₀</div>
+                </div>
+                <div style="background: #fff; border: 1px solid #ffcc80; padding: 6px; text-align: center;">
+                    <div style="font-size: 10px; color: #555;">Bladder D2cc EQD2</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #e65100;">{{ eq.bladder_eqd2 }} Gy₃</div>
+                    <div style="font-size: 9px; color: #777;">Constraint &lt; 90 Gy₃</div>
+                </div>
+                <div style="background: #fff; border: 1px solid #ffcc80; padding: 6px; text-align: center;">
+                    <div style="font-size: 10px; color: #555;">Rectum D2cc EQD2</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #e65100;">{{ eq.rectum_eqd2 }} Gy₃</div>
+                    <div style="font-size: 9px; color: #777;">Constraint &lt; 75 Gy₃</div>
+                </div>
+                <div style="background: #fff; border: 1px solid #ffcc80; padding: 6px; text-align: center;">
+                    <div style="font-size: 10px; color: #555;">Sigmoid D2cc EQD2</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #e65100;">{{ eq.sigmoid_eqd2 }} Gy₃</div>
+                    <div style="font-size: 9px; color: #777;">Constraint &lt; 75 Gy₃</div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="font-size: 11px; color: #666; font-style: italic;">
+            Log EBRT doses and Brachy fractions to compute cumulative Linear-Quadratic EQD2 values.
+        </div>
+    {% endif %}
+</div>
+
+<!-- Section 1: External Beam Radiotherapy (EBRT) -->
+<div class="access-subform" style="margin-bottom: 14px;">
+    <div class="access-subform-header">
+        <span>⚡ 1. External Beam Radiation Therapy (EBRT) Courses</span>
+        <a href="{% url 'ebrt_add' patient.mr_no %}" class="btn-access btn-primary-action" style="font-size: 10px;">
+            ➕ Add EBRT Course
+        </a>
+    </div>
+    <div class="access-subform-body">
+        <table class="access-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Seq</th>
+                    <th>Technique</th>
+                    <th>Treatment Intent</th>
+                    <th>Sites Treated</th>
+                    <th>Total Dose (Gy)</th>
+                    <th>Fractions</th>
+                    <th>Dose / Fx</th>
+                    <th>Dates (Start - End)</th>
+                    <th>Status</th>
+                    <th>Interruption</th>
+                    <th style="width: 70px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eb in ebrt_courses %}
+                    <tr>
+                        <td><strong>#{{ eb.course_sequence }}</strong></td>
+                        <td><strong>{{ eb.ebrt_technique.technique_name|default:'3DCRT' }}</strong></td>
+                        <td>{{ eb.ebrt_intent.intent_name|default:'Radical' }}</td>
+                        <td>
+                            {% for s in eb.sites.all %}
+                                <span style="background: #e8eef4; padding: 1px 4px; border-radius: 2px; margin-right: 2px;">
+                                    {{ s.ebrt_site.site_name }}
+                                </span>
+                            {% empty %}
+                                Whole Pelvis
+                            {% endfor %}
+                        </td>
+                        <td><strong style="color: #003366;">{{ eb.total_dose_gy|default:'-' }} Gy</strong></td>
+                        <td>{{ eb.total_fractions|default:'-' }} #</td>
+                        <td>{{ eb.dose_per_fraction_gy|default:'-' }} Gy</td>
+                        <td>{{ eb.ebrt_start_date|date:'d-M-Y'|default:'-' }} to {{ eb.ebrt_end_date|date:'d-M-Y'|default:'-' }}</td>
+                        <td>
+                            <span style="font-weight: bold; color: {% if eb.treatment_completed %}#2e7d32{% else %}#003366{% endif %};">
+                                {{ eb.course_status.status_name|default:'In Progress' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if eb.treatment_interrupted %}
+                                <span style="color: #b00000; font-weight: bold;">{{ eb.interruption_days }}d lost</span>
+                            {% else %}
+                                None
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="{% url 'ebrt_edit' patient.mr_no eb.ebrt_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                ✏️ Edit
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="11" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                            No EBRT courses logged for this patient. Click "Add EBRT Course" above.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Section 2: Brachytherapy Courses -->
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>📍 2. Brachytherapy Courses & Applicator Sessions</span>
+        <a href="{% url 'brachy_add' patient.mr_no %}" class="btn-access btn-primary-action" style="font-size: 10px;">
+            ➕ Add Brachy Course
+        </a>
+    </div>
+    <div class="access-subform-body">
+        <table class="access-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Seq</th>
+                    <th>Dosing System</th>
+                    <th>Source Type</th>
+                    <th>Prescription Dose</th>
+                    <th>Fractions (Delivered / Planned)</th>
+                    <th>Treatment Dates</th>
+                    <th>Sessions Logged</th>
+                    <th>Status</th>
+                    <th style="width: 140px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for br in brachy_courses %}
+                    <tr>
+                        <td><strong>#{{ br.course_sequence }}</strong></td>
+                        <td><strong>{{ br.brachy_dosing.dosing_point|default:'Point A' }}</strong></td>
+                        <td>{{ br.brachy_source.source_name|default:'HDR Ir-192' }}</td>
+                        <td>{{ br.prescription_dose_gy|default:'-' }} Gy</td>
+                        <td>
+                            <strong>{{ br.total_fractions_delivered }}</strong> / {{ br.total_fractions_planned }} #
+                        </td>
+                        <td>{{ br.brachy_start_date|date:'d-M-Y'|default:'-' }} to {{ br.brachy_end_date|date:'d-M-Y'|default:'-' }}</td>
+                        <td>
+                            <span style="background: #e8eef4; padding: 1px 6px; font-weight: bold; border-radius: 2px;">
+                                {{ br.sessions.count }} session{{ br.sessions.count|pluralize }}
+                            </span>
+                        </td>
+                        <td>{{ br.course_status.status_name|default:'In Progress' }}</td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            <a href="{% url 'brachy_edit' patient.mr_no br.brachy_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                ✏️ Course & Sessions
+                            </a>
+                            <a href="{% url 'brachy_session_add' patient.mr_no br.brachy_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                ➕ Session
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                            No Brachytherapy courses recorded for this patient. Click "Add Brachy Course" above.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Navigation Ribbon -->
+        <div style="margin-top: 14px; display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+            <a href="{% url 'investigations_hub' patient.mr_no %}" class="btn-access">
+                🧪 Investigations Hub
+            </a>
+            <a href="{% url 'systemic_hub' patient.mr_no %}" class="btn-access btn-primary-action">
+                ➡️ Systemic Chemo Hub (Concurrent / NACT)
+            </a>
+            <a href="{% url 'followup_list' patient.mr_no %}" class="btn-access">
+                📅 Follow-Up Tracking
+            </a>
+            <div style="flex-grow: 1;"></div>
+            <a href="{% url 'dashboard' %}" class="btn-access" style="color: #666;">
+                🏠 Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

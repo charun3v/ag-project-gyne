@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Login - {{ APP_TITLE }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 65vh;">
+    <div class="access-form-box" style="width: 380px;">
+        <div class="access-form-header">
+            <span>🔒 Gynae Oncology Case Records - Login</span>
+        </div>
+        <div class="access-form-body">
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required autofocus style="width: 100%; padding: 6px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required style="width: 100%; padding: 6px;">
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 11px; color: #666666;">Default: Admin / Admin@123</span>
+                    <button type="submit" class="btn-access btn-primary-action" style="padding: 6px 18px;">Login</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

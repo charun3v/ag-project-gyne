@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Follow-Up Surveillance - {{ patient.mr_no }} {{ patient.pt_name }}{% endblock %}
+
+{% block content %}
+<div class="patient-banner">
+    <div>
+        <span class="pt-name">{{ patient.pt_name }}</span>
+        <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
+    </div>
+    <div>
+        <span class="pt-badge">Longitudinal Follow-Up Surveillance</span>
+    </div>
+</div>
+
+<div class="access-subform">
+    <div class="access-subform-header">
+        <span>📅 frmFollowUpList: Disease Surveillance, Recurrence & Survival Monitoring</span>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">Back to Dashboard</a>
+        </div>
+    </div>
+    <div class="access-subform-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 11px; color: #444;">
+                Chronological Surveillance Visits: <strong>{{ followups|length }} recorded</strong>
+            </span>
+            <a href="{% url 'followup_add' patient.mr_no %}" class="btn-access btn-primary-action">
+                ➕ Record Follow-Up Visit
+            </a>
+        </div>
+
+        <table class="access-table">
+            <thead>
+                <tr>
+                    <th style="width: 90px;">Visit Date</th>
+                    <th>Contact Mode</th>
+                    <th>Disease Status</th>
+                    <th>Recurrence Status</th>
+                    <th>Recurrence Site / Plan</th>
+                    <th>Survival / Vital Status</th>
+                    <th style="width: 100px;">Next Visit</th>
+                    <th style="width: 70px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fu in followups %}
+                    <tr>
+                        <td><strong>{{ fu.follow_up_date|date:'d-M-Y' }}</strong></td>
+                        <td>{{ fu.contact_type.contact_type|default:'In-person Clinic' }}</td>
+                        <td>
+                            <strong style="color: {% if fu.disease_status.status_name == 'No Evidence of Disease' %}#2e7d32{% else %}#b00000{% endif %};">
+                                {{ fu.disease_status.status_name|default:'Logged' }}
+                            </strong>
+                        </td>
+                        <td>
+                            {% if fu.recurrence_detected %}
+                                <span style="background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; padding: 1px 6px; font-weight: bold; border-radius: 2px;">
+                                    ⚠️ RECURRENCE ({{ fu.date_of_recurrence|date:'d-M-Y'|default:'Confirmed' }})
+                                </span>
+                            {% else %}
+                                <span style="color: #2e7d32;">No Recurrence</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if fu.recurrence_detected %}
+                                <div>
+                                    Site: <strong>{{ fu.recurrence_site.site_name|default:'Local / Pelvic' }}</strong>
+                                    ({% if fu.recurrence_local %}Local{% endif %}{% if fu.recurrence_nodal %}, Nodal{% endif %}{% if fu.recurrence_distant %}, Distant{% endif %})
+                                </div>
+                                {% if fu.recurrence_treatment_plan %}
+                                    <div style="font-size: 10px; color: #555;">{{ fu.recurrence_treatment_plan|truncatechars:60 }}</div>
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if fu.death_reported %}
+                                <span style="color: #000; font-weight: bold; background: #eee; padding: 1px 4px;">
+                                    † Deceased ({{ fu.date_of_death|date:'d-M-Y'|default:'Date unknown' }})
+                                </span>
+                            {% else %}
+                                <span style="color: #2e7d32; font-weight: bold;">Alive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ fu.next_fu_date|date:'d-M-Y'|default:'-' }}</td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            <a href="{% url 'followup_edit' patient.mr_no fu.follow_up_status_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
+                                ✏️ Edit
+                            </a>
+                            {% if user.is_staff or user.is_superuser %}
+                            <form method="post" action="{% url 'followup_delete' patient.mr_no fu.follow_up_status_id %}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this follow-up entry on {{ fu.follow_up_date|date:\'d-M-Y\' }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-access" style="font-size: 10px; padding: 2px 6px; color: #b00000; border-color: #ffcccc;" title="Delete follow-up record (Admin only)">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
+                            No follow-up surveillance visits recorded yet. Click "Record Follow-Up Visit" above to log patient encounters and surveillance findings.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Navigation Ribbon -->
+        <div style="margin-top: 14px; display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+            <a href="{% url 'patient_summary' patient.mr_no %}" class="btn-access">
+                📄 Full Patient Summary
+            </a>
+            <a href="{% url 'document_list' patient.mr_no %}" class="btn-access btn-primary-action">
+                ➡️ Private Document & Media Uploads
+            </a>
+            <div style="flex-grow: 1;"></div>
+            <a href="{% url 'dashboard' %}" class="btn-access" style="color: #666;">
+                🏠 Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
