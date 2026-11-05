@@ -163,6 +163,7 @@ class Encounter(models.Model):
     
     tumour_size_cm = models.FloatField(null=True, blank=True, db_column='Tumour_Size_cm')
     tumour_size_2_cm = models.FloatField(null=True, blank=True, db_column='Tumour_Size_2_cm')
+    tumour_size_3_cm = models.FloatField(null=True, blank=True, db_column='Tumour_Size_3_cm', verbose_name="Tumour Thickness (cm)")
     
     ebrt_given = models.BooleanField(default=False, db_column='EBRT_Given')
     linked_ebrt_course_id = models.IntegerField(null=True, blank=True, db_column='Linked_EBRTCourseID')

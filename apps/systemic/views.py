@@ -171,6 +171,8 @@ def nact_form_view(request, mr_no, course_id=None):
         )
 
         messages.success(request, f"NACT record for {patient.pt_name} saved.")
+        if 'save_next' in request.POST:
+            return redirect('examination_detail', mr_no=patient.mr_no, enc_type='post-nact')
         return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
 
     cycles = course.cycles.all().prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if course else []
@@ -439,6 +441,8 @@ def adjuvant_form_view(request, mr_no, course_id=None):
         )
 
         messages.success(request, f"Adjuvant chemotherapy record for {patient.pt_name} saved.")
+        if 'save_next' in request.POST:
+            return redirect('followup_list', mr_no=patient.mr_no)
         return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
 
     cycles = course.cycles.all().prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if course else []

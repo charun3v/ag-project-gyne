@@ -14,6 +14,12 @@ except TypeError:
         return _orig_md5(*args, **kwargs)
     hashlib.md5 = _compat_md5
 
+try:
+    import reportlab.pdfbase.pdfdoc as _pdfdoc
+    _pdfdoc.md5 = hashlib.md5
+except Exception:
+    pass
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -429,9 +435,8 @@ def build_patient_summary_pdf(patient):
                 sides.append(f"Right ({latest_enc.para_extent_right_cm or '—'} cm)" if latest_enc.para_extent_right_cm else "Right")
             para_s = f"Present: {', '.join(sides)}" if sides else "Present"
 
-        t_dim = "—"
-        if latest_enc.tumour_size_cm or latest_enc.tumour_size_2_cm:
-            t_dim = f"{latest_enc.tumour_size_cm or '—'} cm × {latest_enc.tumour_size_2_cm or '—'} cm"
+        dims = [f"{d} cm" for d in [latest_enc.tumour_size_cm, latest_enc.tumour_size_2_cm, getattr(latest_enc, 'tumour_size_3_cm', None)] if d is not None]
+        t_dim = " × ".join(dims) if dims else "—"
 
         exam_table_data = [
             [

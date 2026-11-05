@@ -86,6 +86,8 @@ def followup_form_view(request, mr_no, followup_id=None):
         )
 
         messages.success(request, f"Follow-up visit record ({fu.follow_up_date}) saved.")
+        if 'save_next' in request.POST:
+            return redirect('patient_summary', mr_no=patient.mr_no)
         return redirect('followup_list', mr_no=patient.mr_no)
 
     return render(request, 'followup/followup_form.html', {

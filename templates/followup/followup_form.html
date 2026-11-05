@@ -190,8 +190,11 @@
             </fieldset>
 
             <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
-                <button type="submit" class="btn-access btn-primary-action">
+                <button type="submit" name="save_stay" value="1" class="btn-access btn-primary-action">
                     💾 Save Follow-Up Record
+                </button>
+                <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
+                    ➡️ Save & Proceed to Patient Summary
                 </button>
                 {% if fu and user.is_staff or user.is_superuser %}
                     <button type="submit" formaction="{% url 'followup_delete' patient.mr_no fu.follow_up_status_id %}" 

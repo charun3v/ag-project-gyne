@@ -25,6 +25,12 @@ except TypeError:
         return _orig_md5(*args, **kwargs)
     hashlib.md5 = _compat_md5
 
+try:
+    import reportlab.pdfbase.pdfdoc as _pdfdoc
+    _pdfdoc.md5 = hashlib.md5
+except Exception:
+    pass
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle

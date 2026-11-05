@@ -170,7 +170,7 @@
                             Bladder: {% if enc.bladder_invasion %}Involved{% else %}Free{% endif %}
                         </div>
                         <div>
-                            <strong>Tumour Size:</strong> {{ enc.tumour_size_cm|default:'-' }} x {{ enc.tumour_size_2_cm|default:'-' }} cm
+                            <strong>Tumour Size:</strong> {{ enc.tumour_size_cm|default:'-' }} × {{ enc.tumour_size_2_cm|default:'-' }}{% if enc.tumour_size_3_cm %} × {{ enc.tumour_size_3_cm }}{% endif %} cm
                         </div>
                     </div>
                     <!-- Marked SVG Regions -->

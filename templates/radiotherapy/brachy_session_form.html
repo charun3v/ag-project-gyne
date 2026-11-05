@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{% if session %}Edit Session #{{ session.session_number }}{% else %}New Brachy Session{% endif %} - {{ patient.mr_no }}{% endblock %}
+{% block title %}{% if session %}Edit Application #{{ session.session_number }}{% else %}New Brachy Application{% endif %} - {{ patient.mr_no }}{% endblock %}
 
 {% block content %}
 <div class="patient-banner">
@@ -9,13 +9,13 @@
         <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
     </div>
     <div>
-        <span class="pt-badge">Brachytherapy Applicator Insertion & Fraction Dosimetry</span>
+        <span class="pt-badge">Brachytherapy Application & Fraction Dosimetry</span>
     </div>
 </div>
 
 <div class="access-subform">
     <div class="access-subform-header" style="display: flex; justify-content: space-between; align-items: center;">
-        <span>💉 frmBrachySessions: Applicator Insertion & 3D Image-Guided Dosimetry</span>
+        <span>💉 frmBrachyApplications: Application Insertion & 3D Image-Guided Dosimetry</span>
         <div style="font-weight: normal; font-size: 11px;">
             <a href="{% url 'brachy_edit' patient.mr_no course.brachy_course_id %}" style="color: #fff; text-decoration: underline;">Back to Course</a>
         </div>
@@ -38,14 +38,14 @@
                 
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
                     <div>
-                        <label class="access-label" style="font-weight: bold;">Session Number *</label>
+                        <label class="access-label" style="font-weight: bold;">Application Number *</label>
                         <input type="number" name="session_number" 
                                value="{% if form.session_number.value %}{{ form.session_number.value }}{% elif session %}{{ session.session_number }}{% else %}1{% endif %}" 
                                class="access-input" required>
                         {% if form.session_number.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.session_number.errors.0 }}</div>{% endif %}
                     </div>
                     <div>
-                        <label class="access-label" style="font-weight: bold;">Insertion Date *</label>
+                        <label class="access-label" style="font-weight: bold;">Application Date *</label>
                         <input type="date" name="session_date" 
                                value="{% if form.session_date.value %}{{ form.session_date.value|date:'Y-m-d'|default:form.session_date.value }}{% elif session and session.session_date %}{{ session.session_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
                                max="{% now 'Y-m-d' %}"
@@ -296,7 +296,7 @@
 
             <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
                 <button type="submit" class="btn-access btn-primary-action">
-                    💾 Save Session & Fraction Record
+                    💾 Save Application Parameters
                 </button>
                 <a href="{% url 'brachy_edit' patient.mr_no course.brachy_course_id %}" class="btn-access" style="color: #666;">
                     ✖️ Cancel / Back

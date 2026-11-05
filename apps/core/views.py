@@ -584,6 +584,17 @@ LOOKUP_CONFIG = {
         'secondary_field': 'agent_class',
         'secondary_label': 'Drug Class (e.g. Platinum, Taxane)',
     },
+    'staging_system': {
+        'title': 'Staging Systems (FIGO / TNM)',
+        'table_name': 'sbtblStagingSystem',
+        'app': 'clinical',
+        'model_name': 'StagingSystem',
+        'pk': 'staging_system_id',
+        'name_field': 'system_name',
+        'name_label': 'Staging System Name (e.g. FIGO 2018, AJCC TNM 8th Ed)',
+        'secondary_field': 'system_version',
+        'secondary_label': 'Version / Edition (e.g. 2018, 8th Edition)',
+    },
 }
 
 def get_lookup_model(category):

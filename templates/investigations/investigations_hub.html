@@ -155,7 +155,10 @@
                             <td>{{ p.lab_reference_no|default:'-' }}</td>
                             <td>{{ p.specimen.specimen_name|default:'-' }}</td>
                             <td>{{ p.site_display }}</td>
-                            <td>{{ p.path_type.path_type_name|default:'Histology' }}</td>
+                            <td>
+                                {{ p.path_type.path_type_name|default:'Histology' }}
+                                {% if p.histology %}<div style="color: #003366; font-weight: bold; font-size: 10px;">{{ p.histology.histology_name }}</div>{% endif %}
+                            </td>
                             <td>
                                 <div><strong>{{ p.impression|default:'Report logged' }}</strong></div>
                                 {% if p.details %}<div style="color: #555; font-size: 10px;">{{ p.details|truncatechars:100 }}</div>{% endif %}

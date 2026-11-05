@@ -218,6 +218,8 @@ class PathologyInvestigation(models.Model):
     biopsy_site = models.ForeignKey(PathBiopsySite, on_delete=models.SET_NULL, null=True, blank=True, db_column='PathBiopsySiteID')
     path_type = models.ForeignKey(PathType, on_delete=models.SET_NULL, null=True, blank=True, db_column='PathTypeID')
     fnac_site = models.ForeignKey(FNACSite, on_delete=models.SET_NULL, null=True, blank=True, db_column='FNACSiteID')
+    histology = models.ForeignKey('clinical.Histology', on_delete=models.SET_NULL, null=True, blank=True, db_column='HistologyID', related_name='pathology_reports')
+    grade = models.ForeignKey('clinical.Grade', on_delete=models.SET_NULL, null=True, blank=True, db_column='GradeID', related_name='pathology_reports')
     
     details = models.TextField(blank=True, null=True, db_column='Details')
     impression = models.TextField(blank=True, null=True, db_column='Impression')

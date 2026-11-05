@@ -181,12 +181,14 @@
                             {% if pathology_choices %}
                                 <optgroup label="🔬 From Patient's Pathology & Molecular Reports">
                                     {% for opt in pathology_choices %}
-                                        <option value="custom:{{ opt.text }}" 
+                                        <option value="{% if opt.standard_histology_id %}standard:{{ opt.standard_histology_id }}{% else %}custom:{{ opt.text }}{% endif %}" 
                                                 data-grade-id="{{ opt.detected_grade_id }}"
                                                 data-grade-name="{{ opt.detected_grade_name }}"
                                                 data-source="{{ opt.source }}"
                                                 data-text="{{ opt.text }}"
-                                                {% if diagnosis.histology_other == opt.text %}selected{% endif %}>
+                                                {% if diagnosis and diagnosis.histology_id == opt.standard_histology_id and not diagnosis.histology_other %}selected
+                                                {% elif diagnosis and diagnosis.histology_other == opt.text %}selected
+                                                {% elif not diagnosis and forloop.first %}selected{% endif %}>
                                             [{{ opt.source }} {{ opt.date|date:'d-M-y' }}] {{ opt.text }}{% if opt.detected_grade_name %} (Auto Grade: {{ opt.detected_grade_name }}){% endif %}
                                         </option>
                                     {% endfor %}
@@ -273,7 +275,12 @@
                 
                 <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 8px;">
                     <div>
-                        <label class="access-label">Staging System</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <label class="access-label">Staging System</label>
+                            {% if user.is_staff or user.is_superuser %}
+                                <a href="{% url 'lookup_manager' 'staging_system' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Staging Systems in Lookup Manager">[⚙️ Edit Options]</a>
+                            {% endif %}
+                        </div>
                         <select name="staging_system_id" class="access-select">
                             <option value="">-- Select System --</option>
                             {% for sys in staging_systems %}

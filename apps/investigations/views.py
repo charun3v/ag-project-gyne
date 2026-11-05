@@ -5,6 +5,7 @@ from datetime import date
 
 from patients.models import Patient
 from core.models import AuditLog
+from clinical.models import Histology, Grade
 from investigations.models import (
     BloodInvestigation, PathologyInvestigation, ImagingInvestigation, MRIPelvisDetail, MRINodalStation,
     MolecularInvestigation, MolecularResult, ImagingType, ImagingSite, PathSpecimen, PathBiopsySite,
@@ -84,6 +85,8 @@ def blood_form_view(request, mr_no, blood_id=None):
         )
 
         messages.success(request, f"Blood test record ({blood.test_date}) saved.")
+        if 'save_next' in request.POST:
+            return redirect('investigations_hub', mr_no=patient.mr_no)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=blood")
 
     return render(request, 'investigations/blood_form.html', {
@@ -102,6 +105,8 @@ def pathology_form_view(request, mr_no, path_id=None):
     biopsy_sites = PathBiopsySite.objects.filter(is_active=True)
     path_types = PathType.objects.filter(is_active=True)
     fnac_sites = FNACSite.objects.filter(is_active=True)
+    histologies = Histology.objects.filter(is_active=True)
+    grades = Grade.objects.filter(is_active=True)
 
     if request.method == 'POST':
         if not path_report:
@@ -113,9 +118,17 @@ def pathology_form_view(request, mr_no, path_id=None):
         path_report.biopsy_site_id = request.POST.get('biopsy_site_id') or None
         path_report.path_type_id = request.POST.get('path_type_id') or None
         path_report.fnac_site_id = request.POST.get('fnac_site_id') or None
+        path_report.histology_id = request.POST.get('histology_id') or None
+        path_report.grade_id = request.POST.get('grade_id') or None
 
         path_report.details = request.POST.get('details', '')
-        path_report.impression = request.POST.get('impression', '')
+        impression_val = request.POST.get('impression', '').strip()
+        if not impression_val and path_report.histology:
+            parts = [path_report.histology.histology_name]
+            if path_report.grade:
+                parts.append(path_report.grade.grade_name)
+            impression_val = ", ".join(parts)
+        path_report.impression = impression_val
         path_report.last_modified_by = request.user.username
         path_report.save()
 
@@ -129,6 +142,8 @@ def pathology_form_view(request, mr_no, path_id=None):
         )
 
         messages.success(request, f"Pathology report ({path_report.path_date}) saved.")
+        if 'save_next' in request.POST:
+            return redirect('diagnosis_detail', mr_no=patient.mr_no)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=pathology")
 
     return render(request, 'investigations/pathology_form.html', {
@@ -138,6 +153,8 @@ def pathology_form_view(request, mr_no, path_id=None):
         'biopsy_sites': biopsy_sites,
         'path_types': path_types,
         'fnac_sites': fnac_sites,
+        'histologies': histologies,
+        'grades': grades,
     })
 
 
@@ -217,6 +234,8 @@ def imaging_form_view(request, mr_no, imaging_id=None):
         )
 
         messages.success(request, f"Imaging investigation ({imaging.imaging_type}) saved.")
+        if 'save_next' in request.POST:
+            return redirect('diagnosis_detail', mr_no=patient.mr_no)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=imaging")
 
     return render(request, 'investigations/imaging_form.html', {

@@ -122,7 +122,7 @@ class BrachySessionForm(forms.ModelForm):
                     if ps.session_date and session_date <= ps.session_date:
                         self.add_error(
                             'session_date',
-                            f"Session #{s_num} date ({session_date.strftime('%d-%b-%Y')}) must be strictly after Session #{ps.session_number} date ({ps.session_date.strftime('%d-%b-%Y')})."
+                            f"Application #{s_num} date ({session_date.strftime('%d-%b-%Y')}) must be strictly after Application #{ps.session_number} date ({ps.session_date.strftime('%d-%b-%Y')})."
                         )
                         break
 
@@ -134,7 +134,7 @@ class BrachySessionForm(forms.ModelForm):
                     if ns.session_date and session_date >= ns.session_date:
                         self.add_error(
                             'session_date',
-                            f"Session #{s_num} date ({session_date.strftime('%d-%b-%Y')}) must be strictly before Session #{ns.session_number} date ({ns.session_date.strftime('%d-%b-%Y')})."
+                            f"Application #{s_num} date ({session_date.strftime('%d-%b-%Y')}) must be strictly before Application #{ns.session_number} date ({ns.session_date.strftime('%d-%b-%Y')})."
                         )
                         break
 

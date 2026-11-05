@@ -30,6 +30,12 @@ except TypeError:
         return _orig_md5(*args, **kwargs)
     hashlib.md5 = _compat_md5
 
+try:
+    import reportlab.pdfbase.pdfdoc as _pdfdoc
+    _pdfdoc.md5 = hashlib.md5
+except Exception:
+    pass
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -412,7 +418,8 @@ def build_examination_investigation_pdf(patient_or_encounter):
 
             rectal_str = "<font color='#cc0000'><b>Mucosal Invasion</b></font>" if enc.rectal_invasion else "Normal / Free"
             bladder_str = "<font color='#cc0000'><b>Mucosal Invasion</b></font>" if enc.bladder_invasion else "Normal / Free"
-            tumour_dim = f"{enc.tumour_size_cm or '—'} cm × {enc.tumour_size_2_cm or '—'} cm" if (enc.tumour_size_cm or enc.tumour_size_2_cm) else "—"
+            dims = [f"{d} cm" for d in [enc.tumour_size_cm, enc.tumour_size_2_cm, getattr(enc, 'tumour_size_3_cm', None)] if d is not None]
+            tumour_dim = " × ".join(dims) if dims else "—"
             tandem_str = f"Sounded ({enc.tandem_length_cm} cm)" if (enc.tandem_sounded and enc.tandem_length_cm) else ("Sounded" if enc.tandem_sounded else "Not sounded")
 
             bmi_val = "—"

@@ -125,15 +125,33 @@ def diagnosis_detail_view(request, mr_no, diagnosis_id=None):
     seen_texts = set()
     latest_detected_grade_id = None
 
-    for p in patient.pathology_reports.filter(soft_deleted=False).order_by('-path_date'):
+    for p in patient.pathology_reports.filter(soft_deleted=False).select_related('histology', 'grade').order_by('-path_date'):
+        # Direct Histology from Pathology Form dropdown
+        if p.histology:
+            hname = p.histology.histology_name
+            if hname not in seen_texts:
+                seen_texts.add(hname)
+                gid = p.grade_id or detect_grade_from_text(p.impression or '')
+                if not latest_detected_grade_id and gid:
+                    latest_detected_grade_id = gid
+                gname = p.grade.grade_name if p.grade else (Grade.objects.filter(grade_id=gid).first().grade_name if gid else '')
+                pathology_choices.append({
+                    'source': 'Biopsy Histology',
+                    'date': p.path_date,
+                    'text': hname,
+                    'standard_histology_id': p.histology_id,
+                    'detected_grade_id': gid or '',
+                    'detected_grade_name': gname,
+                })
+
         if p.impression and p.impression.strip():
             txt = p.impression.strip()
             if txt not in seen_texts:
                 seen_texts.add(txt)
-                gid = detect_grade_from_text(txt) or detect_grade_from_text(p.details or '')
+                gid = p.grade_id or detect_grade_from_text(txt) or detect_grade_from_text(p.details or '')
                 if not latest_detected_grade_id and gid:
                     latest_detected_grade_id = gid
-                gname = Grade.objects.filter(grade_id=gid).first().grade_name if gid else ''
+                gname = p.grade.grade_name if p.grade else (Grade.objects.filter(grade_id=gid).first().grade_name if gid else '')
                 pathology_choices.append({
                     'source': 'Histopathology',
                     'date': p.path_date,
@@ -380,6 +398,7 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
 
         encounter.tumour_size_cm = float(request.POST.get('tumour_size_cm')) if request.POST.get('tumour_size_cm') else None
         encounter.tumour_size_2_cm = float(request.POST.get('tumour_size_2_cm')) if request.POST.get('tumour_size_2_cm') else None
+        encounter.tumour_size_3_cm = float(request.POST.get('tumour_size_3_cm')) if request.POST.get('tumour_size_3_cm') else None
 
         encounter.tandem_sounded = bool(request.POST.get('tandem_sounded'))
         encounter.tandem_length_cm = float(request.POST.get('tandem_length_cm')) if request.POST.get('tandem_length_cm') else None

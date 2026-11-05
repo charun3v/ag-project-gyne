@@ -86,6 +86,39 @@
                 </div>
             </div>
 
+            <!-- Histological Type (Dropdown matching Diagnosis form) & Tumour Grade -->
+            <div style="background: #f0f7ff; border: 1px solid #b8c4d2; padding: 10px; border-radius: 3px; margin-bottom: 12px;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">
+                            Histological Type (Matches Diagnosis form dropdown)
+                        </label>
+                        <select name="histology_id" id="id_path_histology" class="access-select" onchange="autoFillImpression()">
+                            <option value="">-- Select Histology --</option>
+                            {% for h in histologies %}
+                                <option value="{{ h.histology_id }}" {% if path_report and path_report.histology_id == h.histology_id %}selected{% endif %}>
+                                    {{ h.histology_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">Tumour Grade</label>
+                        <select name="grade_id" id="id_path_grade" class="access-select" onchange="autoFillImpression()">
+                            <option value="">-- Select Grade --</option>
+                            {% for g in grades %}
+                                <option value="{{ g.grade_id }}" {% if path_report and path_report.grade_id == g.grade_id %}selected{% endif %}>
+                                    {{ g.grade_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="font-size: 10px; color: #555; margin-top: 4px;">
+                    💡 The Histological Type selected here will directly flow into and populate the Diagnosis form for this patient.
+                </div>
+            </div>
+
             <div style="margin-bottom: 12px;">
                 <label class="access-label" style="font-weight: bold; color: #b00000;">Histopathological Impression / Diagnosis *</label>
                 <textarea name="impression" class="access-textarea" rows="3" required placeholder="e.g. Non-keratinizing Large Cell Squamous Cell Carcinoma, Grade 2...">{% if path_report %}{{ path_report.impression|default:'' }}{% endif %}</textarea>
@@ -97,8 +130,11 @@
             </div>
 
             <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
-                <button type="submit" class="btn-access btn-primary-action">
+                <button type="submit" name="save_stay" value="1" class="btn-access btn-primary-action">
                     💾 Save Pathology Report
+                </button>
+                <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
+                    ➡️ Save & Proceed to Diagnosis & Staging
                 </button>
                 <a href="{% url 'investigations_hub' patient.mr_no %}?tab=pathology" class="btn-access" style="color: #666;">
                     ✖️ Cancel / Back
@@ -107,4 +143,25 @@
         </form>
     </div>
 </div>
+
+<script>
+function autoFillImpression() {
+    const histSelect = document.getElementById('id_path_histology');
+    const gradeSelect = document.getElementById('id_path_grade');
+    const impTextarea = document.querySelector('textarea[name="impression"]');
+    
+    if (histSelect && histSelect.selectedIndex > 0) {
+        const histText = histSelect.options[histSelect.selectedIndex].text.trim();
+        let assembled = histText;
+        if (gradeSelect && gradeSelect.selectedIndex > 0) {
+            const gradeText = gradeSelect.options[gradeSelect.selectedIndex].text.trim();
+            assembled += ", " + gradeText;
+        }
+        if (impTextarea && (!impTextarea.value.trim() || impTextarea.value === impTextarea.getAttribute('data-auto'))) {
+            impTextarea.value = assembled;
+            impTextarea.setAttribute('data-auto', assembled);
+        }
+    }
+}
+</script>
 {% endblock %}

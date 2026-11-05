@@ -192,8 +192,11 @@
 
             <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2; margin-bottom: 18px;">
                 {% if not course or not course.approval_locked %}
-                <button type="submit" class="btn-access btn-primary-action">
+                <button type="submit" name="save_stay" value="1" class="btn-access btn-primary-action">
                     💾 Save NACT Course Parameters
+                </button>
+                <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
+                    ➡️ Save & Proceed to Post-NACT Evaluation / RT
                 </button>
                 {% else %}
                 <span style="font-size: 12px; color: #555; font-style: italic;">
@@ -350,7 +353,7 @@
 </div>
 
 <!-- Modal: Add Cycle -->
-{% if course and not course.approval_locked %}
+{% if course and course.nact_course_id and not course.approval_locked %}
 <div id="addCycleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
     <div style="background: #fff; width: 440px; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); overflow: hidden; border: 2px solid #003366;">
         <div style="background: #003366; color: #fff; padding: 10px 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
@@ -482,6 +485,7 @@ function toggleNactDetails(isYes) {
     }
 }
 
+{% if course and course.nact_course_id %}
 function openAddCycleModal() {
     document.getElementById('addCycleModal').style.display = 'flex';
 }
@@ -533,5 +537,14 @@ function openEditDrugModal(cycleId, cycleNum, drugId, agentId, dose, unitId, day
 function closeAddDrugModal() {
     document.getElementById('addDrugModal').style.display = 'none';
 }
+{% else %}
+function openAddCycleModal() {
+    alert("Please save the NACT course parameters first before adding cycles.");
+}
+function closeAddCycleModal() {}
+function openAddDrugModal() {}
+function openEditDrugModal() {}
+function closeAddDrugModal() {}
+{% endif %}
 </script>
 {% endblock %}

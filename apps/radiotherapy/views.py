@@ -280,6 +280,8 @@ def ebrt_form_view(request, mr_no, course_id=None):
         )
 
         messages.success(request, f"EBRT course for {patient.pt_name} saved.")
+        if 'save_next' in request.POST:
+            return redirect('brachy_router', mr_no=patient.mr_no)
         return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
 
     current_site_ids = [s.ebrt_site_id for s in course.sites.all()] if course else []
@@ -497,9 +499,11 @@ def brachy_form_view(request, mr_no, course_id=None):
             notes=f"Saved Brachytherapy sessions ({course.brachy_dosing})"
         )
 
-        messages.success(request, f"Brachytherapy sessions for {patient.pt_name} saved.")
+        messages.success(request, f"Brachytherapy course for {patient.pt_name} saved.")
         if 'add_session' in request.POST:
             return redirect('brachy_session_add', mr_no=patient.mr_no, course_id=course.brachy_course_id)
+        if 'save_next' in request.POST:
+            return redirect('followup_list', mr_no=patient.mr_no)
         if 'save_stay' in request.POST:
             return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id)
         return redirect('radiotherapy_hub', mr_no=patient.mr_no)
