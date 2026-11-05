@@ -285,7 +285,7 @@ def diagnosis_detail_view(request, mr_no, diagnosis_id=None):
 
         messages.success(request, f"Diagnosis for {patient.pt_name} saved successfully.")
         if 'save_next' in request.POST:
-            return redirect('radiotherapy_hub', mr_no=patient.mr_no)
+            return redirect('nact_router', mr_no=patient.mr_no)
         return redirect('diagnosis_detail', mr_no=patient.mr_no)
 
     # Auto-detect default grade for form if new diagnosis

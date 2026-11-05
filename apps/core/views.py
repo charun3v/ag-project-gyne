@@ -762,6 +762,16 @@ def adjuvant_router_view(request, mr_no):
 
 
 @login_required
+def brachy_router_view(request, mr_no):
+    """Direct route to patient's Brachytherapy course."""
+    patient = get_object_or_404(Patient, mr_no=mr_no)
+    course = patient.brachy_courses.filter(soft_deleted=False).first()
+    if course:
+        return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id)
+    return redirect('brachy_add', mr_no=patient.mr_no)
+
+
+@login_required
 def treatment_approve_toggle(request, course_type, course_id):
     """
     Formal Senior Consultant / Administrator Sign-off and Locking Workflow.

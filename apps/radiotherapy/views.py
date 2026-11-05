@@ -220,7 +220,7 @@ def ebrt_form_view(request, mr_no, course_id=None):
 
         course.ebrt_intent_id = request.POST.get('ebrt_intent_id') or None
         course.ebrt_technique_id = request.POST.get('ebrt_technique_id') or None
-        course.treatment_centre_id = request.POST.get('treatment_centre_id') or None
+        course.treatment_centre_id = request.POST.get('treatment_centre_id') or 1
         course.initial_rt_machine_id = request.POST.get('initial_rt_machine_id') or None
         course.course_status_id = new_status_id
 
@@ -279,9 +279,14 @@ def ebrt_form_view(request, mr_no, course_id=None):
             notes=f"Saved EBRT course: {course.total_dose_gy} Gy / {course.total_fractions}# (Concurrent: {'Yes' if concurrent_received else 'No'})"
         )
 
-        messages.success(request, f"EBRT course for {patient.pt_name} saved.")
+        if concurrent_received:
+            messages.success(request, f"EBRT course for {patient.pt_name} saved. You can now record concurrent chemotherapy cycles in Section 4 below.")
+        else:
+            messages.success(request, f"EBRT course for {patient.pt_name} saved.")
         if 'save_next' in request.POST:
             return redirect('brachy_router', mr_no=patient.mr_no)
+        if concurrent_received and not course_id:
+            return redirect(f"/radiotherapy/{patient.mr_no}/ebrt/{course.ebrt_course_id}/edit/#concChemoContainer")
         return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
 
     current_site_ids = [s.ebrt_site_id for s in course.sites.all()] if course else []
@@ -445,7 +450,7 @@ def brachy_form_view(request, mr_no, course_id=None):
 
         course.brachy_source_id = request.POST.get('brachy_source_id') or None
         course.brachy_dosing_id = request.POST.get('brachy_dosing_id') or None
-        course.treatment_centre_id = request.POST.get('treatment_centre_id') or None
+        course.treatment_centre_id = request.POST.get('treatment_centre_id') or 1
         course.linked_ebrt_course_id = request.POST.get('linked_ebrt_course_id') or None
 
         course.prescription_dose_gy = float(request.POST.get('prescription_dose_gy')) if request.POST.get('prescription_dose_gy') else None

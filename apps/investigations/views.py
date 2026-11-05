@@ -296,12 +296,12 @@ def molecular_form_view(request, mr_no, molecular_id=None):
 
 @login_required
 def investigations_pdf_view(request, mr_no):
-    """Generates and serves A4 PDF report of Clinical Examination & Imaging Investigations."""
+    """Generates and serves A4 PDF report of Diagnostic Investigations."""
     from django.http import HttpResponse
     patient = get_object_or_404(Patient, mr_no=mr_no)
-    from clinical.pdf_examination import build_examination_investigation_pdf
-    buf = build_examination_investigation_pdf(patient)
+    from investigations.pdf_investigations import build_investigations_pdf
+    buf = build_investigations_pdf(patient)
     response = HttpResponse(buf.getvalue(), content_type='application/pdf')
-    filename = f"Examination_Imaging_Report_{patient.mr_no}.pdf"
+    filename = f"Investigations_Report_{patient.mr_no}.pdf"
     response['Content-Disposition'] = f'inline; filename="{filename}"'
     return response

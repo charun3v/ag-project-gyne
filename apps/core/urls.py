@@ -23,6 +23,7 @@ urlpatterns = [
     # Treatment Routing & Formal Approval
     path('treatment/nact/<str:mr_no>/', views.nact_router_view, name='nact_router'),
     path('treatment/ebrt/<str:mr_no>/', views.ebrt_router_view, name='ebrt_router'),
+    path('treatment/brachy/<str:mr_no>/', views.brachy_router_view, name='brachy_router'),
     path('treatment/adjuvant/<str:mr_no>/', views.adjuvant_router_view, name='adjuvant_router'),
     path('treatment/approve/<str:course_type>/<int:course_id>/', views.treatment_approve_toggle, name='treatment_approve_toggle'),
 ]

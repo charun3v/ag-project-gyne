@@ -76,7 +76,7 @@
                         <select name="treatment_centre_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
                             <option value="">-- Select Centre --</option>
                             {% for c in centres %}
-                                <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% endif %}>
+                                <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% elif not course and "kidwai" in c.centre_name|lower %}selected{% elif not course.treatment_centre_id and "kidwai" in c.centre_name|lower %}selected{% endif %}>
                                     {{ c.centre_name }}
                                 </option>
                             {% endfor %}
@@ -273,12 +273,19 @@
                             <span style="font-weight: bold; font-size: 11px; color: #003366;">
                                 Concurrent Administration Grid (Dates must satisfy: RT Start &le; Date &le; RT End)
                             </span>
-                            {% if course and not course.approval_locked %}
+                            {% if not course or not course.approval_locked %}
                             <button type="button" class="btn-access btn-primary-action" onclick="openAddConcCycleModal()" style="font-size: 11px; padding: 2px 8px;">
                                 ➕ Record Cycle Administration
                             </button>
                             {% endif %}
                         </div>
+
+                        {% if not course %}
+                        <div style="background: #eef6ff; border-bottom: 1px solid #b0c4de; padding: 6px 12px; font-size: 11px; color: #003366; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                            <span>💡 <strong>To enter individual cycle dates &amp; doses:</strong> First save this EBRT Course using the <em>"Save EBRT Course Record"</em> button below, which will immediately activate cycle administration.</span>
+                            <button type="button" class="btn-access btn-primary-action" onclick="saveEbrtForConcurrent()" style="font-size: 10px; padding: 2px 8px; white-space: nowrap;">💾 Save Course &amp; Add Cycles</button>
+                        </div>
+                        {% endif %}
 
                         <table class="access-table" style="width: 100%; max-width: 880px; font-size: 11px; margin: 0;">
                             <thead>
@@ -319,12 +326,11 @@
                                                         title="Edit cycle details">
                                                     ✏️ Edit
                                                 </button>
-                                                <form method="post" action="{% url 'ebrt_concurrent_cycle_delete' patient.mr_no course.ebrt_course_id ccyc.conc_chemo_cycle_id %}" style="display: inline;" onsubmit="return confirm('Remove concurrent cycle #{{ ccyc.cycle_number }}?');">
-                                                    {% csrf_token %}
-                                                    <button type="submit" class="btn-access" style="color: #b00000; font-size: 10px; padding: 2px 6px; border: 1px solid #ffccd0; background: #fff5f5;" title="Remove cycle">
-                                                        ✖
-                                                    </button>
-                                                </form>
+                                                <button type="button" class="btn-access" 
+                                                        onclick="deleteConcCycle('{% url 'ebrt_concurrent_cycle_delete' patient.mr_no course.ebrt_course_id ccyc.conc_chemo_cycle_id %}', '{{ ccyc.cycle_number }}')" 
+                                                        style="color: #b00000; font-size: 10px; padding: 2px 6px; border: 1px solid #ffccd0; background: #fff5f5;" title="Remove cycle">
+                                                    ✖
+                                                </button>
                                             </div>
                                         </td>
                                         {% endif %}
@@ -344,12 +350,11 @@
                                                         title="Edit cycle details">
                                                     ✏️ Edit
                                                 </button>
-                                                <form method="post" action="{% url 'ebrt_concurrent_cycle_delete' patient.mr_no course.ebrt_course_id ccyc.conc_chemo_cycle_id %}" style="display: inline;" onsubmit="return confirm('Remove concurrent cycle #{{ ccyc.cycle_number }}?');">
-                                                    {% csrf_token %}
-                                                    <button type="submit" class="btn-access" style="color: #b00000; font-size: 10px; padding: 2px 6px; border: 1px solid #ffccd0; background: #fff5f5;" title="Remove cycle">
-                                                        ✖
-                                                    </button>
-                                                </form>
+                                                <button type="button" class="btn-access" 
+                                                        onclick="deleteConcCycle('{% url 'ebrt_concurrent_cycle_delete' patient.mr_no course.ebrt_course_id ccyc.conc_chemo_cycle_id %}', '{{ ccyc.cycle_number }}')" 
+                                                        style="color: #b00000; font-size: 10px; padding: 2px 6px; border: 1px solid #ffccd0; background: #fff5f5;" title="Remove cycle">
+                                                    ✖
+                                                </button>
                                             </div>
                                         </td>
                                         {% endif %}
@@ -533,6 +538,29 @@
         }
     }
 
+    function saveEbrtForConcurrent() {
+        const form = document.getElementById('ebrtMainForm');
+        if (form.reportValidity()) {
+            form.submit();
+        }
+    }
+
+    function deleteConcCycle(actionUrl, cycleNum) {
+        if (!confirm('Remove concurrent chemotherapy cycle #' + cycleNum + '?')) {
+            return;
+        }
+        const delForm = document.createElement('form');
+        delForm.method = 'POST';
+        delForm.action = actionUrl;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = '{{ csrf_token }}';
+        delForm.appendChild(csrfInput);
+        document.body.appendChild(delForm);
+        delForm.submit();
+    }
+
 {% if course and course.ebrt_course_id %}
     function openAddConcCycleModal() {
         const modal = document.getElementById('addConcCycleModal');
@@ -566,7 +594,9 @@
     }
 {% else %}
     function openAddConcCycleModal() {
-        alert("Please save the EBRT course parameters first before adding concurrent chemotherapy cycles.");
+        if (confirm("To record cycle administration dates and doses, this EBRT Course record must be saved first.\n\nClick OK to save the course now and immediately begin adding cycles.")) {
+            saveEbrtForConcurrent();
+        }
     }
     function openEditConcCycleModal() {}
 {% endif %}

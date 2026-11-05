@@ -83,28 +83,28 @@
                 <div style="background: #eef2f7; border: 1px solid #d0dae5; padding: 8px; margin-bottom: 8px;">
                     <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 6px;">
                         <label style="font-weight: bold; color: #003366; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="parametrial_invasion" value="1" {% if encounter and encounter.parametrial_invasion %}checked{% endif %}>
+                            <input type="checkbox" name="parametrial_invasion" id="para_invasion_chk" value="1" {% if encounter and encounter.parametrial_invasion %}checked{% endif %} onchange="toggleParametrialInvasion()">
                             Parametrial Invasion Present
                         </label>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                    <div id="para_sub_fields" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; transition: opacity 0.2s; {% if not encounter or not encounter.parametrial_invasion %}opacity: 0.45; pointer-events: none;{% endif %}">
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <input type="checkbox" name="para_left" value="1" {% if encounter and encounter.para_left %}checked{% endif %}>
+                            <input type="checkbox" name="para_left" id="para_left_chk" value="1" {% if encounter and encounter.para_left %}checked{% endif %} {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
                             <label class="access-label" style="margin: 0;">Left Parametrium</label>
                         </div>
                         <div>
-                            <input type="number" step="0.1" name="para_extent_left_cm" 
+                            <input type="number" step="0.1" name="para_extent_left_cm" id="para_extent_left"
                                    value="{% if encounter and encounter.para_extent_left_cm %}{{ encounter.para_extent_left_cm }}{% endif %}" 
-                                   class="access-input" placeholder="Left extent (cm)">
+                                   class="access-input" placeholder="Left extent (cm)" {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <input type="checkbox" name="para_right" value="1" {% if encounter and encounter.para_right %}checked{% endif %}>
+                            <input type="checkbox" name="para_right" id="para_right_chk" value="1" {% if encounter and encounter.para_right %}checked{% endif %} {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
                             <label class="access-label" style="margin: 0;">Right Parametrium</label>
                         </div>
                         <div>
-                            <input type="number" step="0.1" name="para_extent_right_cm" 
+                            <input type="number" step="0.1" name="para_extent_right_cm" id="para_extent_right"
                                    value="{% if encounter and encounter.para_extent_right_cm %}{{ encounter.para_extent_right_cm }}{% endif %}" 
-                                   class="access-input" placeholder="Right extent (cm)">
+                                   class="access-input" placeholder="Right extent (cm)" {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
                         </div>
                     </div>
                 </div>
@@ -154,6 +154,7 @@
                     </div>
                 </div>
 
+                {% if enc_slug != 'baseline' %}
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
@@ -165,6 +166,7 @@
                                class="access-input" style="width: 140px;" placeholder="Sound length (cm)">
                     </div>
                 </div>
+                {% endif %}
             </fieldset>
 
             <!-- Section 3: Anatomical Pelvic IBS Clinical Diagram Section -->
@@ -242,4 +244,32 @@
         </form>
     </div>
 </div>
+
+<script>
+function toggleParametrialInvasion() {
+    const chk = document.getElementById('para_invasion_chk');
+    const container = document.getElementById('para_sub_fields');
+    const leftChk = document.getElementById('para_left_chk');
+    const leftExtent = document.getElementById('para_extent_left');
+    const rightChk = document.getElementById('para_right_chk');
+    const rightExtent = document.getElementById('para_extent_right');
+
+    const isChecked = chk && chk.checked;
+    if (container) {
+        container.style.opacity = isChecked ? '1' : '0.45';
+        container.style.pointerEvents = isChecked ? 'auto' : 'none';
+    }
+    if (leftChk) leftChk.disabled = !isChecked;
+    if (leftExtent) leftExtent.disabled = !isChecked;
+    if (rightChk) rightChk.disabled = !isChecked;
+    if (rightExtent) rightExtent.disabled = !isChecked;
+
+    if (!isChecked) {
+        if (leftChk) leftChk.checked = false;
+        if (leftExtent) leftExtent.value = '';
+        if (rightChk) rightChk.checked = false;
+        if (rightExtent) rightExtent.value = '';
+    }
+}
+</script>
 {% endblock %}

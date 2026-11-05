@@ -126,12 +126,14 @@
                     <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">4. Prior Oncology Treatments & Surgeries</legend>
                     <div style="margin-bottom: 6px;">
                         <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="prior_radiation" value="1" {% if history and history.prior_radiation %}checked{% endif %}>
+                            <input type="checkbox" name="prior_radiation" id="prior_radiation_chk" value="1" {% if history and history.prior_radiation %}checked{% endif %} onchange="togglePriorRT()">
                             Prior Radiation Therapy (Pelvic / Abdominal)
                         </label>
-                        <input type="text" name="prior_radiation_details" 
-                               value="{% if history %}{{ history.prior_radiation_details|default:'' }}{% endif %}" 
-                               class="access-input" placeholder="Prior RT dose, fields, dates, institution...">
+                        <div id="prior_rt_container" style="{% if not history or not history.prior_radiation %}display: none;{% endif %} margin-top: 4px;">
+                            <input type="text" name="prior_radiation_details" id="prior_radiation_details"
+                                   value="{% if history %}{{ history.prior_radiation_details|default:'' }}{% endif %}" 
+                                   class="access-input" placeholder="Prior RT dose, fields, dates, institution...">
+                        </div>
                     </div>
                     <div style="margin-bottom: 6px;">
                         <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
@@ -168,4 +170,21 @@
         </form>
     </div>
 </div>
+
+<script>
+function togglePriorRT() {
+    const chk = document.getElementById('prior_radiation_chk');
+    const container = document.getElementById('prior_rt_container');
+    const input = document.getElementById('prior_radiation_details');
+    if (chk && container) {
+        if (chk.checked) {
+            container.style.display = 'block';
+            input && input.focus();
+        } else {
+            container.style.display = 'none';
+            if (input) input.value = '';
+        }
+    }
+}
+</script>
 {% endblock %}
