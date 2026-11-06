@@ -543,7 +543,7 @@ def brachy_form_view(request, mr_no, course_id=None):
             action="UPDATE" if course_id else "INSERT",
             table_affected="tblBrachyCourse",
             record_ref=f"{patient.mr_no}-Brachy#{course.brachy_course_id}",
-            notes=f"Saved Brachytherapy sessions ({course.brachy_dosing})"
+            notes=f"Saved Brachytherapy course ({course.brachy_dosing})"
         )
 
         messages.success(request, f"Brachytherapy course for {patient.pt_name} saved.")
@@ -661,7 +661,7 @@ def brachy_session_form_view(request, mr_no, course_id, session_id=None):
 
     # Check approval lock
     if session and session.approval_locked and request.method == 'POST':
-        messages.error(request, "This brachytherapy session is approved and locked. Unapprove the course before editing.")
+        messages.error(request, "This brachy application is approved and locked. Unapprove the course before editing.")
         return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id)
 
     applicators = ApplicatorType.objects.filter(active=True).order_by('display_order', 'name')
@@ -720,10 +720,10 @@ def brachy_session_form_view(request, mr_no, course_id, session_id=None):
                 action="UPDATE" if session_id else "INSERT",
                 table_affected="tblBrachySessions",
                 record_ref=f"Session#{session.brachy_session_id}",
-                notes=f"Saved brachy session #{session.session_number}: {session.applicator}"
+                notes=f"Saved brachy application #{session.session_number}: {session.applicator}"
             )
 
-            messages.success(request, f"Brachytherapy session #{session.session_number} saved.")
+            messages.success(request, f"Brachy application #{session.session_number} saved.")
             return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id)
         else:
             form_errors = form.errors
@@ -1015,8 +1015,70 @@ def brachy_application_save_view(request, mr_no, course_id, session_id, fraction
 
 
 @login_required
+def ebrt_course_delete_view(request, mr_no, course_id):
+    """Allows administrators to delete (soft-delete) an EBRT course."""
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "Permission denied: Administrator privileges required to delete an EBRT course.")
+        return redirect('radiotherapy_hub', mr_no=mr_no)
+
+    if request.method != 'POST':
+        return redirect('radiotherapy_hub', mr_no=mr_no)
+
+    patient = get_object_or_404(Patient, mr_no=mr_no)
+    course = get_object_or_404(EBRTCourse, ebrt_course_id=course_id, patient=patient)
+    seq = course.course_sequence
+    course.soft_deleted = True
+    course.save()
+
+    AuditLog.objects.create(
+        username=request.user.username,
+        full_name=request.user.first_name,
+        action="DELETE",
+        table_affected="tblEBRTCourse",
+        record_ref=f"EBRT#{course.ebrt_course_id}",
+        notes=f"Deleted EBRT Course #{seq} for patient {patient.mr_no}"
+    )
+
+    messages.success(request, f"EBRT Course #{seq} deleted.")
+    return redirect('radiotherapy_hub', mr_no=patient.mr_no)
+
+
+@login_required
+def brachy_course_delete_view(request, mr_no, course_id):
+    """Allows administrators to delete (soft-delete) a Brachytherapy course."""
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "Permission denied: Administrator privileges required to delete a Brachytherapy course.")
+        return redirect('radiotherapy_hub', mr_no=mr_no)
+
+    if request.method != 'POST':
+        return redirect('radiotherapy_hub', mr_no=mr_no)
+
+    patient = get_object_or_404(Patient, mr_no=mr_no)
+    course = get_object_or_404(BrachyCourse, brachy_course_id=course_id, patient=patient)
+    seq = course.course_sequence
+    course.soft_deleted = True
+    course.save()
+
+    AuditLog.objects.create(
+        username=request.user.username,
+        full_name=request.user.first_name,
+        action="DELETE",
+        table_affected="tblBrachyCourse",
+        record_ref=f"Brachy#{course.brachy_course_id}",
+        notes=f"Deleted Brachytherapy Course #{seq} for patient {patient.mr_no}"
+    )
+
+    messages.success(request, f"Brachytherapy Course #{seq} deleted.")
+    return redirect('radiotherapy_hub', mr_no=patient.mr_no)
+
+
+@login_required
 def brachy_application_delete_view(request, mr_no, course_id, session_id, fraction_id):
-    """Deletes a brachytherapy application (fraction)."""
+    """Deletes a brachy fraction."""
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "Permission denied: Administrator privileges required to delete a Brachy fraction.")
+        return redirect('brachy_edit', mr_no=mr_no, course_id=course_id)
+
     if request.method != 'POST':
         return redirect('brachy_edit', mr_no=mr_no, course_id=course_id)
 
@@ -1037,16 +1099,20 @@ def brachy_application_delete_view(request, mr_no, course_id, session_id, fracti
         action="DELETE",
         table_affected="tblBrachyFractions",
         record_ref=f"Fraction#{fraction_id}",
-        notes=f"Deleted brachy application #{f_num} from Session #{session.session_number}"
+        notes=f"Deleted brachy fraction #{f_num} from Application #{session.session_number}"
     )
 
-    messages.success(request, f"Brachytherapy Application #{f_num} removed.")
+    messages.success(request, f"Brachy fraction #{f_num} deleted.")
     return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id)
 
 
 @login_required
 def brachy_session_delete_view(request, mr_no, course_id, session_id):
-    """Deletes an entire brachytherapy session and its applications."""
+    """Deletes an entire brachy application and its fractions."""
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "Permission denied: Administrator privileges required to delete a Brachy application.")
+        return redirect('brachy_edit', mr_no=mr_no, course_id=course_id)
+
     if request.method != 'POST':
         return redirect('brachy_edit', mr_no=mr_no, course_id=course_id)
 
@@ -1066,8 +1132,8 @@ def brachy_session_delete_view(request, mr_no, course_id, session_id):
         action="DELETE",
         table_affected="tblBrachySessions",
         record_ref=f"Session#{session_id}",
-        notes=f"Deleted brachy session #{s_num}"
+        notes=f"Deleted brachy application #{s_num}"
     )
 
-    messages.success(request, f"Brachytherapy Session #{s_num} removed.")
+    messages.success(request, f"Brachy application #{s_num} deleted.")
     return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id)

@@ -305,7 +305,7 @@
                         <div>Dosing / Source: <strong>{{ br.brachy_dosing.dosing_point|default:'Point A' }}</strong> ({{ br.brachy_source.source_name|default:'HDR Ir-192' }})</div>
                         <div>Delivered Fractions: <strong>{{ br.total_fractions_delivered }} / {{ br.total_fractions_planned }}</strong> planned (Prescription: {{ br.prescription_dose_gy|default:0 }} Gy)</div>
                         <div>Dates: {{ br.brachy_start_date|date:'d-M-Y'|default:'-' }} to {{ br.brachy_end_date|date:'d-M-Y'|default:'-' }}</div>
-                        <div>Sessions Logged: {{ br.sessions.count }} | Status: {{ br.completion_status|default:'Active' }}</div>
+                        <div>Applications Logged: {{ br.sessions.count }} | Status: {{ br.completion_status|default:'Active' }}</div>
                         <div>Approval: {% if br.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ br.approved_by }} ({{ br.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
                     </div>
                 {% empty %}

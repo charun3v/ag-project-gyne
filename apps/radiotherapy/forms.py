@@ -140,13 +140,13 @@ class BrachySessionForm(forms.ModelForm):
 
         # 1. Check approval lock
         if self.instance.pk and self.instance.approval_locked:
-            raise ValidationError("This brachytherapy session is formally approved and locked against editing.")
+            raise ValidationError("This brachy application is formally approved and locked against editing.")
 
-        # 2. Date validations: cannot be a future date; Session 2 must be after Session 1
+        # 2. Date validations: cannot be a future date; Application 2 must be after Application 1
         session_date = cleaned_data.get('session_date')
         if session_date:
             if session_date > date.today():
-                self.add_error('session_date', f"Session insertion date ({session_date.strftime('%d-%b-%Y')}) cannot be a future date.")
+                self.add_error('session_date', f"Application insertion date ({session_date.strftime('%d-%b-%Y')}) cannot be a future date.")
 
             # Chronology check with other sessions in the same course
             course = getattr(self, 'course', None) or getattr(self.instance, 'brachy_course', None)

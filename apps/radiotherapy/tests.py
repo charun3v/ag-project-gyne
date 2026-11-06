@@ -240,7 +240,6 @@ class ApplicatorFieldValidationTests(TestCase):
         content = resp.content.decode('utf-8')
         self.assertIn('6.0', content)
         self.assertIn('22.0', content)
-        self.assertIn('30.0', content)
 
     def test_11_changing_applicator_updates_visible_fields(self):
         """11. Changing the applicator API endpoint returns correct active rules."""

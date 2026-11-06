@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{% if course %}Edit Brachytherapy Sessions{% else %}New Brachytherapy Sessions{% endif %} - {{ patient.mr_no }}{% endblock %}
+{% block title %}{% if course %}Edit Brachytherapy Course & Applications{% else %}New Brachytherapy Course & Applications{% endif %} - {{ patient.mr_no }}{% endblock %}
 
 {% block content %}
 <div class="patient-banner">
@@ -9,7 +9,7 @@
         <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
     </div>
     <div>
-        <span class="pt-badge">Brachytherapy Sessions & Cumulative EQD2 Dosimetry</span>
+        <span class="pt-badge">Brachytherapy Course, Applications & Cumulative EQD2 Dosimetry</span>
     </div>
 </div>
 
@@ -61,7 +61,7 @@
     <div style="min-width: 0;">
         <div class="access-subform" style="margin-bottom: 14px;">
             <div class="access-subform-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <span>📍 frmBrachySessions: Brachytherapy Sessions & LQ Radiobiology Parameters</span>
+                <span>📍 frmBrachyCourse: Brachytherapy Course & LQ Radiobiology Parameters</span>
                 <div style="font-weight: normal; font-size: 11px;">
                     <a href="{% url 'radiotherapy_hub' patient.mr_no %}" style="color: #fff; text-decoration: underline;">Back to RT Hub</a>
                 </div>
@@ -165,12 +165,22 @@
                                 ➡️ Save & Proceed to Follow-Up & Surveillance
                             </button>
                             <div style="flex-grow: 1;"></div>
+                            {% if course and course.brachy_course_id and user.is_staff or course and course.brachy_course_id and user.is_superuser %}
+                            <button type="submit" form="deleteBrachyCourseForm" class="btn-access" style="background: #dc3545; color: #fff; font-weight: bold; border-color: #bd2130; padding: 5px 12px;">
+                                🗑️ Delete Course
+                            </button>
+                            {% endif %}
                             <a href="{% url 'radiotherapy_hub' patient.mr_no %}" class="btn-access" style="color: #666;">
                                 ✖️ Cancel / Back to Hub
                             </a>
                         </div>
                     </div>
                 </form>
+                {% if course and course.brachy_course_id and user.is_staff or course and course.brachy_course_id and user.is_superuser %}
+                <form id="deleteBrachyCourseForm" method="post" action="{% url 'brachy_delete' patient.mr_no course.brachy_course_id %}" style="display: none;" onsubmit="return confirm('ADMIN WARNING: Are you sure you want to delete this Brachytherapy Course and all its applications and fractions?');">
+                    {% csrf_token %}
+                </form>
+                {% endif %}
             </div>
         </div>
 
@@ -223,12 +233,14 @@
                                 <a href="{% url 'brachy_session_edit' patient.mr_no course.brachy_course_id sess.brachy_session_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
                                     ✏️ Edit Application
                                 </a>
+                                {% if user.is_staff or user.is_superuser %}
                                 <form method="post" action="{% url 'brachy_session_delete' patient.mr_no course.brachy_course_id sess.brachy_session_id %}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete Application #{{ sess.session_number }} and all its fractions?');">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn-access" style="font-size: 10px; padding: 2px 6px; color: #b00000;">
+                                    <button type="submit" class="btn-access" style="font-size: 10px; padding: 2px 6px; color: #b00000;" title="Delete Application">
                                         🗑️ Delete
                                     </button>
                                 </form>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -261,10 +273,12 @@
                                             <td>{{ fx.total_dwell_time_seconds|default:'0' }}s</td>
                                             <td style="text-align: center; white-space: nowrap;">
                                                 <button type="button" class="btn-access" style="font-size: 9px; padding: 1px 5px; color: #003366; margin-right: 2px;" title="Edit Fraction" onclick="toggleEditFraction('editFx_{{ fx.brachy_fraction_id }}')">✏️ Edit</button>
+                                                {% if user.is_staff or user.is_superuser %}
                                                 <form method="post" action="{% url 'brachy_application_delete' patient.mr_no course.brachy_course_id sess.brachy_session_id fx.brachy_fraction_id %}" style="display: inline;" onsubmit="return confirm('Remove Fraction #{{ fx.fraction_number_in_session }}?');">
                                                     {% csrf_token %}
                                                     <button type="submit" class="btn-access" style="font-size: 9px; padding: 1px 5px; color: #b00000;" title="Delete Fraction">✕</button>
                                                 </form>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         <!-- Expandable inline edit row for Fraction -->

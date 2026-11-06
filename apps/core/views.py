@@ -983,7 +983,7 @@ def treatment_approve_toggle(request, course_type, course_id):
                     err_msg = "; ".join(errs.values())
                     messages.error(
                         request,
-                        f"Approval Rejected: Brachytherapy Session #{sess.session_number} ({sess.applicator.name}) cannot be approved: {err_msg}"
+                        f"Approval Rejected: Brachy Application #{sess.session_number} ({sess.applicator.name}) cannot be approved: {err_msg}"
                     )
                     return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
 
