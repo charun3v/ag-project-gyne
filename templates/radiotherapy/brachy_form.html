@@ -43,7 +43,7 @@
         <select name="treatment_centre_id" id="form_treatment_centre_id" form="brachy_main_form" class="access-select" style="min-width: 270px; font-weight: bold; color: #003366; font-size: 12px; border: 1.5px solid #003366; background: #ffffff; padding: 5px 10px;" onchange="syncTreatmentCentre();">
             <option value="">-- Select Treatment Facility --</option>
             {% for c in centres %}
-                <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% elif not course and "kidwai" in c.centre_name|lower %}selected{% elif not course.treatment_centre_id and "kidwai" in c.centre_name|lower %}selected{% endif %}>
+                <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% elif not course and default_centre_id|stringformat:"s" == c.centre_id|stringformat:"s" %}selected{% elif not course and "kidwai" in c.centre_name|lower %}selected{% elif not course.treatment_centre_id and "kidwai" in c.centre_name|lower %}selected{% endif %}>
                     {{ c.centre_name }}
                 </option>
             {% endfor %}

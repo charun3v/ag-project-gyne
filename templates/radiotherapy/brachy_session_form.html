@@ -72,13 +72,19 @@
                         {% if form.applicator.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.applicator.errors.0 }}</div>{% endif %}
                     </div>
                     <div>
-                        <label class="access-label" style="font-weight: bold;">Image Guidance *</label>
+                        <label class="access-label" style="font-weight: bold;">
+                            Image Guidance *
+                            {% if user.is_staff or user.is_superuser %}
+                                <a href="{% url 'lookup_manager' 'guidance' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Image Guidance">[⚙️ Edit List]</a>
+                            {% endif %}
+                        </label>
                         <select name="image_guidance" class="access-select" required>
                             <option value="">-- Select Guidance --</option>
                             {% for g in guidances %}
                                 <option value="{{ g.guidance_id }}" 
                                     {% if form.image_guidance.value|stringformat:"s" == g.guidance_id|stringformat:"s" %}selected
                                     {% elif session and session.image_guidance_id == g.guidance_id %}selected
+                                    {% elif not session and not form.image_guidance.value and default_guidance_id|stringformat:"s" == g.guidance_id|stringformat:"s" %}selected
                                     {% elif not session and not form.image_guidance.value and "ct" in g.guidance_name|lower %}selected{% endif %}>
                                     {{ g.guidance_name }}
                                 </option>
@@ -103,6 +109,7 @@
                                     {% if form.brachy_dosing.value|stringformat:"s" == d.dosing_id|stringformat:"s" %}selected
                                     {% elif session and session.brachy_dosing_id == d.dosing_id %}selected
                                     {% elif not session and course and course.brachy_dosing_id == d.dosing_id %}selected
+                                    {% elif not session and not form.brachy_dosing.value and default_dosing_id|stringformat:"s" == d.dosing_id|stringformat:"s" %}selected
                                     {% elif not session and not form.brachy_dosing.value and "hr-ctv" in d.dosing_point|lower %}selected{% endif %}>
                                     {{ d.dosing_point }} ({{ d.dosing_system }})
                                 </option>
@@ -124,6 +131,7 @@
                                     {% if form.brachy_source.value|stringformat:"s" == s.source_id|stringformat:"s" %}selected
                                     {% elif session and session.brachy_source_id == s.source_id %}selected
                                     {% elif not session and course and course.brachy_source_id == s.source_id %}selected
+                                    {% elif not session and not form.brachy_source.value and default_source_id|stringformat:"s" == s.source_id|stringformat:"s" %}selected
                                     {% elif not session and not form.brachy_source.value and "ir-192" in s.source_name|lower %}selected{% endif %}>
                                     {{ s.source_name }}
                                 </option>
@@ -132,13 +140,19 @@
                         {% if form.brachy_source.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.brachy_source.errors.0 }}</div>{% endif %}
                     </div>
                     <div>
-                        <label class="access-label">Anaesthesia Type</label>
+                        <label class="access-label">
+                            Anaesthesia Type
+                            {% if user.is_staff or user.is_superuser %}
+                                <a href="{% url 'lookup_manager' 'anaesthesia' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Anaesthesia Types">[⚙️ Edit List]</a>
+                            {% endif %}
+                        </label>
                         <select name="anaesthesia_type" class="access-select">
                             <option value="">-- Select Anaesthesia --</option>
                             {% for an in anaesthesias %}
                                 <option value="{{ an.anaesthesia_id }}" 
                                     {% if form.anaesthesia_type.value|stringformat:"s" == an.anaesthesia_id|stringformat:"s" %}selected
                                     {% elif session and session.anaesthesia_type_id == an.anaesthesia_id %}selected
+                                    {% elif not session and not form.anaesthesia_type.value and default_anaesthesia_id|stringformat:"s" == an.anaesthesia_id|stringformat:"s" %}selected
                                     {% elif not session and not form.anaesthesia_type.value and "spinal" in an.anaesthesia_name|lower %}selected{% endif %}>
                                     {{ an.anaesthesia_name }}
                                 </option>

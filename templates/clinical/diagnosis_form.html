@@ -137,7 +137,7 @@
                         <select name="primary_site_id" id="id_primary_site" class="access-select" required onchange="updateFullDiagnosisSuggestion()">
                             <option value="">-- Select Site --</option>
                             {% for s in sites %}
-                                <option value="{{ s.site_id }}" {% if diagnosis and diagnosis.primary_site_id == s.site_id %}selected{% endif %}>
+                                <option value="{{ s.site_id }}" {% if diagnosis and diagnosis.primary_site_id == s.site_id %}selected{% elif not diagnosis and default_site_id and default_site_id|stringformat:"s" == s.site_id|stringformat:"s" %}selected{% endif %}>
                                     {{ s.site }}
                                 </option>
                             {% endfor %}
@@ -286,7 +286,8 @@
                             {% for sys in staging_systems %}
                                 <option value="{{ sys.staging_system_id }}" 
                                     {% if diagnosis and diagnosis.staging_system_id == sys.staging_system_id %}selected
-                                    {% elif not diagnosis and forloop.first %}selected{% endif %}>
+                                    {% elif not diagnosis and default_staging_id and default_staging_id|stringformat:"s" == sys.staging_system_id|stringformat:"s" %}selected
+                                    {% elif not diagnosis and not default_staging_id and forloop.first %}selected{% endif %}>
                                     {{ sys.system_name }} {{ sys.system_version|default:'' }}
                                 </option>
                             {% endfor %}

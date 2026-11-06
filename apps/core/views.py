@@ -722,6 +722,28 @@ LOOKUP_CONFIG = {
         'secondary_field': 'system_version',
         'secondary_label': 'Version / Edition (e.g. 2018, 8th Edition)',
     },
+    'anaesthesia': {
+        'title': 'Anaesthesia Types',
+        'table_name': 'sbtblAnaesthesiaType',
+        'app': 'radiotherapy',
+        'model_name': 'AnaesthesiaType',
+        'pk': 'anaesthesia_id',
+        'name_field': 'anaesthesia_name',
+        'name_label': 'Anaesthesia Name (e.g. Spinal, GA, Sedation)',
+        'secondary_field': None,
+        'secondary_label': None,
+    },
+    'grade': {
+        'title': 'Tumour Grades',
+        'table_name': 'sbtblGrade',
+        'app': 'clinical',
+        'model_name': 'Grade',
+        'pk': 'grade_id',
+        'name_field': 'grade_name',
+        'name_label': 'Tumour Grade (e.g. G1, G2, G3)',
+        'secondary_field': None,
+        'secondary_label': None,
+    },
 }
 
 def get_lookup_model(category):
@@ -742,22 +764,33 @@ def lookup_manager_view(request, category='source'):
     if category not in LOOKUP_CONFIG:
         category = 'source'
 
+    from core.lookup_defaults import get_default_lookup_id
     model, cfg = get_lookup_model(category)
+    default_id = get_default_lookup_id(category)
+
     raw_items = model.objects.all().order_by('display_order', cfg['name_field'])
     items = []
+    default_item = None
     for it in raw_items:
-        items.append({
+        is_def = (str(it.pk) == str(default_id)) if default_id is not None else False
+        item_dict = {
             'pk': it.pk,
             'display_order': getattr(it, 'display_order', 1),
             'name': getattr(it, cfg['name_field'], str(it)),
             'secondary': getattr(it, cfg['secondary_field'], '') if cfg['secondary_field'] else '',
             'is_active': getattr(it, 'is_active', True),
-        })
+            'is_default': is_def,
+        }
+        items.append(item_dict)
+        if is_def:
+            default_item = item_dict
 
     return render(request, 'core/lookup_manager.html', {
         'category': category,
         'cfg': cfg,
         'items': items,
+        'default_id': default_id,
+        'default_item': default_item,
         'lookup_categories': LOOKUP_CONFIG,
     })
 
@@ -770,6 +803,7 @@ def lookup_save_view(request, category, item_id=None):
 
     from django.db.models import Max
     from core.models import AuditLog
+    from core.lookup_defaults import get_default_lookup_id, set_default_lookup_id, clear_default_lookup_id
 
     model, cfg = get_lookup_model(category)
     if not model:
@@ -793,6 +827,7 @@ def lookup_save_view(request, category, item_id=None):
         sec_val = request.POST.get('secondary_value', '').strip() if sec_field else None
         order_val = int(request.POST.get('display_order') or 1)
         active_val = bool(request.POST.get('is_active', True))
+        is_default_checked = bool(request.POST.get('is_default'))
 
         if not name_val:
             messages.error(request, "Name cannot be empty.")
@@ -822,6 +857,10 @@ def lookup_save_view(request, category, item_id=None):
                 record_ref=f"ID:{new_pk}",
                 notes=f"Added dropdown option '{name_val}' to {cfg['title']}"
             )
+
+            if is_default_checked:
+                set_default_lookup_id(category, new_pk, user=request.user)
+
             messages.success(request, f"Option '{name_val}' added to {cfg['title']}.")
         else:
             setattr(item, name_field, name_val)
@@ -839,6 +878,13 @@ def lookup_save_view(request, category, item_id=None):
                 record_ref=f"ID:{getattr(item, pk_field)}",
                 notes=f"Updated dropdown option '{name_val}' in {cfg['title']}"
             )
+
+            cur_def = get_default_lookup_id(category)
+            if is_default_checked:
+                set_default_lookup_id(category, getattr(item, pk_field), user=request.user)
+            elif cur_def is not None and str(cur_def) == str(getattr(item, pk_field)):
+                clear_default_lookup_id(category, user=request.user)
+
             messages.success(request, f"Option '{name_val}' updated successfully.")
 
     return redirect('lookup_manager', category=category)
@@ -870,6 +916,62 @@ def lookup_toggle_active_view(request, category, item_id):
         notes=f"Toggled option '{getattr(item, cfg['name_field'])}' active status to {item.is_active}"
     )
     messages.success(request, f"Option status set to {'Active' if item.is_active else 'Inactive'}.")
+    return redirect('lookup_manager', category=category)
+
+@login_required
+def lookup_set_default_view(request, category, item_id):
+    """Sets the designated option as default for the given lookup table."""
+    if not is_admin_user(request.user):
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+
+    from core.lookup_defaults import set_default_lookup_id
+    model, cfg = get_lookup_model(category)
+    if not model:
+        return redirect('lookup_manager', category='source')
+
+    pk_field = cfg['pk']
+    item = get_object_or_404(model, **{pk_field: item_id})
+    set_default_lookup_id(category, getattr(item, pk_field), user=request.user)
+    name_val = getattr(item, cfg['name_field'], str(item))
+    messages.success(request, f"Option '{name_val}' is now set as the default value for {cfg['title']}.")
+    return redirect('lookup_manager', category=category)
+
+@login_required
+def lookup_clear_default_view(request, category):
+    """Clears the default option for the given lookup table."""
+    if not is_admin_user(request.user):
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+
+    from core.lookup_defaults import clear_default_lookup_id
+    _, cfg = get_lookup_model(category)
+    title = cfg['title'] if cfg else category
+    clear_default_lookup_id(category, user=request.user)
+    messages.info(request, f"Default option cleared for {title}.")
+    return redirect('lookup_manager', category=category)
+
+@login_required
+def lookup_quick_default_view(request, category):
+    """Selects the default option via the top quick-select dropdown."""
+    if not is_admin_user(request.user):
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        from core.lookup_defaults import set_default_lookup_id, clear_default_lookup_id
+        item_id = request.POST.get('default_item_id')
+        model, cfg = get_lookup_model(category)
+        if item_id:
+            pk_field = cfg['pk']
+            item = get_object_or_404(model, **{pk_field: item_id})
+            set_default_lookup_id(category, getattr(item, pk_field), user=request.user)
+            name_val = getattr(item, cfg['name_field'], str(item))
+            messages.success(request, f"Default value for {cfg['title']} set to '{name_val}'.")
+        else:
+            clear_default_lookup_id(category, user=request.user)
+            messages.info(request, f"Default option cleared for {cfg['title']}.")
+
     return redirect('lookup_manager', category=category)
 
 

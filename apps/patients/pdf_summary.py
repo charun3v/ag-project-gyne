@@ -864,10 +864,10 @@ def build_patient_summary_pdf(patient):
 
         if first_eb and first_eb.ebrt_start_date and last_brachy_date:
             tot_days = (last_brachy_date - first_eb.ebrt_start_date).days + 1
-            total_ott_val = f"<strong>{tot_days} days</strong> ({first_eb.ebrt_start_date.strftime('%d-%b')} to {last_brachy_date.strftime('%d-%b-%Y')}) [Last Day of Brachy ({last_brachy_date.strftime('%d-%b')}) - EBRT Start ({first_eb.ebrt_start_date.strftime('%d-%b')})]"
+            total_ott_val = f"<strong>{tot_days} days</strong>"
         elif first_eb and first_eb.ebrt_start_date and first_eb.ebrt_end_date:
             eb_days = (first_eb.ebrt_end_date - first_eb.ebrt_start_date).days + 1
-            total_ott_val = f"<strong>{eb_days} days</strong> (EBRT only: {first_eb.ebrt_start_date.strftime('%d-%b')} to {first_eb.ebrt_end_date.strftime('%d-%b-%Y')})"
+            total_ott_val = f"<strong>{eb_days} days</strong>"
         else:
             total_ott_val = "—"
 

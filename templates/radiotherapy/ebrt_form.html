@@ -34,7 +34,7 @@
                         <select name="ebrt_intent_id" class="access-select" required {% if course and course.approval_locked %}disabled{% endif %}>
                             <option value="">-- Select Intent --</option>
                             {% for it in intents %}
-                                <option value="{{ it.intent_id }}" {% if course and course.ebrt_intent_id == it.intent_id %}selected{% endif %}>
+                                <option value="{{ it.intent_id }}" {% if course and course.ebrt_intent_id == it.intent_id %}selected{% elif not course and default_intent_id|stringformat:"s" == it.intent_id|stringformat:"s" %}selected{% endif %}>
                                     {{ it.intent_name }}
                                 </option>
                             {% endfor %}
@@ -48,7 +48,7 @@
                         <select name="ebrt_technique_id" class="access-select" required {% if course and course.approval_locked %}disabled{% endif %}>
                             <option value="">-- Select Technique --</option>
                             {% for tech in techniques %}
-                                <option value="{{ tech.technique_id }}" {% if course and course.ebrt_technique_id == tech.technique_id %}selected{% endif %}>
+                                <option value="{{ tech.technique_id }}" {% if course and course.ebrt_technique_id == tech.technique_id %}selected{% elif not course and default_technique_id|stringformat:"s" == tech.technique_id|stringformat:"s" %}selected{% endif %}>
                                     {{ tech.technique_name }}
                                 </option>
                             {% endfor %}
@@ -62,7 +62,7 @@
                         <select name="initial_rt_machine_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
                             <option value="">-- Select Machine --</option>
                             {% for m in machines %}
-                                <option value="{{ m.machine_id }}" {% if course and course.initial_rt_machine_id == m.machine_id %}selected{% endif %}>
+                                <option value="{{ m.machine_id }}" {% if course and course.initial_rt_machine_id == m.machine_id %}selected{% elif not course and default_machine_id|stringformat:"s" == m.machine_id|stringformat:"s" %}selected{% endif %}>
                                     {{ m.machine_name }}
                                 </option>
                             {% endfor %}
@@ -76,7 +76,7 @@
                         <select name="treatment_centre_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
                             <option value="">-- Select Centre --</option>
                             {% for c in centres %}
-                                <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% elif not course and "kidwai" in c.centre_name|lower %}selected{% elif not course.treatment_centre_id and "kidwai" in c.centre_name|lower %}selected{% endif %}>
+                                <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% elif not course and default_centre_id|stringformat:"s" == c.centre_id|stringformat:"s" %}selected{% elif not course and "kidwai" in c.centre_name|lower %}selected{% elif not course.treatment_centre_id and "kidwai" in c.centre_name|lower %}selected{% endif %}>
                                     {{ c.centre_name }}
                                 </option>
                             {% endfor %}

@@ -52,6 +52,40 @@
 
             <!-- Content Area for Selected Category -->
             <div>
+                <!-- Active Default Value Banner & Quick Selector -->
+                <div style="background: #e8f5e9; border: 1px solid #a5d6a7; padding: 10px 14px; margin-bottom: 12px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <span style="font-weight: bold; color: #1b5e20; font-size: 12px;">★ Default Option for {{ cfg.title }}:</span>
+                        {% if default_item %}
+                            <span style="background: #2e7d32; color: #fff; padding: 2px 8px; border-radius: 3px; font-weight: bold; font-size: 11px; margin-left: 6px;">
+                                {{ default_item.name }}
+                            </span>
+                            <span style="color: #555; font-size: 10.5px; margin-left: 6px;">
+                                (Auto-selected by default when new clinical records are created)
+                            </span>
+                            <a href="{% url 'lookup_clear_default' category %}" style="font-size: 10px; color: #b71c1c; text-decoration: underline; margin-left: 8px;">[Clear Default]</a>
+                        {% else %}
+                            <span style="color: #666; font-style: italic; font-size: 11px; margin-left: 6px;">
+                                No default selected. Select an option below to set as default.
+                            </span>
+                        {% endif %}
+                    </div>
+                    <form method="post" action="{% url 'lookup_quick_default' category %}" style="display: flex; gap: 6px; align-items: center; margin: 0;">
+                        {% csrf_token %}
+                        <label style="font-size: 11px; font-weight: bold; color: #1b5e20;">Set Default:</label>
+                        <select name="default_item_id" class="access-select" style="padding: 3px 6px; font-size: 11px; min-width: 170px;" onchange="this.form.submit()">
+                            <option value="">-- No Default (Clear) --</option>
+                            {% for item in items %}
+                                {% if item.is_active %}
+                                    <option value="{{ item.pk }}" {% if item.is_default %}selected{% endif %}>
+                                        {{ item.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+
                 <!-- Add New Option Box -->
                 <fieldset style="border: 1px solid #003366; padding: 10px; margin-bottom: 14px; background: #f8fafc;">
                     <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
@@ -60,7 +94,7 @@
 
                     <form method="post" action="{% url 'lookup_add' category %}">
                         {% csrf_token %}
-                        <div style="display: grid; grid-template-columns: {% if cfg.secondary_field %}2fr 2fr 1fr 1fr auto{% else %}3fr 1fr 1fr auto{% endif %}; gap: 8px; align-items: flex-end;">
+                        <div style="display: grid; grid-template-columns: {% if cfg.secondary_field %}2fr 2fr 1fr 1fr 1.2fr auto{% else %}3fr 1fr 1fr 1.2fr auto{% endif %}; gap: 8px; align-items: flex-end;">
                             <div>
                                 <label class="access-label" style="font-weight: bold;">{{ cfg.name_label }} *</label>
                                 <input type="text" name="name_value" class="access-input" required placeholder="Enter new option name...">
@@ -82,6 +116,13 @@
                                 <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
                                     <input type="checkbox" name="is_active" value="1" checked>
                                     Active
+                                </label>
+                            </div>
+
+                            <div style="padding-bottom: 4px;">
+                                <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer; color: #1b5e20; font-weight: bold;">
+                                    <input type="checkbox" name="is_default" value="1">
+                                    ★ Set Default
                                 </label>
                             </div>
 
@@ -113,12 +154,13 @@
                                 <th>{{ cfg.secondary_label }}</th>
                             {% endif %}
                             <th style="width: 80px; text-align: center;">Status</th>
+                            <th style="width: 95px; text-align: center;">Default</th>
                             <th style="width: 140px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in items %}
-                            <tr>
+                            <tr {% if item.is_default %}style="background: #f1f8e9;"{% endif %}>
                                 <td style="text-align: center;">{{ item.display_order }}</td>
                                 <td>
                                     <strong>{{ item.name }}</strong>
@@ -136,6 +178,20 @@
                                     {% endif %}
                                 </td>
 
+                                <td style="text-align: center;">
+                                    {% if item.is_default %}
+                                        <span style="background: #2e7d32; color: #fff; padding: 2px 7px; border-radius: 3px; font-weight: bold; font-size: 10px; display: inline-flex; align-items: center; gap: 3px;">
+                                            ★ Default
+                                        </span>
+                                    {% else %}
+                                        <a href="{% url 'lookup_set_default' category item.pk %}" class="btn-access" 
+                                           style="font-size: 10px; padding: 2px 6px; color: #003366;" 
+                                           title="Set '{{ item.name }}' as the default option">
+                                            ☆ Set Default
+                                        </a>
+                                    {% endif %}
+                                </td>
+
                                 <td style="text-align: center; white-space: nowrap;">
                                     <button type="button" class="btn-access" style="font-size: 10px; padding: 2px 6px;"
                                             onclick="openEditModal(
@@ -143,20 +199,21 @@
                                                 '{{ item.name|escapejs }}',
                                                 '{{ item.secondary|default:''|escapejs }}',
                                                 '{{ item.display_order }}',
-                                                {{ item.is_active|yesno:'true,false' }}
+                                                {{ item.is_active|yesno:'true,false' }},
+                                                {{ item.is_default|yesno:'true,false' }}
                                             )">
                                         ✏️ Edit
                                     </button>
 
                                     <a href="{% url 'lookup_toggle_active' category item.pk %}" class="btn-access" 
                                        style="font-size: 10px; padding: 2px 6px; {% if item.is_active %}color: #b00000;{% else %}color: #2e7d32;{% endif %}">
-                                        {% if item.is_active %}Deactivate{% else %}Activate{% endif %}
+                                       {% if item.is_active %}Deactivate{% else %}Activate{% endif %}
                                     </a>
                                 </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="{% if cfg.secondary_field %}5{% else %}4{% endif %}" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
+                                <td colspan="{% if cfg.secondary_field %}6{% else %}5{% endif %}" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
                                     No options found in this lookup table. Use the form above to add an option.
                                 </td>
                             </tr>
@@ -192,7 +249,7 @@
                     </div>
                 {% endif %}
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 8px;">
                     <div>
                         <label class="access-label">Display Order</label>
                         <input type="number" id="editOrder" name="display_order" class="access-input">
@@ -201,6 +258,12 @@
                         <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
                             <input type="checkbox" id="editActive" name="is_active" value="1">
                             Active in Dropdown
+                        </label>
+                    </div>
+                    <div style="display: flex; align-items: center; padding-top: 14px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer; color: #1b5e20; font-weight: bold;">
+                            <input type="checkbox" id="editDefault" name="is_default" value="1">
+                            ★ Set as Default
                         </label>
                     </div>
                 </div>
@@ -219,7 +282,7 @@
 </div>
 
 <script>
-function openEditModal(id, name, sec, order, isActive) {
+function openEditModal(id, name, sec, order, isActive, isDefault) {
     document.getElementById('editItemId').value = id || '';
     document.getElementById('editForm').action = '/admin-panel/lookups/{{ category }}/' + (id ? id + '/' : '') + 'edit/';
     document.getElementById('editName').value = name;
@@ -228,6 +291,9 @@ function openEditModal(id, name, sec, order, isActive) {
     }
     document.getElementById('editOrder').value = order;
     document.getElementById('editActive').checked = isActive;
+    if (document.getElementById('editDefault')) {
+        document.getElementById('editDefault').checked = !!isDefault;
+    }
     document.getElementById('editModal').style.display = 'flex';
 }
 

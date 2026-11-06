@@ -98,38 +98,55 @@ class BrachySessionForm(forms.ModelForm):
         self.fields['session_status'].queryset = BrachySessionStatus.objects.filter(is_active=True)
         self.fields['ovoid_length_mm'].required = False
 
-        # Set default values if new instance (matching clinical defaults and screenshot)
+        # Set default values if new instance (matching clinical defaults and admin configuration)
         if not self.instance.pk:
+            from core.lookup_defaults import get_default_lookup_id
             self.fields['packing_adequate'].initial = True
             self.fields['imaging_done'].initial = True
             self.fields['session_number'].initial = (self.course.sessions.count() + 1) if self.course else 1
             self.fields['fractions_planned'].initial = 1
 
-            # Default 1: Image Guidance -> CT-based
-            ct_guidance = BrachyImageGuidance.objects.filter(guidance_name__icontains='CT').first()
-            if ct_guidance:
-                self.fields['image_guidance'].initial = ct_guidance.guidance_id
+            # Default 1: Image Guidance
+            def_guidance = get_default_lookup_id('guidance')
+            if def_guidance:
+                self.fields['image_guidance'].initial = def_guidance
+            else:
+                ct_guidance = BrachyImageGuidance.objects.filter(guidance_name__icontains='CT').first()
+                if ct_guidance:
+                    self.fields['image_guidance'].initial = ct_guidance.guidance_id
 
-            # Default 2: Dosing System -> HR-CTV D90 (GEC-ESTRO)
+            # Default 2: Dosing System
             if self.course and self.course.brachy_dosing:
                 self.fields['brachy_dosing'].initial = self.course.brachy_dosing
             else:
-                hr_dosing = BrachyDosing.objects.filter(dosing_point__icontains='HR-CTV').first() or BrachyDosing.objects.filter(dosing_system__icontains='GEC-ESTRO').first()
-                if hr_dosing:
-                    self.fields['brachy_dosing'].initial = hr_dosing.dosing_id
+                def_dosing = get_default_lookup_id('dosing')
+                if def_dosing:
+                    self.fields['brachy_dosing'].initial = def_dosing
+                else:
+                    hr_dosing = BrachyDosing.objects.filter(dosing_point__icontains='HR-CTV').first() or BrachyDosing.objects.filter(dosing_system__icontains='GEC-ESTRO').first()
+                    if hr_dosing:
+                        self.fields['brachy_dosing'].initial = hr_dosing.dosing_id
 
-            # Default 3: Source -> Ir-192 HDR
+            # Default 3: Source
             if self.course and self.course.brachy_source:
                 self.fields['brachy_source'].initial = self.course.brachy_source
             else:
-                ir_source = BrachySourceType.objects.filter(source_name__icontains='Ir-192 HDR').first()
-                if ir_source:
-                    self.fields['brachy_source'].initial = ir_source.source_id
+                def_source = get_default_lookup_id('source')
+                if def_source:
+                    self.fields['brachy_source'].initial = def_source
+                else:
+                    ir_source = BrachySourceType.objects.filter(source_name__icontains='Ir-192 HDR').first()
+                    if ir_source:
+                        self.fields['brachy_source'].initial = ir_source.source_id
 
-            # Default 4: Anaesthesia -> Spinal
-            spinal = AnaesthesiaType.objects.filter(anaesthesia_name__icontains='Spinal').first()
-            if spinal:
-                self.fields['anaesthesia_type'].initial = spinal.anaesthesia_id
+            # Default 4: Anaesthesia
+            def_anaesthesia = get_default_lookup_id('anaesthesia')
+            if def_anaesthesia:
+                self.fields['anaesthesia_type'].initial = def_anaesthesia
+            else:
+                spinal = AnaesthesiaType.objects.filter(anaesthesia_name__icontains='Spinal').first()
+                if spinal:
+                    self.fields['anaesthesia_type'].initial = spinal.anaesthesia_id
 
     def clean(self):
         from datetime import date

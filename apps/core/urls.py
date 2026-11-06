@@ -20,6 +20,9 @@ urlpatterns = [
     path('admin-panel/lookups/<str:category>/edit/', views.lookup_save_view, name='lookup_edit_no_id'),
     path('admin-panel/lookups/<str:category>/<int:item_id>/edit/', views.lookup_save_view, name='lookup_edit'),
     path('admin-panel/lookups/<str:category>/<int:item_id>/toggle/', views.lookup_toggle_active_view, name='lookup_toggle_active'),
+    path('admin-panel/lookups/<str:category>/<str:item_id>/set-default/', views.lookup_set_default_view, name='lookup_set_default'),
+    path('admin-panel/lookups/<str:category>/clear-default/', views.lookup_clear_default_view, name='lookup_clear_default'),
+    path('admin-panel/lookups/<str:category>/quick-default/', views.lookup_quick_default_view, name='lookup_quick_default'),
 
     # Treatment Routing & Formal Approval
     path('treatment/nact/<str:mr_no>/', views.nact_router_view, name='nact_router'),

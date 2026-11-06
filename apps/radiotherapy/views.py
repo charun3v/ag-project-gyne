@@ -351,6 +351,12 @@ def ebrt_form_view(request, mr_no, course_id=None):
     current_site_ids = [s.ebrt_site_id for s in course.sites.all()] if course else []
     concurrent_cycles = concurrent_course.cycles.all().prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if concurrent_course else []
 
+    from core.lookup_defaults import get_default_lookup_id
+    default_intent_id = get_default_lookup_id('intent')
+    default_technique_id = get_default_lookup_id('technique')
+    default_machine_id = get_default_lookup_id('machine')
+    default_centre_id = get_default_lookup_id('centre')
+
     return render(request, 'radiotherapy/ebrt_form.html', {
         'patient': patient,
         'course': course,
@@ -368,6 +374,10 @@ def ebrt_form_view(request, mr_no, course_id=None):
         'chemo_agents': chemo_agents,
         'dose_units': dose_units,
         'chemo_routes': chemo_routes,
+        'default_intent_id': default_intent_id,
+        'default_technique_id': default_technique_id,
+        'default_machine_id': default_machine_id,
+        'default_centre_id': default_centre_id,
     })
 
 
@@ -681,6 +691,9 @@ def brachy_form_view(request, mr_no, course_id=None):
     cumulative_rectum_eqd2 = round(ebrt_rectum_eqd2 + rectum_brachy_eqd2, 1)
     cumulative_sigmoid_eqd2 = round(ebrt_sigmoid_eqd2 + sigmoid_brachy_eqd2, 1)
 
+    from core.lookup_defaults import get_default_lookup_id
+    default_centre_id = get_default_lookup_id('centre')
+
     return render(request, 'radiotherapy/brachy_form.html', {
         'patient': patient,
         'course': course,
@@ -707,6 +720,7 @@ def brachy_form_view(request, mr_no, course_id=None):
         'cumulative_bladder_eqd2': cumulative_bladder_eqd2,
         'cumulative_rectum_eqd2': cumulative_rectum_eqd2,
         'cumulative_sigmoid_eqd2': cumulative_sigmoid_eqd2,
+        'default_centre_id': default_centre_id,
     })
 
 
@@ -810,6 +824,13 @@ def brachy_session_form_view(request, mr_no, course_id, session_id=None):
                 })
         rules_dict[str(app.id)] = app_rules
 
+    from core.lookup_defaults import get_default_lookup_id
+    default_guidance_id = get_default_lookup_id('guidance')
+    default_dosing_id = get_default_lookup_id('dosing')
+    default_source_id = get_default_lookup_id('source')
+    default_anaesthesia_id = get_default_lookup_id('anaesthesia')
+    default_applicator_id = get_default_lookup_id('applicator')
+
     return render(request, 'radiotherapy/brachy_session_form.html', {
         'patient': patient,
         'course': course,
@@ -824,6 +845,11 @@ def brachy_session_form_view(request, mr_no, course_id, session_id=None):
         'anaesthesias': anaesthesias,
         'session_statuses': session_statuses,
         'applicator_rules_json': json.dumps(rules_dict),
+        'default_guidance_id': default_guidance_id,
+        'default_dosing_id': default_dosing_id,
+        'default_source_id': default_source_id,
+        'default_anaesthesia_id': default_anaesthesia_id,
+        'default_applicator_id': default_applicator_id,
     })
 
 

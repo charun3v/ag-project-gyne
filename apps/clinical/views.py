@@ -323,6 +323,10 @@ def diagnosis_detail_view(request, mr_no, diagnosis_id=None):
     if not diagnosis or not diagnosis.grade_id:
         default_grade_id = latest_detected_grade_id
 
+    from core.lookup_defaults import get_default_lookup_id
+    default_site_id = get_default_lookup_id('site')
+    default_staging_id = get_default_lookup_id('staging_system')
+
     return render(request, 'clinical/diagnosis_form.html', {
         'patient': patient,
         'diagnosis': diagnosis,
@@ -332,6 +336,8 @@ def diagnosis_detail_view(request, mr_no, diagnosis_id=None):
         'histologies': histologies,
         'grades': grades,
         'default_grade_id': default_grade_id,
+        'default_site_id': default_site_id,
+        'default_staging_id': default_staging_id,
         'bases': bases,
         'staging_systems': staging_systems,
         'pathology_choices': pathology_choices,
