@@ -409,7 +409,7 @@ def build_investigations_pdf(patient):
     if img_qs.exists():
         for im in img_qs:
             mod_name = str(im.imaging_type) if im.imaging_type else "Radiology"
-            site_name = str(im.imaging_site) if im.imaging_site else "Pelvis"
+            site_name = im.sites_display
             dt_str = im.imaging_date.strftime('%d-%b-%Y') if im.imaging_date else '—'
 
             details_parts = []

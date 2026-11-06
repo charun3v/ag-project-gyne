@@ -556,7 +556,7 @@ def build_patient_summary_pdf(patient):
     if imaging_studies.exists():
         for img in imaging_studies:
             mod_name = str(img.imaging_type) if img.imaging_type else (img.other_modality or "Imaging")
-            site_name = str(img.imaging_site) if img.imaging_site else "Pelvis"
+            site_name = img.sites_display
             dt_str = img.imaging_date.strftime('%d-%b-%Y') if img.imaging_date else '—'
             d_str, imp_str = _extract_imaging_details(img)
 
@@ -956,7 +956,7 @@ def build_patient_summary_pdf(patient):
             story.append(Paragraph("<strong>Surveillance & Follow-Up Imaging:</strong>", ParagraphStyle('SubSec', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor("#003366"))))
             for s_img in surveillance_scans:
                 m_name = str(s_img.imaging_type) if s_img.imaging_type else (s_img.other_modality or "Scan")
-                r_name = str(s_img.imaging_site) if s_img.imaging_site else "Pelvis"
+                r_name = s_img.sites_display
                 s_date = s_img.imaging_date.strftime('%d-%b-%Y') if s_img.imaging_date else '—'
                 s_det, s_imp = _extract_imaging_details(s_img)
                 s_html = (

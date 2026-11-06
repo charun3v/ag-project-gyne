@@ -37,7 +37,7 @@
                     </div>
                     <div>
                         <label class="access-label" style="font-weight: bold; color: #b00000;">Imaging Modality *</label>
-                        <select name="imaging_type_id" id="imagingTypeSelect" class="access-select" required>
+                        <select name="imaging_type_id" id="imagingTypeSelect" class="access-select" required onchange="checkMRIPelvisStagingVisibility()">
                             <option value="">-- Select Modality --</option>
                             {% for it in imaging_types %}
                                 <option value="{{ it.imaging_type_id }}" {% if imaging and imaging.imaging_type_id == it.imaging_type_id %}selected{% endif %}>
@@ -47,15 +47,31 @@
                         </select>
                     </div>
                     <div>
-                        <label class="access-label">Anatomical Site</label>
-                        <select name="imaging_site_id" class="access-select">
-                            <option value="">-- Select Site --</option>
-                            {% for is in imaging_sites %}
-                                <option value="{{ is.imaging_site_id }}" {% if imaging and imaging.imaging_site_id == is.imaging_site_id %}selected{% endif %}>
-                                    {{ is.imaging_site_name }}
-                                </option>
-                            {% endfor %}
-                        </select>
+                        <label class="access-label" style="font-weight: bold;">Anatomical Site(s) *</label>
+                        <div style="position: relative;">
+                            <div id="siteDropdownBtn" class="access-input" onclick="toggleSiteDropdown(event)" 
+                                 style="background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 24px; padding: 2px 6px;">
+                                <span id="siteDropdownSummary" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px;">
+                                    -- Select Site(s) --
+                                </span>
+                                <span style="font-size: 9px; color: #555; margin-left: 4px;">▼</span>
+                            </div>
+                            <div id="siteDropdownMenu" 
+                                 style="display: none; position: absolute; z-index: 9999; left: 0; top: 100%; width: 100%; min-width: 200px; background: #fff; border: 1px solid #707070; box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 6px; border-radius: 2px; max-height: 220px; overflow-y: auto;">
+                                <div style="font-size: 10px; color: #666; margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;">
+                                    Check one or more anatomical sites:
+                                </div>
+                                {% for is in imaging_sites %}
+                                    <label style="display: flex; align-items: center; gap: 6px; padding: 3px 4px; font-size: 11px; cursor: pointer; border-bottom: 1px dotted #f0f0f0;">
+                                        <input type="checkbox" name="imaging_site_ids" value="{{ is.imaging_site_id }}" 
+                                               data-name="{{ is.imaging_site_name }}" class="site-chk"
+                                               {% if is.imaging_site_id in selected_site_ids %}checked{% endif %}
+                                               onchange="onSiteSelectionChange()">
+                                        <span>{{ is.imaging_site_name }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label class="access-label">Radiology / PACS Ref No.</label>
@@ -65,15 +81,22 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="access-label">Overall Imaging Impression</label>
-                    <textarea name="impression" class="access-textarea" rows="2" placeholder="Key radiological impression and stage correlation...">{% if imaging %}{{ imaging.impression|default:'' }}{% endif %}</textarea>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold;">Imaging Findings</label>
+                        <textarea name="details" class="access-textarea" rows="3" 
+                                  placeholder="Detailed organ-by-organ radiological observations, lesion measurements, text of report...">{% if imaging %}{{ imaging.details|default:'' }}{% endif %}</textarea>
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Overall Imaging Impression *</label>
+                        <textarea name="impression" class="access-textarea" rows="3" required 
+                                  placeholder="Key radiological impression, staging summary, and conclusion...">{% if imaging %}{{ imaging.impression|default:'' }}{% endif %}</textarea>
+                    </div>
                 </div>
             </fieldset>
 
             <!-- Section 2: High-Resolution Pelvic MRI Detailed Metrics -->
-            <input type="hidden" name="has_pelvis_detail" value="1">
-            <fieldset style="border: 2px solid #003366; padding: 10px; margin-bottom: 12px; background: #fcfcfc;">
+            <fieldset id="pelvicMriStagingSection" style="border: 2px solid #003366; padding: 10px; margin-bottom: 12px; background: #fcfcfc;">
                 <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
                     🎯 2. Pelvic MRI Anatomical Staging Metrics (tblMRIPelvisDetail)
                 </legend>
@@ -142,23 +165,29 @@
                 <div style="background: #f0f4f8; border: 1px solid #c8d8e8; padding: 8px; margin-bottom: 8px;">
                     <div style="margin-bottom: 6px;">
                         <label style="font-weight: bold; color: #003366; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="parametrium_involved" value="1" {% if pelvis_detail and pelvis_detail.parametrium_involved %}checked{% endif %}>
-                            Parametrial Involvement on MRI
+                            <input type="checkbox" name="parametrium_involved" id="mri_para_involved_chk" value="1" 
+                                   {% if pelvis_detail and pelvis_detail.parametrium_involved %}checked{% endif %} 
+                                   onchange="toggleMRIParametrium()">
+                            Parametrial Involvement on MRI (Yes / No)
                         </label>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                    <div id="mri_para_controls" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-items: center;">
                         <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="para_left_involved" value="1" {% if pelvis_detail and pelvis_detail.para_left_involved %}checked{% endif %}>
+                            <input type="checkbox" name="para_left_involved" id="mri_para_left_chk" value="1" 
+                                   {% if pelvis_detail and pelvis_detail.para_left_involved %}checked{% endif %}
+                                   onchange="toggleMRIParametriumLeft()">
                             Left Parametrium
                         </label>
-                        <input type="number" step="0.1" name="para_left_extent_cm" 
+                        <input type="number" step="0.1" name="para_left_extent_cm" id="mri_para_left_extent"
                                value="{% if pelvis_detail and pelvis_detail.para_left_extent_cm %}{{ pelvis_detail.para_left_extent_cm }}{% endif %}" 
                                class="access-input" placeholder="Left extent (cm)">
                         <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="para_right_involved" value="1" {% if pelvis_detail and pelvis_detail.para_right_involved %}checked{% endif %}>
+                            <input type="checkbox" name="para_right_involved" id="mri_para_right_chk" value="1" 
+                                   {% if pelvis_detail and pelvis_detail.para_right_involved %}checked{% endif %}
+                                   onchange="toggleMRIParametriumRight()">
                             Right Parametrium
                         </label>
-                        <input type="number" step="0.1" name="para_right_extent_cm" 
+                        <input type="number" step="0.1" name="para_right_extent_cm" id="mri_para_right_extent"
                                value="{% if pelvis_detail and pelvis_detail.para_right_extent_cm %}{{ pelvis_detail.para_right_extent_cm }}{% endif %}" 
                                class="access-input" placeholder="Right extent (cm)">
                     </div>
@@ -207,23 +236,30 @@
                     <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #003366;">
                         Lymph Node Metastasis Assessment
                     </div>
-                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="nodes_present" value="1" {% if pelvis_detail and pelvis_detail.nodes_present %}checked{% endif %}>
-                            Significant Lymph Nodes Present
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+                        <label style="font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" name="nodes_present" id="mri_nodes_present_chk" value="1" 
+                                   {% if pelvis_detail and pelvis_detail.nodes_present %}checked{% endif %}
+                                   onchange="toggleMRILymphNodes()">
+                            Significant Lymph Nodes Present (Yes / No)
                         </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="pelvic_nodes_present" value="1" {% if pelvis_detail and pelvis_detail.pelvic_nodes_present %}checked{% endif %}>
-                            Pelvic Nodes Positive
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="pa_nodes_present" value="1" {% if pelvis_detail and pelvis_detail.pa_nodes_present %}checked{% endif %}>
-                            Para-aortic (PA) Nodes Positive
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="inguinal_nodes_present" value="1" {% if pelvis_detail and pelvis_detail.inguinal_nodes_present %}checked{% endif %}>
-                            Inguinal Nodes Positive
-                        </label>
+                        <div id="mri_nodes_subgroup" style="display: flex; gap: 16px; align-items: center; margin-left: 12px; padding-left: 12px; border-left: 2px solid #ccc;">
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                                <input type="checkbox" name="pelvic_nodes_present" id="mri_pelvic_nodes_chk" value="1" 
+                                       {% if pelvis_detail and pelvis_detail.pelvic_nodes_present %}checked{% endif %}>
+                                Pelvic Nodes Positive
+                            </label>
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                                <input type="checkbox" name="pa_nodes_present" id="mri_pa_nodes_chk" value="1" 
+                                       {% if pelvis_detail and pelvis_detail.pa_nodes_present %}checked{% endif %}>
+                                Para-aortic (PA) Nodes Positive
+                            </label>
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                                <input type="checkbox" name="inguinal_nodes_present" id="mri_inguinal_nodes_chk" value="1" 
+                                       {% if pelvis_detail and pelvis_detail.inguinal_nodes_present %}checked{% endif %}>
+                                Inguinal Nodes Positive
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -244,6 +280,147 @@
                     ✖️ Cancel / Back
                 </a>
             </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleSiteDropdown(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('siteDropdownMenu');
+    if (menu) {
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('siteDropdownMenu');
+    const btn = document.getElementById('siteDropdownBtn');
+    if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.style.display = 'none';
+    }
+});
+
+function onSiteSelectionChange() {
+    updateSiteSelectionSummary();
+    checkMRIPelvisStagingVisibility();
+}
+
+function updateSiteSelectionSummary() {
+    const checked = Array.from(document.querySelectorAll('.site-chk:checked')).map(c => c.getAttribute('data-name'));
+    const summarySpan = document.getElementById('siteDropdownSummary');
+    if (summarySpan) {
+        if (checked.length > 0) {
+            summarySpan.textContent = checked.join(', ');
+            summarySpan.style.color = '#003366';
+            summarySpan.style.fontWeight = 'bold';
+        } else {
+            summarySpan.textContent = '-- Select Site(s) --';
+            summarySpan.style.color = '#777';
+            summarySpan.style.fontWeight = 'normal';
+        }
+    }
+}
+
+function checkMRIPelvisStagingVisibility() {
+    const modalitySelect = document.getElementById('imagingTypeSelect');
+    const selectedModalityText = modalitySelect && modalitySelect.selectedIndex >= 0 ? 
+        modalitySelect.options[modalitySelect.selectedIndex].text.toLowerCase() : '';
+    const isMRI = selectedModalityText.includes('mri');
+
+    const siteCheckboxes = document.querySelectorAll('.site-chk:checked');
+    let hasPelvis = false;
+    siteCheckboxes.forEach(chk => {
+        const name = (chk.getAttribute('data-name') || '').toLowerCase();
+        if (name.includes('pelvis')) {
+            hasPelvis = true;
+        }
+    });
+
+    const mriSection = document.getElementById('pelvicMriStagingSection');
+    if (mriSection) {
+        if (isMRI && hasPelvis) {
+            mriSection.style.display = 'block';
+        } else {
+            mriSection.style.display = 'none';
+        }
+    }
+}
+
+function toggleMRIParametrium() {
+    const isParametrium = document.getElementById('mri_para_involved_chk')?.checked;
+    const leftChk = document.getElementById('mri_para_left_chk');
+    const rightChk = document.getElementById('mri_para_right_chk');
+    const container = document.getElementById('mri_para_controls');
+
+    if (container) {
+        container.style.opacity = isParametrium ? '1' : '0.4';
+    }
+    if (leftChk) {
+        leftChk.disabled = !isParametrium;
+        if (!isParametrium) leftChk.checked = false;
+    }
+    if (rightChk) {
+        rightChk.disabled = !isParametrium;
+        if (!isParametrium) rightChk.checked = false;
+    }
+    toggleMRIParametriumLeft();
+    toggleMRIParametriumRight();
+}
+
+function toggleMRIParametriumLeft() {
+    const isParametrium = document.getElementById('mri_para_involved_chk')?.checked;
+    const leftChk = document.getElementById('mri_para_left_chk');
+    const leftExt = document.getElementById('mri_para_left_extent');
+    if (leftExt) {
+        const active = isParametrium && leftChk && leftChk.checked;
+        leftExt.disabled = !active;
+        if (!active) leftExt.value = '';
+    }
+}
+
+function toggleMRIParametriumRight() {
+    const isParametrium = document.getElementById('mri_para_involved_chk')?.checked;
+    const rightChk = document.getElementById('mri_para_right_chk');
+    const rightExt = document.getElementById('mri_para_right_extent');
+    if (rightExt) {
+        const active = isParametrium && rightChk && rightChk.checked;
+        rightExt.disabled = !active;
+        if (!active) rightExt.value = '';
+    }
+}
+
+function toggleMRILymphNodes() {
+    const isNodesPresent = document.getElementById('mri_nodes_present_chk')?.checked;
+    const pelvicChk = document.getElementById('mri_pelvic_nodes_chk');
+    const paChk = document.getElementById('mri_pa_nodes_chk');
+    const inguinalChk = document.getElementById('mri_inguinal_nodes_chk');
+    const subgroup = document.getElementById('mri_nodes_subgroup');
+
+    if (subgroup) {
+        subgroup.style.opacity = isNodesPresent ? '1' : '0.4';
+    }
+    if (pelvicChk) {
+        pelvicChk.disabled = !isNodesPresent;
+        if (!isNodesPresent) pelvicChk.checked = false;
+    }
+    if (paChk) {
+        paChk.disabled = !isNodesPresent;
+        if (!isNodesPresent) paChk.checked = false;
+    }
+    if (inguinalChk) {
+        inguinalChk.disabled = !isNodesPresent;
+        if (!isNodesPresent) inguinalChk.checked = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateSiteSelectionSummary();
+    checkMRIPelvisStagingVisibility();
+    toggleMRIParametrium();
+    toggleMRILymphNodes();
+});
+</script>
         </form>
     </div>
 </div>

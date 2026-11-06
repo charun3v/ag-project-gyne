@@ -171,22 +171,67 @@ def imaging_form_view(request, mr_no, imaging_id=None):
 
     pelvis_detail = getattr(imaging, 'pelvis_detail', None) if imaging else None
 
+    selected_site_ids = []
+    if imaging:
+        selected_site_ids = list(imaging.imaging_sites.values_list('imaging_site_id', flat=True))
+        if not selected_site_ids and imaging.imaging_site_id:
+            selected_site_ids = [imaging.imaging_site_id]
+    else:
+        pelvis_site = imaging_sites.filter(imaging_site_name__icontains='Pelvis').first()
+        if pelvis_site:
+            selected_site_ids = [pelvis_site.imaging_site_id]
+
     if request.method == 'POST':
+        impression = request.POST.get('impression', '').strip()
+        if not impression:
+            messages.error(request, "Overall Imaging Impression is mandatory.")
+            raw_site_ids = request.POST.getlist('imaging_site_ids')
+            curr_selected_ids = [int(x) for x in raw_site_ids if str(x).isdigit()]
+            return render(request, 'investigations/imaging_form.html', {
+                'patient': patient,
+                'imaging': imaging,
+                'pelvis_detail': pelvis_detail,
+                'imaging_types': imaging_types,
+                'imaging_sites': imaging_sites,
+                'selected_site_ids': curr_selected_ids,
+                'organ_statuses': organ_statuses,
+                'nodal_stations_lookup': nodal_stations_lookup,
+            })
+
         if not imaging:
             imaging = ImagingInvestigation(patient=patient, entered_by=request.user.username)
 
         imaging.imaging_date = request.POST.get('imaging_date') or date.today()
         imaging.imaging_type_id = request.POST.get('imaging_type_id') or None
-        imaging.imaging_site_id = request.POST.get('imaging_site_id') or None
-        imaging.lab_reference_no = request.POST.get('lab_reference_no', '')
-        imaging.other_modality = request.POST.get('other_modality', '')
-        imaging.details = request.POST.get('details', '')
-        imaging.impression = request.POST.get('impression', '')
+        
+        # Multi-select Anatomical Sites
+        raw_site_ids = request.POST.getlist('imaging_site_ids')
+        if not raw_site_ids and request.POST.get('imaging_site_id'):
+            raw_site_ids = [request.POST.get('imaging_site_id')]
+        site_ids = [int(s) for s in raw_site_ids if str(s).isdigit()]
+
+        imaging.imaging_site_id = site_ids[0] if site_ids else None
+        imaging.lab_reference_no = request.POST.get('lab_reference_no', '').strip()
+        imaging.other_modality = request.POST.get('other_modality', '').strip()
+        imaging.details = request.POST.get('details', '').strip()
+        imaging.impression = impression
         imaging.last_modified_by = request.user.username
         imaging.save()
 
-        # If MRI Pelvis detail is present in form
-        if request.POST.get('has_pelvis_detail') or 'mri' in (imaging.imaging_type.imaging_type_name.lower() if imaging.imaging_type else ''):
+        # Save M2M anatomical sites
+        if site_ids:
+            imaging.imaging_sites.set(site_ids)
+        else:
+            imaging.imaging_sites.clear()
+
+        # Check if MRI and Pelvis are selected: Pelvic MRI Anatomical Staging is only saved if MRI Pelvis is selected
+        is_mri = bool(imaging.imaging_type and 'mri' in imaging.imaging_type.imaging_type_name.lower())
+        is_pelvis = bool(
+            imaging.imaging_sites.filter(imaging_site_name__icontains='Pelvis').exists() or 
+            (imaging.imaging_site and 'pelvis' in imaging.imaging_site.imaging_site_name.lower())
+        )
+
+        if is_mri and is_pelvis:
             if not pelvis_detail:
                 pelvis_detail, _ = MRIPelvisDetail.objects.get_or_create(imaging=imaging)
 
@@ -199,15 +244,22 @@ def imaging_form_view(request, mr_no, imaging_id=None):
             pelvis_detail.cervical_stromal_invasion = bool(request.POST.get('cervical_stromal_invasion'))
             pelvis_detail.cervical_stromal_extent = request.POST.get('cervical_stromal_extent', '')
 
-            pelvis_detail.parametrium_involved = bool(request.POST.get('parametrium_involved'))
-            pelvis_detail.para_left_involved = bool(request.POST.get('para_left_involved'))
-            pelvis_detail.para_right_involved = bool(request.POST.get('para_right_involved'))
-            pelvis_detail.para_left_extent_cm = float(request.POST.get('para_left_extent_cm')) if request.POST.get('para_left_extent_cm') else None
-            pelvis_detail.para_right_extent_cm = float(request.POST.get('para_right_extent_cm')) if request.POST.get('para_right_extent_cm') else None
-
             pelvis_detail.uterine_corpus_involved = bool(request.POST.get('uterine_corpus_involved'))
             pelvis_detail.vaginal_involvement = bool(request.POST.get('vaginal_involvement'))
             pelvis_detail.vaginal_extent = request.POST.get('vaginal_extent', '')
+
+            # Parametrial Involvement on MRI
+            pelvis_detail.parametrium_involved = bool(request.POST.get('parametrium_involved'))
+            if pelvis_detail.parametrium_involved:
+                pelvis_detail.para_left_involved = bool(request.POST.get('para_left_involved'))
+                pelvis_detail.para_right_involved = bool(request.POST.get('para_right_involved'))
+                pelvis_detail.para_left_extent_cm = float(request.POST.get('para_left_extent_cm')) if (pelvis_detail.para_left_involved and request.POST.get('para_left_extent_cm')) else None
+                pelvis_detail.para_right_extent_cm = float(request.POST.get('para_right_extent_cm')) if (pelvis_detail.para_right_involved and request.POST.get('para_right_extent_cm')) else None
+            else:
+                pelvis_detail.para_left_involved = False
+                pelvis_detail.para_right_involved = False
+                pelvis_detail.para_left_extent_cm = None
+                pelvis_detail.para_right_extent_cm = None
 
             pelvis_detail.bladder_status_id = request.POST.get('bladder_status_id') or None
             pelvis_detail.rectum_status_id = request.POST.get('rectum_status_id') or None
@@ -215,10 +267,16 @@ def imaging_form_view(request, mr_no, imaging_id=None):
             pelvis_detail.hydronephrosis_left = bool(request.POST.get('hydronephrosis_left'))
             pelvis_detail.hydronephrosis_right = bool(request.POST.get('hydronephrosis_right'))
 
+            # Lymph Node Status
             pelvis_detail.nodes_present = bool(request.POST.get('nodes_present'))
-            pelvis_detail.pelvic_nodes_present = bool(request.POST.get('pelvic_nodes_present'))
-            pelvis_detail.pa_nodes_present = bool(request.POST.get('pa_nodes_present'))
-            pelvis_detail.inguinal_nodes_present = bool(request.POST.get('inguinal_nodes_present'))
+            if pelvis_detail.nodes_present:
+                pelvis_detail.pelvic_nodes_present = bool(request.POST.get('pelvic_nodes_present'))
+                pelvis_detail.pa_nodes_present = bool(request.POST.get('pa_nodes_present'))
+                pelvis_detail.inguinal_nodes_present = bool(request.POST.get('inguinal_nodes_present'))
+            else:
+                pelvis_detail.pelvic_nodes_present = False
+                pelvis_detail.pa_nodes_present = False
+                pelvis_detail.inguinal_nodes_present = False
 
             pelvis_detail.distant_findings = request.POST.get('distant_findings', '')
             pelvis_detail.radiologist_impression = request.POST.get('radiologist_impression', '')
@@ -244,6 +302,7 @@ def imaging_form_view(request, mr_no, imaging_id=None):
         'pelvis_detail': pelvis_detail,
         'imaging_types': imaging_types,
         'imaging_sites': imaging_sites,
+        'selected_site_ids': selected_site_ids,
         'organ_statuses': organ_statuses,
         'nodal_stations_lookup': nodal_stations_lookup,
     })

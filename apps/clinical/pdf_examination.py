@@ -99,7 +99,7 @@ class ExamNumberedCanvas(canvas.Canvas):
 def format_imaging_investigation(im, cell_style):
     """Formats an ImagingInvestigation into the clean non-table layout requested by clinicians."""
     mod_name = str(im.imaging_type) if im.imaging_type else "Radiology"
-    site_name = str(im.imaging_site) if im.imaging_site else "Pelvis"
+    site_name = im.sites_display
     dt_str = im.imaging_date.strftime('%d-%b-%Y') if im.imaging_date else '—'
 
     details_parts = []

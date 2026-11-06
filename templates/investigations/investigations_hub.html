@@ -206,7 +206,7 @@
                         <tr>
                             <td><strong>{{ img.imaging_date|date:'d-M-Y' }}</strong></td>
                             <td><strong style="color: #003366;">{{ img.imaging_type.imaging_type_name|default:'Scan' }}</strong></td>
-                            <td>{{ img.imaging_site.imaging_site_name|default:'Pelvis' }}</td>
+                            <td>{{ img.sites_display }}</td>
                             <td>
                                 {% if img.pelvis_detail %}
                                     {{ img.pelvis_detail.tumour_dimension_1_cm|default:'-' }} x {{ img.pelvis_detail.tumour_dimension_2_cm|default:'-' }} x {{ img.pelvis_detail.tumour_dimension_3_cm|default:'-' }} cm

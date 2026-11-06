@@ -255,6 +255,7 @@ class ImagingInvestigation(models.Model):
     imaging_date = models.DateField(default=date.today, db_column='Imaging_Date')
     imaging_type = models.ForeignKey(ImagingType, on_delete=models.SET_NULL, null=True, blank=True, db_column='ImagingTypeID')
     imaging_site = models.ForeignKey(ImagingSite, on_delete=models.SET_NULL, null=True, blank=True, db_column='ImagingSiteID')
+    imaging_sites = models.ManyToManyField(ImagingSite, blank=True, related_name='imaging_investigations', db_table='tblImagingSitesBridge')
     lab_reference_no = models.CharField(max_length=100, blank=True, null=True, db_column='Lab_Reference_No')
     other_modality = models.CharField(max_length=100, blank=True, null=True, db_column='Other_Modality')
     
@@ -270,6 +271,15 @@ class ImagingInvestigation(models.Model):
     class Meta:
         db_table = 'tblImaging'
         ordering = ['-imaging_date', '-imaging_id']
+
+    @property
+    def sites_display(self):
+        sites = list(self.imaging_sites.all())
+        if sites:
+            return ", ".join([s.imaging_site_name for s in sites])
+        if self.imaging_site:
+            return self.imaging_site.imaging_site_name
+        return "Pelvis"
 
     def __str__(self):
         mod = self.imaging_type.imaging_type_name if self.imaging_type else "Scan"
