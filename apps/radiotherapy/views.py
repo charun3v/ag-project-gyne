@@ -259,7 +259,8 @@ def ebrt_form_view(request, mr_no, course_id=None):
                     entered_by=request.user.username
                 )
             concurrent_course.concurrent_received = True
-            concurrent_course.chemo_regimen_id = conc_regimen_id
+            if conc_regimen_id:
+                concurrent_course.chemo_regimen_id = conc_regimen_id
             concurrent_course.planned_cycles = conc_planned
             concurrent_course.received_cycles = max(conc_received, concurrent_course.cycles.count())
             concurrent_course.conc_chemo_start_date = ebrt_start_date
@@ -343,12 +344,16 @@ def ebrt_concurrent_cycle_save_view(request, mr_no, course_id, cycle_id=None):
         return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
 
     # Date validation: EBRT Start <= cycle_date <= EBRT End
+    if not course.ebrt_start_date:
+        messages.error(request, "Validation Failed: EBRT Start Date must be specified on the course before recording concurrent chemotherapy cycles.")
+        return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
+
     if course.ebrt_start_date and cycle_date < course.ebrt_start_date:
-        messages.error(request, f"Validation Failed: Concurrent chemotherapy cycle date ({cycle_date}) must not precede EBRT start date ({course.ebrt_start_date}).")
+        messages.error(request, f"Validation Failed: Concurrent chemotherapy cycle date ({cycle_date.strftime('%d-%b-%Y')}) must not precede EBRT start date ({course.ebrt_start_date.strftime('%d-%b-%Y')}).")
         return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
 
     if course.ebrt_end_date and cycle_date > course.ebrt_end_date:
-        messages.error(request, f"Validation Failed: Concurrent chemotherapy cycle date ({cycle_date}) must not follow EBRT end date ({course.ebrt_end_date}).")
+        messages.error(request, f"Validation Failed: Concurrent chemotherapy cycle date ({cycle_date.strftime('%d-%b-%Y')}) must not follow EBRT end date ({course.ebrt_end_date.strftime('%d-%b-%Y')}).")
         return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
 
     if cycle_id:
@@ -370,7 +375,12 @@ def ebrt_concurrent_cycle_save_view(request, mr_no, course_id, cycle_id=None):
     chemo_agent_id = request.POST.get('chemo_agent_id')
     if chemo_agent_id:
         dose_val = float(request.POST.get('dose')) if request.POST.get('dose') else None
+        # Default dose_unit to 'mg' if not provided
         dose_unit_id = request.POST.get('dose_unit_id') or None
+        if not dose_unit_id:
+            mg_unit = DoseUnit.objects.filter(unit_name='mg').first()
+            if mg_unit:
+                dose_unit_id = mg_unit.unit_id
         no_of_days = int(request.POST.get('no_of_days') or 1)
         day_of_admin = int(request.POST.get('day_of_administration') or 1)
         chemo_route_id = request.POST.get('chemo_route_id') or None
@@ -394,6 +404,19 @@ def ebrt_concurrent_cycle_save_view(request, mr_no, course_id, cycle_id=None):
                 chemo_route_id=chemo_route_id,
                 administered=True
             )
+
+        # Auto-link course regimen if not already established
+        if not conc_course.chemo_regimen:
+            agent_obj = ChemoAgent.objects.filter(agent_id=chemo_agent_id).first()
+            if agent_obj:
+                if 'cisplatin' in agent_obj.agent_name.lower():
+                    cis_reg = ChemoRegimen.objects.filter(regimen_code__icontains='Single-agent Cis').first() or ChemoRegimen.objects.filter(regimen_description__icontains='Cisplatin alone').first()
+                    if cis_reg:
+                        conc_course.chemo_regimen = cis_reg
+                elif 'carboplatin' in agent_obj.agent_name.lower():
+                    carbo_reg = ChemoRegimen.objects.filter(regimen_code__icontains='Single-agent Carbo').first() or ChemoRegimen.objects.filter(regimen_description__icontains='Carboplatin alone').first()
+                    if carbo_reg:
+                        conc_course.chemo_regimen = carbo_reg
 
     conc_course.received_cycles = conc_course.cycles.count()
     conc_course.save()

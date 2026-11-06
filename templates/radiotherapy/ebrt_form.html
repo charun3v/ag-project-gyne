@@ -240,30 +240,20 @@
 
                 <!-- Concurrent Chemo Parameters (Active when YES is selected) -->
                 <div id="concChemoContainer" style="{% if concurrent_course and concurrent_course.concurrent_received %}display: block;{% else %}display: none;{% endif %}">
-                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                        <div>
-                            <label class="access-label" style="font-weight: bold; color: #003366;">Concurrent Chemo Regimen</label>
-                            <select name="conc_chemo_regimen_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
-                                <option value="">-- Select Regimen --</option>
-                                {% for r in chemo_regimens %}
-                                    <option value="{{ r.regimen_id }}" {% if concurrent_course and concurrent_course.chemo_regimen_id == r.regimen_id %}selected{% endif %}>
-                                        {{ r.regimen_code }} ({{ r.regimen_description }})
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 520px; margin-bottom: 12px; align-items: start;">
                         <div>
                             <label class="access-label" style="font-weight: bold; color: #b00000;">Number of Cycles Planned *</label>
                             <input type="number" name="conc_planned_cycles" min="1" max="10" 
                                    value="{% if concurrent_course %}{{ concurrent_course.planned_cycles }}{% else %}5{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
-                            <span style="font-size: 9px; color: #666;">Declared cycles must complete before EBRT completes</span>
+                            <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">Declared cycles must complete before EBRT completes</span>
                         </div>
                         <div>
-                            <label class="access-label">Cycles Administered</label>
+                            <label class="access-label" style="font-weight: bold; color: #003366;">Cycles Administered</label>
                             <input type="number" name="conc_received_cycles" 
                                    value="{% if concurrent_course %}{{ concurrent_course.received_cycles }}{% else %}0{% endif %}" 
                                    class="access-input" readonly style="background: #f0f0f0;">
+                            <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">Auto-calculated from recorded cycles below</span>
                         </div>
                     </div>
 
@@ -299,7 +289,7 @@
                                     <th style="width: 100px;">Route</th>
                                     <th style="width: 85px; text-align: center;">Status</th>
                                     {% if course and not course.approval_locked %}
-                                    <th style="width: 100px; text-align: center;">Action</th>
+                                    <th style="width: 125px; text-align: center;">Action</th>
                                     {% endif %}
                                 </tr>
                             </thead>
@@ -320,6 +310,12 @@
                                         {% if course and not course.approval_locked %}
                                         <td style="text-align: center;">
                                             <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                                                <button type="button" class="btn-access" 
+                                                        onclick="openDuplicateConcCycleModal('{{ ccyc.cycle_number }}', '{{ ccyc.cycle_date|date:'Y-m-d' }}', '{{ ccyc.cycle_status }}', '{{ cdrug.chemo_agent_id|default:'' }}', '{{ cdrug.dose|default:'' }}', '{{ cdrug.dose_unit_id|default:'' }}', '{{ cdrug.no_of_days|default:1 }}', '{{ cdrug.chemo_route_id|default:'' }}')"
+                                                        style="font-size: 10px; padding: 2px 6px; color: #2e7d32; background: #f0fff4; border: 1px solid #b7eb8f; font-weight: bold;" 
+                                                        title="Duplicate this chemo record as next cycle (editable)">
+                                                    ➕
+                                                </button>
                                                 <button type="button" class="btn-access" 
                                                         onclick="openEditConcCycleModal('{{ ccyc.conc_chemo_cycle_id }}', '{{ ccyc.cycle_number }}', '{{ ccyc.cycle_date|date:'Y-m-d' }}', '{{ ccyc.cycle_status }}', '{{ cdrug.chemo_agent_id|default:'' }}', '{{ cdrug.dose|default:'' }}', '{{ cdrug.dose_unit_id|default:'' }}', '{{ cdrug.no_of_days|default:1 }}', '{{ cdrug.chemo_route_id|default:'' }}')"
                                                         style="font-size: 10px; padding: 2px 6px; color: #003366; background: #f0f7ff; border: 1px solid #b0c4de;" 
@@ -344,6 +340,12 @@
                                         {% if course and not course.approval_locked %}
                                         <td style="text-align: center;">
                                             <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                                                <button type="button" class="btn-access" 
+                                                        onclick="openDuplicateConcCycleModal('{{ ccyc.cycle_number }}', '{{ ccyc.cycle_date|date:'Y-m-d' }}', '{{ ccyc.cycle_status }}', '', '', '', '1', '')"
+                                                        style="font-size: 10px; padding: 2px 6px; color: #2e7d32; background: #f0fff4; border: 1px solid #b7eb8f; font-weight: bold;" 
+                                                        title="Duplicate this chemo record as next cycle (editable)">
+                                                    ➕
+                                                </button>
                                                 <button type="button" class="btn-access" 
                                                         onclick="openEditConcCycleModal('{{ ccyc.conc_chemo_cycle_id }}', '{{ ccyc.cycle_number }}', '{{ ccyc.cycle_date|date:'Y-m-d' }}', '{{ ccyc.cycle_status }}', '', '', '', '1', '')"
                                                         style="font-size: 10px; padding: 2px 6px; color: #003366; background: #f0f7ff; border: 1px solid #b0c4de;" 
@@ -446,9 +448,12 @@
             <div style="padding: 16px; font-size: 12px; color: #333;">
                 <div style="margin-bottom: 12px;">
                     <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
-                    <input type="date" name="cycle_date" id="modalConcCycleDate" required class="access-input" value="{% now 'Y-m-d' %}">
-                    <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">
-                        Must satisfy: EBRT Start ({% if course.ebrt_start_date %}{{ course.ebrt_start_date|date:'Y-m-d' }}{% else %}TBD{% endif %}) &le; Date &le; EBRT End ({% if course.ebrt_end_date %}{{ course.ebrt_end_date|date:'Y-m-d' }}{% else %}TBD{% endif %})
+                    <input type="date" name="cycle_date" id="modalConcCycleDate" required class="access-input" 
+                           value="{% if course.ebrt_start_date %}{{ course.ebrt_start_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}"
+                           min="{% if course.ebrt_start_date %}{{ course.ebrt_start_date|date:'Y-m-d' }}{% endif %}"
+                           max="{% if course.ebrt_end_date %}{{ course.ebrt_end_date|date:'Y-m-d' }}{% endif %}">
+                    <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;" id="modalConcDateHint">
+                        Must strictly satisfy: EBRT Start ({% if course.ebrt_start_date %}{{ course.ebrt_start_date|date:'Y-m-d' }}{% else %}TBD{% endif %}) &le; Date &le; EBRT End ({% if course.ebrt_end_date %}{{ course.ebrt_end_date|date:'Y-m-d' }}{% else %}TBD{% endif %})
                     </span>
                 </div>
                 <div style="margin-bottom: 12px;">
@@ -461,9 +466,9 @@
                     </select>
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label class="access-label" style="font-weight: bold; color: #003366;">Chemotherapy Agent</label>
-                    <select name="chemo_agent_id" id="modalConcAgent" class="access-select">
-                        <option value="">-- Select Agent --</option>
+                    <label class="access-label" style="font-weight: bold; color: #003366;">Chemotherapy Agent / Regimen *</label>
+                    <select name="chemo_agent_id" id="modalConcAgent" required class="access-select">
+                        <option value="">-- Select Agent / Regimen --</option>
                         {% for a in chemo_agents %}
                             <option value="{{ a.agent_id }}" {% if a.agent_name == 'Cisplatin' %}selected{% endif %}>{{ a.agent_name }}</option>
                         {% endfor %}
@@ -479,7 +484,7 @@
                         <select name="dose_unit_id" id="modalConcUnit" class="access-select">
                             <option value="">-- Unit --</option>
                             {% for u in dose_units %}
-                                <option value="{{ u.unit_id }}" {% if 'mg/m2' in u.unit_name %}selected{% endif %}>{{ u.unit_name }}</option>
+                                <option value="{{ u.unit_id }}" {% if u.unit_name == 'mg' %}selected{% endif %}>{{ u.unit_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -570,6 +575,46 @@
         title.textContent = 'Record Concurrent Chemo Administration';
         submitBtn.textContent = 'Save Cycle Administration';
         form.action = "{% url 'ebrt_concurrent_cycle_add' patient.mr_no course.ebrt_course_id %}";
+
+        const rtStartVal = document.getElementById('rtStartDate') ? document.getElementById('rtStartDate').value : '';
+        const rtEndVal = document.getElementById('rtEndDate') ? document.getElementById('rtEndDate').value : '';
+        const dateInput = document.getElementById('modalConcCycleDate');
+
+        // Only dates between EBRT start date and EBRT end date allowed; default date = EBRT start date
+        if (rtStartVal) {
+            dateInput.min = rtStartVal;
+            dateInput.value = rtStartVal;
+        }
+        if (rtEndVal) {
+            dateInput.max = rtEndVal;
+        }
+
+        document.getElementById('modalConcCycleStatus').value = 'Administered';
+        
+        // Agent: select Cisplatin if available, otherwise first
+        const agentSel = document.getElementById('modalConcAgent');
+        if (agentSel) {
+            for (let i = 0; i < agentSel.options.length; i++) {
+                if (agentSel.options[i].text.toLowerCase() === 'cisplatin') {
+                    agentSel.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+        document.getElementById('modalConcDose').value = '40';
+
+        // Default dose unit = mg
+        const unitSel = document.getElementById('modalConcUnit');
+        if (unitSel) {
+            for (let i = 0; i < unitSel.options.length; i++) {
+                if (unitSel.options[i].text.toLowerCase() === 'mg') {
+                    unitSel.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+        document.getElementById('modalConcDays').value = '1';
+
         modal.style.display = 'flex';
     }
 
@@ -582,11 +627,76 @@
         submitBtn.textContent = 'Update Cycle Administration';
         form.action = "{% url 'ebrt_concurrent_cycle_edit' patient.mr_no course.ebrt_course_id 999999 %}".replace('999999', cycleId);
 
-        if (cycleDate) document.getElementById('modalConcCycleDate').value = cycleDate;
+        const rtStartVal = document.getElementById('rtStartDate') ? document.getElementById('rtStartDate').value : '';
+        const rtEndVal = document.getElementById('rtEndDate') ? document.getElementById('rtEndDate').value : '';
+        const dateInput = document.getElementById('modalConcCycleDate');
+
+        if (rtStartVal) dateInput.min = rtStartVal;
+        if (rtEndVal) dateInput.max = rtEndVal;
+
+        if (cycleDate) dateInput.value = cycleDate;
         if (cycleStatus) document.getElementById('modalConcCycleStatus').value = cycleStatus;
         if (agentId) document.getElementById('modalConcAgent').value = agentId;
-        if (dose !== undefined && dose !== null) document.getElementById('modalConcDose').value = dose;
+        if (dose !== undefined && dose !== null && dose !== '') document.getElementById('modalConcDose').value = dose;
         if (unitId) document.getElementById('modalConcUnit').value = unitId;
+        if (days) document.getElementById('modalConcDays').value = days;
+        if (routeId) document.getElementById('modalConcRoute').value = routeId;
+
+        modal.style.display = 'flex';
+    }
+
+    function openDuplicateConcCycleModal(sourceCycleNum, cycleDate, cycleStatus, agentId, dose, unitId, days, routeId) {
+        const modal = document.getElementById('addConcCycleModal');
+        const title = document.getElementById('concCycleModalTitle');
+        const form = document.getElementById('concCycleForm');
+        const submitBtn = document.getElementById('modalConcSubmitBtn');
+        title.textContent = 'Record Next Concurrent Chemo (Duplicated from Cycle #' + sourceCycleNum + ')';
+        submitBtn.textContent = 'Save Cycle Administration';
+        form.action = "{% url 'ebrt_concurrent_cycle_add' patient.mr_no course.ebrt_course_id %}";
+
+        const rtStartVal = document.getElementById('rtStartDate') ? document.getElementById('rtStartDate').value : '';
+        const rtEndVal = document.getElementById('rtEndDate') ? document.getElementById('rtEndDate').value : '';
+        const dateInput = document.getElementById('modalConcCycleDate');
+
+        if (rtStartVal) dateInput.min = rtStartVal;
+        if (rtEndVal) dateInput.max = rtEndVal;
+
+        // Auto advance by 7 days for next weekly chemo if valid within RT window, otherwise rtStartVal
+        let nextDateStr = rtStartVal;
+        if (cycleDate) {
+            try {
+                const parts = cycleDate.split('-');
+                if (parts.length === 3) {
+                    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    d.setDate(d.getDate() + 7);
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const cand = `${yyyy}-${mm}-${dd}`;
+                    if ((!rtStartVal || cand >= rtStartVal) && (!rtEndVal || cand <= rtEndVal)) {
+                        nextDateStr = cand;
+                    }
+                }
+            } catch(e) {
+                nextDateStr = rtStartVal;
+            }
+        }
+        dateInput.value = nextDateStr || rtStartVal || '';
+
+        document.getElementById('modalConcCycleStatus').value = cycleStatus || 'Administered';
+        if (agentId) document.getElementById('modalConcAgent').value = agentId;
+        if (dose !== undefined && dose !== null && dose !== '') document.getElementById('modalConcDose').value = dose;
+        if (unitId) {
+            document.getElementById('modalConcUnit').value = unitId;
+        } else {
+            const unitSel = document.getElementById('modalConcUnit');
+            for (let i = 0; i < unitSel.options.length; i++) {
+                if (unitSel.options[i].text.toLowerCase() === 'mg') {
+                    unitSel.selectedIndex = i;
+                    break;
+                }
+            }
+        }
         if (days) document.getElementById('modalConcDays').value = days;
         if (routeId) document.getElementById('modalConcRoute').value = routeId;
 
@@ -599,6 +709,7 @@
         }
     }
     function openEditConcCycleModal() {}
+    function openDuplicateConcCycleModal() {}
 {% endif %}
 
     function closeAddConcCycleModal() {
@@ -656,6 +767,16 @@
             if (planAppDateInput) planAppDateInput.min = (contDateInput && contDateInput.value) ? contDateInput.value : simDateInput.value;
             if (rtStartDateInput) rtStartDateInput.min = (planAppDateInput && planAppDateInput.value) ? planAppDateInput.value : ((contDateInput && contDateInput.value) ? contDateInput.value : simDateInput.value);
             if (rtEndDateInput) rtEndDateInput.min = (rtStartDateInput && rtStartDateInput.value) ? rtStartDateInput.value : ((planAppDateInput && planAppDateInput.value) ? planAppDateInput.value : simDateInput.value);
+        }
+
+        const concDateInput = document.getElementById('modalConcCycleDate');
+        if (concDateInput) {
+            if (rtStartDateInput && rtStartDateInput.value) {
+                concDateInput.min = rtStartDateInput.value;
+            }
+            if (rtEndDateInput && rtEndDateInput.value) {
+                concDateInput.max = rtEndDateInput.value;
+            }
         }
 
         if (timelineWarning) {
