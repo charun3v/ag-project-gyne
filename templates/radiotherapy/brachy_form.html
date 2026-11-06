@@ -13,6 +13,32 @@
     </div>
 </div>
 
+<!-- Prominent Tag to EBRT Course Banner (Displayed at the top - below patient details) -->
+<div style="background: #eef4fa; border: 1.5px solid #003366; padding: 10px 16px; margin-bottom: 14px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+        <label for="form_linked_ebrt_id" style="font-weight: bold; color: #003366; font-size: 13px; margin: 0; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 15px;">🔗</span> Tag to EBRT Course:
+        </label>
+        <select name="linked_ebrt_course_id" id="form_linked_ebrt_id" form="brachy_main_form" class="access-select" style="min-width: 440px; font-weight: bold; color: #003366; font-size: 12px; border: 1.5px solid #003366; background: #ffffff; padding: 5px 10px;" onchange="onLinkedEbrtChange(this)">
+            <option value="" data-dose="45.0" data-fx="25">-- Select / Link EBRT Course --</option>
+            {% for eb in ebrt_courses %}
+                <option value="{{ eb.ebrt_course_id }}" 
+                        data-dose="{{ eb.total_dose_gy|default:45.0 }}" 
+                        data-fx="{{ eb.total_fractions|default:25 }}"
+                        {% if course and course.linked_ebrt_course_id == eb.ebrt_course_id %}selected{% elif not course and forloop.first %}selected{% endif %}>
+                    EBRT #{{ eb.course_sequence }}: {{ eb.total_dose_gy }} Gy in {{ eb.total_fractions }}# ({{ eb.ebrt_start_date|date:'d-M' }} - {{ eb.ebrt_end_date|date:'d-M-Y' }})
+                </option>
+            {% endfor %}
+        </select>
+        {% if not ebrt_courses %}
+            <span style="font-size: 11px; color: #b91c1c; font-style: italic;">(No prior EBRT courses recorded for this patient)</span>
+        {% endif %}
+    </div>
+    <div style="font-size: 11px; color: #334155; font-weight: 500;">
+        📊 Ingests EBRT dosimetry &amp; fractions into Cumulative EQD2 calculation
+    </div>
+</div>
+
 <!-- Main 2-Column Responsive Layout: Left Form & Sessions, Right Cumulative Dosimetry Sidebar -->
 <div style="display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: start;">
 
@@ -26,16 +52,17 @@
                 </div>
             </div>
             <div class="access-subform-body">
-                <form method="post" action="">
+                <form method="post" id="brachy_main_form" action="" onsubmit="syncLinkedEbrt();">
                     {% csrf_token %}
+                    <input type="hidden" name="linked_ebrt_course_id" id="hidden_linked_ebrt_course_id" value="{% if course and course.linked_ebrt_course_id %}{{ course.linked_ebrt_course_id }}{% elif not course and ebrt_courses %}{{ ebrt_courses.0.ebrt_course_id }}{% endif %}">
 
                     <!-- Section 1: Course Configuration & Associated EBRT -->
                     <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
                         <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
-                            1. Dosing System, Facility & Associated EBRT Course
+                            1. Dosing System & Facility
                         </legend>
                         
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
                             <div>
                                 <label class="access-label" style="font-weight: bold; color: #b00000;">Dosing System / Prescription Point *</label>
                                 <select name="brachy_dosing_id" class="access-select" required>
@@ -71,20 +98,6 @@
                                     {% for c in centres %}
                                         <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% elif not course and "kidwai" in c.centre_name|lower %}selected{% elif not course.treatment_centre_id and "kidwai" in c.centre_name|lower %}selected{% endif %}>
                                             {{ c.centre_name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="access-label" style="font-weight: bold; color: #003366;">Tag to EBRT Course</label>
-                                <select name="linked_ebrt_course_id" id="form_linked_ebrt_id" class="access-select" onchange="onLinkedEbrtChange(this)">
-                                    <option value="" data-dose="45.0" data-fx="25">-- Select / Link EBRT Course --</option>
-                                    {% for eb in ebrt_courses %}
-                                        <option value="{{ eb.ebrt_course_id }}" 
-                                                data-dose="{{ eb.total_dose_gy|default:45.0 }}" 
-                                                data-fx="{{ eb.total_fractions|default:25 }}"
-                                                {% if course and course.linked_ebrt_course_id == eb.ebrt_course_id %}selected{% elif not course and forloop.first %}selected{% endif %}>
-                                            EBRT #{{ eb.course_sequence }}: {{ eb.total_dose_gy }} Gy in {{ eb.total_fractions }}# ({{ eb.ebrt_start_date|date:'d-M' }} - {{ eb.ebrt_end_date|date:'d-M-Y' }})
                                         </option>
                                     {% endfor %}
                                 </select>
@@ -545,7 +558,16 @@ function recalculateEQD2() {
     if (document.getElementById('side_sigmoid_eqd2')) document.getElementById('side_sigmoid_eqd2').innerText = (ebS + brachySigmoidEQD2).toFixed(1) + ' Gy₃';
 }
 
+function syncLinkedEbrt() {
+    var sel = document.getElementById('form_linked_ebrt_id');
+    var hid = document.getElementById('hidden_linked_ebrt_course_id');
+    if (sel && hid) {
+        hid.value = sel.value;
+    }
+}
+
 function onLinkedEbrtChange(selectElem) {
+    syncLinkedEbrt();
     var opt = selectElem.options[selectElem.selectedIndex];
     if (opt && opt.getAttribute('data-dose')) {
         var d = parseFloat(opt.getAttribute('data-dose')) || 45.0;
@@ -558,6 +580,7 @@ function onLinkedEbrtChange(selectElem) {
 
 // Initial calculation on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
+    syncLinkedEbrt();
     recalculateEQD2();
 });
 </script>

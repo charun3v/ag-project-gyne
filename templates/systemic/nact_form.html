@@ -388,14 +388,14 @@
             <span>Add New Chemotherapy Cycle</span>
             <span style="cursor: pointer; font-size: 16px;" onclick="closeAddCycleModal()">&times;</span>
         </div>
-        <form method="post" action="{% url 'nact_cycle_add' patient.mr_no course.nact_course_id %}">
+        <form method="post" action="{% url 'nact_cycle_add' patient.mr_no course.nact_course_id %}" onsubmit="return validateNactCycleDateModal(this);">
             {% csrf_token %}
             <div style="padding: 16px; font-size: 12px; color: #333;">
                 <div style="margin-bottom: 14px;">
                     <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
-                    <input type="date" name="cycle_date" required class="access-input" value="{% now 'Y-m-d' %}">
+                    <input type="date" name="cycle_date" id="addCycleDate" required class="access-input" value="{% if course and course.nact_start_date %}{{ course.nact_start_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}">
                     <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">
-                        Must precede linked EBRT start date or Brachytherapy start date.
+                        Must be between Course Start Date and Course End Date, and precede linked definitive RT.
                     </span>
                 </div>
                 <div style="margin-bottom: 16px;">
@@ -425,14 +425,14 @@
             <span id="editCycleModalTitle">Edit Chemotherapy Cycle</span>
             <span style="cursor: pointer; font-size: 16px;" onclick="closeEditCycleModal()">&times;</span>
         </div>
-        <form method="post" id="editCycleForm" action="">
+        <form method="post" id="editCycleForm" action="" onsubmit="return validateNactCycleDateModal(this);">
             {% csrf_token %}
             <div style="padding: 16px; font-size: 12px; color: #333;">
                 <div style="margin-bottom: 12px;">
                     <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
                     <input type="date" name="cycle_date" id="editCycleDate" required class="access-input">
                     <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">
-                        Must precede linked EBRT start date or Brachytherapy start date.
+                        Must be between Course Start Date and Course End Date, and precede linked definitive RT.
                     </span>
                 </div>
                 <div style="margin-bottom: 12px;">
@@ -594,6 +594,26 @@ function deleteNactDrug(actionUrl, drugName) {
 
 {% if course and course.nact_course_id %}
 function openAddCycleModal() {
+    const sInput = document.querySelector('input[name="nact_start_date"]');
+    const eInput = document.querySelector('input[name="nact_end_date"]');
+    const sDate = sInput ? sInput.value : '';
+    const eDate = eInput ? eInput.value : '';
+    const dateField = document.getElementById('addCycleDate');
+    if (dateField) {
+        if (sDate) {
+            dateField.min = sDate;
+            if (!dateField.value || dateField.value < sDate) {
+                dateField.value = sDate;
+            }
+        } else {
+            dateField.removeAttribute('min');
+        }
+        if (eDate) {
+            dateField.max = eDate;
+        } else {
+            dateField.removeAttribute('max');
+        }
+    }
     document.getElementById('addCycleModal').style.display = 'flex';
 }
 
@@ -607,7 +627,16 @@ function openEditCycleModal(cycleId, cycleNum, cycleDate, cycleStatus, preNotes,
     const form = document.getElementById('editCycleForm');
     title.textContent = 'Edit Chemotherapy Cycle #' + cycleNum;
     form.action = "{% url 'nact_cycle_edit' patient.mr_no course.nact_course_id 0 %}".replace('/0/', '/' + cycleId + '/');
-    document.getElementById('editCycleDate').value = cycleDate || '';
+    const sInput = document.querySelector('input[name="nact_start_date"]');
+    const eInput = document.querySelector('input[name="nact_end_date"]');
+    const sDate = sInput ? sInput.value : '';
+    const eDate = eInput ? eInput.value : '';
+    const dateField = document.getElementById('editCycleDate');
+    if (dateField) {
+        if (sDate) dateField.min = sDate; else dateField.removeAttribute('min');
+        if (eDate) dateField.max = eDate; else dateField.removeAttribute('max');
+        dateField.value = cycleDate || '';
+    }
     document.getElementById('editCycleStatus').value = cycleStatus || 'Administered';
     document.getElementById('editCyclePreNotes').value = preNotes || '';
     document.getElementById('editCycleToxicity').value = toxicity || '';
@@ -616,6 +645,27 @@ function openEditCycleModal(cycleId, cycleNum, cycleDate, cycleStatus, preNotes,
 
 function closeEditCycleModal() {
     document.getElementById('editCycleModal').style.display = 'none';
+}
+
+function validateNactCycleDateModal(formEl) {
+    const dateInput = formEl.querySelector('input[name="cycle_date"]');
+    if (!dateInput || !dateInput.value) return true;
+    const sInput = document.querySelector('input[name="nact_start_date"]');
+    const eInput = document.querySelector('input[name="nact_end_date"]');
+    const sDate = sInput ? sInput.value : '';
+    const eDate = eInput ? eInput.value : '';
+    const val = dateInput.value;
+    if (sDate && val < sDate) {
+        alert("Validation Failed: Cycle Date (" + val + ") cannot be earlier than Course Start Date (" + sDate + ").");
+        dateInput.focus();
+        return false;
+    }
+    if (eDate && val > eDate) {
+        alert("Validation Failed: Cycle Date (" + val + ") cannot be later than Course End Date (" + eDate + ").");
+        dateInput.focus();
+        return false;
+    }
+    return true;
 }
 
 function openAddDrugModal(cycleId, cycleNum) {

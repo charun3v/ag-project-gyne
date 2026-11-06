@@ -56,7 +56,7 @@
                         2. Cycle Limits & Course Status
                     </legend>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 10px;">
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 10px;">
                         <div>
                             <label class="access-label">Number of Cycles Planned</label>
                             <input type="number" name="planned_cycles" min="1" max="12" 
@@ -69,6 +69,18 @@
                                    value="{% if course %}{{ course.received_cycles }}{% else %}4{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                             <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">Controls cycle entry count</span>
+                        </div>
+                        <div>
+                            <label class="access-label">Course Start Date</label>
+                            <input type="date" name="adjuvant_start_date" 
+                                   value="{% if course and course.adjuvant_start_date %}{{ course.adjuvant_start_date|date:'Y-m-d' }}{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                        </div>
+                        <div>
+                            <label class="access-label">Course End Date</label>
+                            <input type="date" name="adjuvant_end_date" 
+                                   value="{% if course and course.adjuvant_end_date %}{{ course.adjuvant_end_date|date:'Y-m-d' }}{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                         </div>
                         <div>
                             <label class="access-label">Chemotherapy Status</label>
@@ -303,14 +315,14 @@
             <span>Add New Adjuvant Chemotherapy Cycle</span>
             <span style="cursor: pointer; font-size: 16px;" onclick="closeAddCycleModal()">&times;</span>
         </div>
-        <form method="post" action="{% url 'adjuvant_cycle_add' patient.mr_no course.adjuvant_course_id %}">
+        <form method="post" action="{% url 'adjuvant_cycle_add' patient.mr_no course.adjuvant_course_id %}" onsubmit="return validateAdjuvantCycleDateModal(this);">
             {% csrf_token %}
             <div style="padding: 16px; font-size: 12px; color: #333;">
                 <div style="margin-bottom: 14px;">
                     <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
-                    <input type="date" name="cycle_date" required class="access-input" value="{% now 'Y-m-d' %}">
+                    <input type="date" name="cycle_date" id="addCycleDate" required class="access-input" value="{% if course and course.adjuvant_start_date %}{{ course.adjuvant_start_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}">
                     <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">
-                        Must strictly follow linked prior treatment completion date.
+                        Must be between Course Start Date and Course End Date, and strictly follow linked prior treatment completion.
                     </span>
                 </div>
                 <div style="margin-bottom: 16px;">
@@ -340,14 +352,14 @@
             <span id="editCycleModalTitle">Edit Adjuvant Chemotherapy Cycle</span>
             <span style="cursor: pointer; font-size: 16px;" onclick="closeEditCycleModal()">&times;</span>
         </div>
-        <form method="post" id="editCycleForm" action="">
+        <form method="post" id="editCycleForm" action="" onsubmit="return validateAdjuvantCycleDateModal(this);">
             {% csrf_token %}
             <div style="padding: 16px; font-size: 12px; color: #333;">
                 <div style="margin-bottom: 12px;">
                     <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
                     <input type="date" name="cycle_date" id="editCycleDate" required class="access-input">
                     <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">
-                        Must strictly follow linked prior treatment completion date.
+                        Must be between Course Start Date and Course End Date, and strictly follow linked prior treatment completion.
                     </span>
                 </div>
                 <div style="margin-bottom: 12px;">
@@ -451,7 +463,6 @@
         </form>
     </div>
 </div>
-{% endif %}
 
 <script>
 function toggleAdjDetails(isYes) {
@@ -468,6 +479,26 @@ function toggleAdjDetails(isYes) {
 
 {% if course and course.adjuvant_course_id %}
 function openAddCycleModal() {
+    const sInput = document.querySelector('input[name="adjuvant_start_date"]');
+    const eInput = document.querySelector('input[name="adjuvant_end_date"]');
+    const sDate = sInput ? sInput.value : '';
+    const eDate = eInput ? eInput.value : '';
+    const dateField = document.getElementById('addCycleDate');
+    if (dateField) {
+        if (sDate) {
+            dateField.min = sDate;
+            if (!dateField.value || dateField.value < sDate) {
+                dateField.value = sDate;
+            }
+        } else {
+            dateField.removeAttribute('min');
+        }
+        if (eDate) {
+            dateField.max = eDate;
+        } else {
+            dateField.removeAttribute('max');
+        }
+    }
     document.getElementById('addCycleModal').style.display = 'flex';
 }
 
@@ -481,7 +512,16 @@ function openEditCycleModal(cycleId, cycleNum, cycleDate, cycleStatus, preNotes,
     const form = document.getElementById('editCycleForm');
     title.textContent = 'Edit Adjuvant Chemotherapy Cycle #' + cycleNum;
     form.action = "{% url 'adjuvant_cycle_edit' patient.mr_no course.adjuvant_course_id 0 %}".replace('/0/', '/' + cycleId + '/');
-    document.getElementById('editCycleDate').value = cycleDate || '';
+    const sInput = document.querySelector('input[name="adjuvant_start_date"]');
+    const eInput = document.querySelector('input[name="adjuvant_end_date"]');
+    const sDate = sInput ? sInput.value : '';
+    const eDate = eInput ? eInput.value : '';
+    const dateField = document.getElementById('editCycleDate');
+    if (dateField) {
+        if (sDate) dateField.min = sDate; else dateField.removeAttribute('min');
+        if (eDate) dateField.max = eDate; else dateField.removeAttribute('max');
+        dateField.value = cycleDate || '';
+    }
     document.getElementById('editCycleStatus').value = cycleStatus || 'Administered';
     document.getElementById('editCyclePreNotes').value = preNotes || '';
     document.getElementById('editCycleToxicity').value = toxicity || '';
@@ -490,6 +530,27 @@ function openEditCycleModal(cycleId, cycleNum, cycleDate, cycleStatus, preNotes,
 
 function closeEditCycleModal() {
     document.getElementById('editCycleModal').style.display = 'none';
+}
+
+function validateAdjuvantCycleDateModal(formEl) {
+    const dateInput = formEl.querySelector('input[name="cycle_date"]');
+    if (!dateInput || !dateInput.value) return true;
+    const sInput = document.querySelector('input[name="adjuvant_start_date"]');
+    const eInput = document.querySelector('input[name="adjuvant_end_date"]');
+    const sDate = sInput ? sInput.value : '';
+    const eDate = eInput ? eInput.value : '';
+    const val = dateInput.value;
+    if (sDate && val < sDate) {
+        alert("Validation Failed: Cycle Date (" + val + ") cannot be earlier than Course Start Date (" + sDate + ").");
+        dateInput.focus();
+        return false;
+    }
+    if (eDate && val > eDate) {
+        alert("Validation Failed: Cycle Date (" + val + ") cannot be later than Course End Date (" + eDate + ").");
+        dateInput.focus();
+        return false;
+    }
+    return true;
 }
 
 function openAddDrugModal(cycleId, cycleNum) {

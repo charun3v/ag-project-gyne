@@ -26,33 +26,74 @@ def parse_date_str(val):
         return None
 
 
+def resequence_nact_cycles(course):
+    """
+    Re-sequences NACT cycles strictly in chronological order by cycle_date.
+    Updates cycle_number so Cycle #1 is the earliest date.
+    """
+    if not course or not course.nact_course_id:
+        return
+    cycles = list(course.cycles.all().order_by('cycle_date', 'nact_cycle_id'))
+    for idx, cyc in enumerate(cycles, start=1):
+        if cyc.cycle_number != idx:
+            cyc.cycle_number = idx
+            cyc.save(update_fields=['cycle_number'])
+
+
+def resequence_adjuvant_cycles(course):
+    """
+    Re-sequences Adjuvant cycles strictly in chronological order by cycle_date.
+    Updates cycle_number so Cycle #1 is the earliest date.
+    """
+    if not course or not course.adjuvant_course_id:
+        return
+    cycles = list(course.cycles.all().order_by('cycle_date', 'adjuvant_cycle_id'))
+    for idx, cyc in enumerate(cycles, start=1):
+        if cyc.cycle_number != idx:
+            cyc.cycle_number = idx
+            cyc.save(update_fields=['cycle_number'])
+
+
 def validate_nact_cycle_date(course, cycle_date):
     """
-    Validation Rule: Cycle date follows linked definitive treatment -> Prevent save.
-    NACT cycle date must strictly precede linked EBRT start date or Brachy start date.
+    Validation Rules for NACT cycle date:
+    1. Must fall between Course Start Date and Course End Date (if specified).
+    2. Must strictly precede linked definitive treatment (EBRT / Brachy).
     """
     if not cycle_date:
         return False, "Cycle date is mandatory."
 
+    if course.nact_start_date and cycle_date < course.nact_start_date:
+        return False, f"Validation Failed: NACT cycle date ({cycle_date.strftime('%d-%b-%Y')}) cannot be earlier than Course Start Date ({course.nact_start_date.strftime('%d-%b-%Y')})."
+
+    if course.nact_end_date and cycle_date > course.nact_end_date:
+        return False, f"Validation Failed: NACT cycle date ({cycle_date.strftime('%d-%b-%Y')}) cannot be later than Course End Date ({course.nact_end_date.strftime('%d-%b-%Y')})."
+
     if course.linked_ebrt_course and course.linked_ebrt_course.ebrt_start_date:
         if cycle_date >= course.linked_ebrt_course.ebrt_start_date:
-            return False, f"Validation Failed: NACT cycle date ({cycle_date}) must precede linked EBRT start date ({course.linked_ebrt_course.ebrt_start_date})."
+            return False, f"Validation Failed: NACT cycle date ({cycle_date.strftime('%d-%b-%Y')}) must precede linked EBRT start date ({course.linked_ebrt_course.ebrt_start_date.strftime('%d-%b-%Y')})."
 
     if course.linked_brachy_course and course.linked_brachy_course.brachy_start_date:
         if cycle_date >= course.linked_brachy_course.brachy_start_date:
-            return False, f"Validation Failed: NACT cycle date ({cycle_date}) must precede linked Brachytherapy start date ({course.linked_brachy_course.brachy_start_date})."
+            return False, f"Validation Failed: NACT cycle date ({cycle_date.strftime('%d-%b-%Y')}) must precede linked Brachytherapy start date ({course.linked_brachy_course.brachy_start_date.strftime('%d-%b-%Y')})."
 
     return True, ""
 
 
 def validate_adjuvant_cycle_date(course, cycle_date):
     """
-    Validation Rule: Cycle date precedes prior treatment completion -> Prevent save.
-    When brachytherapy delivered, adjuvant cycle dates must follow the last brachy fraction or completion date.
-    When EBRT delivered without brachy, adjuvant cycle dates must follow EBRT completion.
+    Validation Rules for Adjuvant cycle date:
+    1. Must fall between Course Start Date and Course End Date (if specified).
+    2. Must strictly follow prior treatment completion (EBRT / Brachy).
     """
     if not cycle_date:
         return False, "Cycle date is mandatory."
+
+    if course.adjuvant_start_date and cycle_date < course.adjuvant_start_date:
+        return False, f"Validation Failed: Adjuvant cycle date ({cycle_date.strftime('%d-%b-%Y')}) cannot be earlier than Course Start Date ({course.adjuvant_start_date.strftime('%d-%b-%Y')})."
+
+    if course.adjuvant_end_date and cycle_date > course.adjuvant_end_date:
+        return False, f"Validation Failed: Adjuvant cycle date ({cycle_date.strftime('%d-%b-%Y')}) cannot be later than Course End Date ({course.adjuvant_end_date.strftime('%d-%b-%Y')})."
 
     # Brachytherapy link boundary
     if course.linked_brachy_course:
@@ -62,13 +103,13 @@ def validate_adjuvant_cycle_date(course, cycle_date):
             if last_sess:
                 br_end = last_sess.session_date
         if br_end and cycle_date <= br_end:
-            return False, f"Validation Failed: Adjuvant cycle date ({cycle_date}) must follow prior Brachytherapy completion date ({br_end})."
+            return False, f"Validation Failed: Adjuvant cycle date ({cycle_date.strftime('%d-%b-%Y')}) must follow prior Brachytherapy completion date ({br_end.strftime('%d-%b-%Y')})."
 
     # EBRT link boundary
     if course.linked_ebrt_course:
         ebrt_end = course.linked_ebrt_course.ebrt_end_date
         if ebrt_end and cycle_date <= ebrt_end:
-            return False, f"Validation Failed: Adjuvant cycle date ({cycle_date}) must follow prior EBRT completion date ({ebrt_end})."
+            return False, f"Validation Failed: Adjuvant cycle date ({cycle_date.strftime('%d-%b-%Y')}) must follow prior EBRT completion date ({ebrt_end.strftime('%d-%b-%Y')})."
 
     return True, ""
 
@@ -221,7 +262,9 @@ def nact_form_view(request, mr_no, course_id=None):
             return redirect('radiotherapy_hub', mr_no=patient.mr_no)
         return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
 
-    cycles = course.cycles.all().prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if course else []
+    if course:
+        resequence_nact_cycles(course)
+    cycles = course.cycles.all().order_by('cycle_date', 'nact_cycle_id').prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if course else []
 
     return render(request, 'systemic/nact_form.html', {
         'patient': patient,
@@ -304,7 +347,8 @@ def nact_cycle_add_view(request, mr_no, course_id):
             administered=True
         )
 
-    messages.success(request, f"Cycle #{cycle.cycle_number} created.")
+    resequence_nact_cycles(course)
+    messages.success(request, f"Cycle added successfully (auto-arranged in chronological order).")
     return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
 
 
@@ -330,7 +374,7 @@ def nact_cycle_edit_view(request, mr_no, course_id, cycle_id):
         messages.error(request, "Cycle date is mandatory.")
         return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
 
-    # Date validation against linked definitive treatment
+    # Date validation against linked definitive treatment & course start/end dates
     is_valid, err_msg = validate_nact_cycle_date(course, cycle_date)
     if not is_valid:
         messages.error(request, err_msg)
@@ -344,7 +388,8 @@ def nact_cycle_edit_view(request, mr_no, course_id, cycle_id):
         cycle.cycle_toxicity = request.POST.get('cycle_toxicity', '')
     cycle.save()
 
-    messages.success(request, f"Cycle #{cycle.cycle_number} updated successfully.")
+    resequence_nact_cycles(course)
+    messages.success(request, f"Cycle updated successfully (auto-arranged in chronological order).")
     return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
 
 
@@ -478,7 +523,8 @@ def nact_cycle_delete_view(request, mr_no, course_id, cycle_id):
         return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
 
     cycle.delete()
-    messages.success(request, f"Cycle #{cycle.cycle_number} deleted.")
+    resequence_nact_cycles(course)
+    messages.success(request, f"Cycle deleted.")
     return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
 
 
@@ -517,11 +563,18 @@ def adjuvant_form_view(request, mr_no, course_id=None):
         if adj_received:
             course.planned_cycles = int(request.POST.get('planned_cycles') or 4)
             course.received_cycles = int(request.POST.get('received_cycles') or 0)
+            course.adjuvant_start_date = parse_date_str(request.POST.get('adjuvant_start_date'))
+            course.adjuvant_end_date = parse_date_str(request.POST.get('adjuvant_end_date'))
             course.chemo_status_id = request.POST.get('chemo_status_id') or None
             course.linked_ebrt_course_id = request.POST.get('linked_ebrt_course_id') or None
             course.linked_brachy_course_id = request.POST.get('linked_brachy_course_id') or None
 
-            # Validate all existing cycles against newly linked prior treatment boundaries
+            # Validate date order for course start and end
+            if course.adjuvant_start_date and course.adjuvant_end_date and course.adjuvant_end_date < course.adjuvant_start_date:
+                messages.error(request, "Validation Failed: Adjuvant End Date cannot precede Start Date.")
+                return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id) if course.adjuvant_course_id else redirect('adjuvant_add', mr_no=patient.mr_no)
+
+            # Validate all existing cycles against newly linked prior treatment boundaries & start/end dates
             if course.adjuvant_course_id:
                 for cyc in course.cycles.all():
                     is_valid, err_msg = validate_adjuvant_cycle_date(course, cyc.cycle_date)
@@ -530,6 +583,8 @@ def adjuvant_form_view(request, mr_no, course_id=None):
                         return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
         else:
             course.received_cycles = 0
+            course.adjuvant_start_date = None
+            course.adjuvant_end_date = None
             course.linked_ebrt_course = None
             course.linked_brachy_course = None
 
@@ -550,7 +605,9 @@ def adjuvant_form_view(request, mr_no, course_id=None):
             return redirect('followup_list', mr_no=patient.mr_no)
         return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
 
-    cycles = course.cycles.all().prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if course else []
+    if course:
+        resequence_adjuvant_cycles(course)
+    cycles = course.cycles.all().order_by('cycle_date', 'adjuvant_cycle_id').prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if course else []
 
     return render(request, 'systemic/adjuvant_form.html', {
         'patient': patient,
@@ -613,7 +670,8 @@ def adjuvant_cycle_add_view(request, mr_no, course_id):
         cycle_toxicity=request.POST.get('cycle_toxicity', '')
     )
 
-    messages.success(request, f"Adjuvant Cycle #{cycle.cycle_number} created.")
+    resequence_adjuvant_cycles(course)
+    messages.success(request, "Adjuvant cycle added successfully (auto-arranged in chronological order).")
     return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
 
 
@@ -621,7 +679,7 @@ def adjuvant_cycle_add_view(request, mr_no, course_id):
 def adjuvant_cycle_edit_view(request, mr_no, course_id, cycle_id):
     """
     Updates an existing chemotherapy cycle under Adjuvant Chemotherapy course.
-    Validates cycle date against linked prior definitive treatment.
+    Validates cycle date against linked prior definitive treatment and course start/end dates.
     """
     if request.method != 'POST':
         return redirect('adjuvant_edit', mr_no=mr_no, course_id=course_id)
@@ -639,7 +697,7 @@ def adjuvant_cycle_edit_view(request, mr_no, course_id, cycle_id):
         messages.error(request, "Cycle date is mandatory.")
         return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
 
-    # Date validation against prior definitive treatment
+    # Date validation against prior definitive treatment and course start/end dates
     is_valid, err_msg = validate_adjuvant_cycle_date(course, cycle_date)
     if not is_valid:
         messages.error(request, err_msg)
@@ -653,7 +711,8 @@ def adjuvant_cycle_edit_view(request, mr_no, course_id, cycle_id):
         cycle.cycle_toxicity = request.POST.get('cycle_toxicity', '')
     cycle.save()
 
-    messages.success(request, f"Adjuvant Cycle #{cycle.cycle_number} updated successfully.")
+    resequence_adjuvant_cycles(course)
+    messages.success(request, "Adjuvant cycle updated successfully (auto-arranged in chronological order).")
     return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
 
 
@@ -784,7 +843,8 @@ def adjuvant_cycle_delete_view(request, mr_no, course_id, cycle_id):
         return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
 
     cycle.delete()
-    messages.success(request, f"Cycle #{cycle.cycle_number} deleted.")
+    resequence_adjuvant_cycles(course)
+    messages.success(request, "Cycle deleted.")
     return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
 
 

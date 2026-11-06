@@ -236,7 +236,7 @@ class NACTCycle(models.Model):
 
     class Meta:
         db_table = 'tblNACTCycles'
-        ordering = ['cycle_number']
+        ordering = ['cycle_date', 'cycle_number', 'nact_cycle_id']
 
     def __str__(self):
         return f"NACT Cycle #{self.cycle_number} ({self.cycle_date})"
@@ -271,6 +271,8 @@ class AdjuvantChemoCourse(models.Model):
     adjuvant_received = models.BooleanField(default=False, db_column='Adjuvant_Received')
     planned_cycles = models.IntegerField(default=4, db_column='Planned_Cycles')
     received_cycles = models.IntegerField(default=0, db_column='Received_Cycles')
+    adjuvant_start_date = models.DateField(null=True, blank=True, db_column='Adjuvant_Start_Date')
+    adjuvant_end_date = models.DateField(null=True, blank=True, db_column='Adjuvant_End_Date')
     chemo_status = models.ForeignKey(NACTStatus, on_delete=models.SET_NULL, null=True, blank=True, db_column='ChemoStatusID')
     
     # Backward links to prior definitive treatment
@@ -308,7 +310,7 @@ class AdjuvantChemoCycle(models.Model):
 
     class Meta:
         db_table = 'tblAdjuvantCycles'
-        ordering = ['cycle_number']
+        ordering = ['cycle_date', 'cycle_number', 'adjuvant_cycle_id']
 
     def __str__(self):
         return f"Adjuvant Cycle #{self.cycle_number} ({self.cycle_date})"
