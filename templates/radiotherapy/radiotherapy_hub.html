@@ -171,16 +171,16 @@
                     <th>Treatment Dates</th>
                     <th>Applications Logged</th>
                     <th>Status</th>
-                    <th style="width: 220px; text-align: center;">Actions</th>
+                    <th style="width: 250px; text-align: center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for br in brachy_courses %}
                     <tr>
                         <td><strong style="color: #003366;">#{{ br.course_sequence }}</strong></td>
-                        <td><strong>{{ br.brachy_dosing.dosing_point|default:'Point A' }}</strong></td>
-                        <td>{{ br.brachy_source.source_name|default:'HDR Ir-192' }}</td>
-                        <td>{{ br.prescription_dose_gy|default:'-' }} Gy</td>
+                        <td><strong>{% if br.brachy_dosing %}{{ br.brachy_dosing.dosing_point }}{% elif br.sessions.first and br.sessions.first.brachy_dosing %}{{ br.sessions.first.brachy_dosing.dosing_point }}{% else %}Point A{% endif %}</strong></td>
+                        <td>{% if br.brachy_source %}{{ br.brachy_source.source_name }}{% elif br.sessions.first and br.sessions.first.brachy_source %}{{ br.sessions.first.brachy_source.source_name }}{% else %}HDR Ir-192{% endif %}</td>
+                        <td>{% if br.prescription_dose_gy %}{{ br.prescription_dose_gy }} Gy{% elif br.summary_total_dose %}{{ br.summary_total_dose }} Gy{% else %}-{% endif %}</td>
                         <td>
                             <strong>{{ br.total_fractions_delivered }}</strong> / {{ br.total_fractions_planned }} #
                         </td>
@@ -196,19 +196,169 @@
                             </span>
                         </td>
                         <td style="text-align: center; white-space: nowrap;">
-                            <a href="{% url 'brachy_edit' patient.mr_no br.brachy_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 7px;">
+                            <button type="button" class="btn-access" style="font-size: 10px; padding: 2px 6px; color: #003366; background: #e0f2fe; border-color: #bae6fd; font-weight: bold;" onclick="toggleCourseSummary('summaryRow_{{ br.brachy_course_id }}', this)">
+                                📋 Hide Summary
+                            </button>
+                            <a href="{% url 'brachy_edit' patient.mr_no br.brachy_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
                                 ✏️ Course & Applications
                             </a>
-                            <a href="{% url 'brachy_session_add' patient.mr_no br.brachy_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 7px; color: #166534; background: #f0fdf4; border-color: #bbf7d0; font-weight: bold;">
+                            <a href="{% url 'brachy_session_add' patient.mr_no br.brachy_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px; color: #166534; background: #f0fdf4; border-color: #bbf7d0; font-weight: bold;">
                                 ➕ Application
                             </a>
                             {% if user.is_staff or user.is_superuser %}
                                 <form method="post" action="{% url 'brachy_delete' patient.mr_no br.brachy_course_id %}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete Brachytherapy Course #{{ br.course_sequence }} and all its applications?');">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn-access" style="font-size: 10px; padding: 2px 6px; color: #b00000;" title="Delete Brachy Course">
+                                    <button type="submit" class="btn-access" style="font-size: 10px; padding: 2px 5px; color: #b00000;" title="Delete Brachy Course">
                                         🗑️ Delete
                                     </button>
                                 </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Expandable Course Summary & Fraction Breakdown -->
+                    <tr id="summaryRow_{{ br.brachy_course_id }}" style="background: #fbfcfe;">
+                        <td colspan="9" style="padding: 10px 14px; border-top: 1px solid #b8c4d2; border-bottom: 2px solid #003366;">
+                            <!-- Header ribbon for Course Summary -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <span style="font-size: 14px;">📋</span>
+                                    <strong style="color: #003366; font-size: 12px;">Brachytherapy Course #{{ br.course_sequence }} Summary & Dosimetry Breakdown</strong>
+                                    {% if br.treatment_centre %}
+                                        <span style="font-size: 11px; color: #334155; background: #e2e8f0; padding: 1px 7px; border-radius: 3px;">
+                                            🏥 {{ br.treatment_centre.centre_name }}
+                                        </span>
+                                    {% endif %}
+                                    {% if br.linked_ebrt_course %}
+                                        <span style="font-size: 11px; color: #003366; background: #e0f2fe; padding: 1px 7px; border-radius: 3px; font-weight: 500;">
+                                            🔗 Linked to EBRT #{{ br.linked_ebrt_course.course_sequence }} ({{ br.linked_ebrt_course.total_dose_gy|default:'-' }} Gy in {{ br.linked_ebrt_course.total_fractions|default:'-' }}#)
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 11px; color: #475569; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                                    <span>Applications Logged: <strong style="color: #003366;">{{ br.sessions.count }}</strong></span>
+                                    <span>Fractions Delivered: <strong style="color: #166534;">{{ br.summary_fx_count }}</strong> / {{ br.total_fractions_planned }} planned</span>
+                                    <span>Status: <strong style="color: {% if br.completion_status == 'Completed' %}#166534{% else %}#003366{% endif %};">{{ br.course_status.status_name|default:br.completion_status|default:'In Progress' }}</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- Course Cumulative Dosimetry Stat Cards (Physical Doses & EQD2) -->
+                            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;">
+                                <!-- Target Physical & EQD2 -->
+                                <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 4px; padding: 6px 10px; text-align: center;">
+                                    <div style="font-size: 10px; color: #166534; font-weight: bold; text-transform: uppercase;">Total Delivered Dose</div>
+                                    <div style="font-size: 15px; font-weight: bold; color: #14532d;">{{ br.summary_total_dose|default:'0.0' }} Gy</div>
+                                    <div style="font-size: 9.5px; color: #15803d; margin-top: 2px;">{{ br.summary_fx_count }} Fraction{{ br.summary_fx_count|pluralize }}</div>
+                                </div>
+                                <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 4px; padding: 6px 10px; text-align: center;">
+                                    <div style="font-size: 10px; color: #166534; font-weight: bold; text-transform: uppercase;">HR-CTV D90 Total</div>
+                                    <div style="font-size: 15px; font-weight: bold; color: #14532d;">{{ br.summary_total_hrctv_d90|default:'0.0' }} Gy</div>
+                                    <div style="font-size: 9.5px; color: #166534; margin-top: 2px;">Cumul EQD2: <strong>{{ br.summary_tumor_eqd2 }} Gy₁₀</strong></div>
+                                </div>
+                                <!-- Rectum -->
+                                <div style="background: #fffdf5; border: 1.5px solid #fde68a; border-radius: 4px; padding: 6px 10px; text-align: center;">
+                                    <div style="font-size: 10px; color: #92400e; font-weight: bold; text-transform: uppercase;">Rectum D2cc Total</div>
+                                    <div style="font-size: 15px; font-weight: bold; color: #78350f;">{{ br.summary_total_rectum|default:'0.0' }} Gy</div>
+                                    <div style="font-size: 9.5px; color: #b45309; margin-top: 2px;">Cumul EQD2: <strong>{{ br.summary_rectum_eqd2 }} Gy₃</strong></div>
+                                </div>
+                                <!-- Bladder -->
+                                <div style="background: #fffdf5; border: 1.5px solid #fde68a; border-radius: 4px; padding: 6px 10px; text-align: center;">
+                                    <div style="font-size: 10px; color: #92400e; font-weight: bold; text-transform: uppercase;">Bladder D2cc Total</div>
+                                    <div style="font-size: 15px; font-weight: bold; color: #78350f;">{{ br.summary_total_bladder|default:'0.0' }} Gy</div>
+                                    <div style="font-size: 9.5px; color: #b45309; margin-top: 2px;">Cumul EQD2: <strong>{{ br.summary_bladder_eqd2 }} Gy₃</strong></div>
+                                </div>
+                                <!-- Sigmoid -->
+                                <div style="background: #fffdf5; border: 1.5px solid #fde68a; border-radius: 4px; padding: 6px 10px; text-align: center;">
+                                    <div style="font-size: 10px; color: #92400e; font-weight: bold; text-transform: uppercase;">Sigmoid (Sig) D2cc Total</div>
+                                    <div style="font-size: 15px; font-weight: bold; color: #78350f;">{{ br.summary_total_sigmoid|default:'0.0' }} Gy</div>
+                                    <div style="font-size: 9.5px; color: #b45309; margin-top: 2px;">Cumul EQD2: <strong>{{ br.summary_sigmoid_eqd2 }} Gy₃</strong></div>
+                                </div>
+                            </div>
+
+                            <!-- Applications & Fractions Detailed Hierarchy -->
+                            {% if br.sessions.all %}
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    {% for sess in br.sessions.all %}
+                                        <div style="border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                                            <!-- Application Strip Header -->
+                                            <div style="background: #edf3f9; border-bottom: 1px solid #cbd5e1; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                                    <strong style="color: #003366; font-size: 12px;">Application #{{ sess.session_number }}</strong>
+                                                    <span style="color: #334155;">(Date: <strong>{{ sess.session_date|date:'d-M-Y' }}</strong>)</span>
+                                                    <span>Applicator: <strong>{{ sess.applicator.name|default:'Tandem and Ovoids' }}</strong></span>
+                                                    <span style="color: #64748b;">Guidance: {{ sess.image_guidance.guidance_name|default:'CT-based' }}</span>
+                                                    {% if sess.brachy_dosing %}
+                                                        <span style="color: #003366;">Dosing: <strong>{{ sess.brachy_dosing.dosing_point }}</strong></span>
+                                                    {% elif br.brachy_dosing %}
+                                                        <span style="color: #003366;">Dosing: <strong>{{ br.brachy_dosing.dosing_point }}</strong></span>
+                                                    {% endif %}
+                                                    {% if sess.brachy_source %}
+                                                        <span style="color: #003366;">Source: <strong>{{ sess.brachy_source.source_name }}</strong></span>
+                                                    {% elif br.brachy_source %}
+                                                        <span style="color: #003366;">Source: <strong>{{ br.brachy_source.source_name }}</strong></span>
+                                                    {% endif %}
+                                                    <span style="font-size: 10px; color: #475569;">
+                                                        📏 {% if sess.tandem_length_cm %}Tandem: <strong>{{ sess.tandem_length_cm }} cm</strong> &nbsp;|&nbsp;{% endif %}
+                                                        {% if sess.ovoid_diameter_mm %}Ovoid: <strong>{{ sess.ovoid_diameter_mm }} cm</strong> &nbsp;|&nbsp;{% endif %}
+                                                        {% if sess.ring_diameter_mm %}Ring: <strong>{{ sess.ring_diameter_mm }} mm</strong> &nbsp;|&nbsp;{% endif %}
+                                                        {% if sess.needle_count %}Needles: <strong>{{ sess.needle_count }}</strong> &nbsp;|&nbsp;{% endif %}
+                                                        Status: <strong>{{ sess.session_status.status_name|default:'Planned' }}</strong>
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <a href="{% url 'brachy_session_edit' patient.mr_no br.brachy_course_id sess.brachy_session_id %}" class="btn-access" style="font-size: 9px; padding: 2px 7px;">
+                                                        ✏️ Edit Application
+                                                    </a>
+                                                </div>
+                                            </div>
+
+                                            <!-- Nested Fractions Table -->
+                                            <table class="access-table" style="margin: 0; font-size: 11px;">
+                                                <thead>
+                                                    <tr style="background: #f8fafc; font-size: 10px; color: #475569;">
+                                                        <th style="width: 75px;">Fraction #</th>
+                                                        <th style="width: 95px;">Date</th>
+                                                        <th>Delivered Dose</th>
+                                                        <th>HR-CTV D90</th>
+                                                        <th>Rectum 2cc</th>
+                                                        <th>Bladder 2cc</th>
+                                                        <th>Sigmoid 2cc</th>
+                                                        <th>Dwell Time</th>
+                                                        <th style="width: 80px; text-align: center;">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for fx in sess.fractions.all %}
+                                                        <tr>
+                                                            <td><strong>Fx #{{ fx.fraction_number_in_session }}</strong> <span style="font-size: 9.5px; color: #64748b;">(Total #{{ fx.overall_fraction_number }})</span></td>
+                                                            <td>{{ fx.fraction_date|date:'d-M-Y' }}</td>
+                                                            <td><strong style="color: #003366;">{{ fx.dose_delivered_gy|default:'-' }} Gy</strong></td>
+                                                            <td><strong style="color: #166534;">{{ fx.hrctv_d90_gy|default:'-' }} Gy</strong></td>
+                                                            <td>{{ fx.rectum_dose_2cc_gy|default:'-' }} Gy</td>
+                                                            <td>{{ fx.bladder_dose_2cc_gy|default:'-' }} Gy</td>
+                                                            <td>{{ fx.sigmoid_dose_2cc_gy|default:'-' }} Gy</td>
+                                                            <td>{{ fx.total_dwell_time_seconds|default:'0' }}s</td>
+                                                            <td style="text-align: center;">
+                                                                <span style="font-size: 9.5px; color: #166534; font-weight: bold; background: #dcfce7; padding: 1px 6px; border-radius: 2px;">
+                                                                    ✓ Delivered
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    {% empty %}
+                                                        <tr>
+                                                            <td colspan="9" style="text-align: center; color: #64748b; font-style: italic; padding: 8px;">
+                                                                No fractions logged under this application.
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div style="text-align: center; padding: 12px; color: #64748b; font-style: italic; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 3px;">
+                                    No applications logged for this Brachytherapy course yet. Click "➕ Application" above to add an application.
+                                </div>
                             {% endif %}
                         </td>
                     </tr>
@@ -240,4 +390,18 @@
         🏠 Back to Dashboard
     </a>
 </div>
+
+<script>
+function toggleCourseSummary(rowId, btnElem) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    if (row.style.display === 'none') {
+        row.style.display = '';
+        if (btnElem) btnElem.innerHTML = '📋 Hide Summary';
+    } else {
+        row.style.display = 'none';
+        if (btnElem) btnElem.innerHTML = '📋 Show Summary';
+    }
+}
+</script>
 {% endblock %}

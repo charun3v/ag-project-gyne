@@ -40,15 +40,34 @@ def radiotherapy_hub_view(request, mr_no):
     patient = get_object_or_404(Patient, mr_no=mr_no)
 
     ebrt_courses = patient.ebrt_courses.filter(soft_deleted=False).prefetch_related('sites__ebrt_site', 'interruptions')
-    brachy_courses = patient.brachy_courses.filter(soft_deleted=False).prefetch_related('sessions__fractions')
+    brachy_courses = patient.brachy_courses.filter(soft_deleted=False).prefetch_related(
+        'sessions__fractions',
+        'sessions__applicator',
+        'sessions__image_guidance',
+        'sessions__brachy_dosing',
+        'sessions__brachy_source',
+        'sessions__session_status',
+        'treatment_centre',
+        'linked_ebrt_course',
+        'brachy_dosing',
+        'brachy_source',
+        'course_status'
+    )
 
-    # Compute Radiobiological EQD2 totals
+    # Compute Radiobiological EQD2 totals and Course Summary metrics
     eqd2_summary = []
     for br in brachy_courses:
         tumor_eqd2 = 0.0
         bladder_eqd2 = 0.0
         rectum_eqd2 = 0.0
         sigmoid_eqd2 = 0.0
+
+        total_physical_dose = 0.0
+        total_hrctv_d90 = 0.0
+        total_rectum_2cc = 0.0
+        total_bladder_2cc = 0.0
+        total_sigmoid_2cc = 0.0
+        total_fx_count = 0
 
         # Linked EBRT dose
         linked_ebrt = br.linked_ebrt_course or ebrt_courses.first()
@@ -60,20 +79,44 @@ def radiotherapy_hub_view(request, mr_no):
             rectum_eqd2 += BrachyFraction.calculate_eqd2(ebrt_dose, ebrt_fx, br.alpha_beta_rectum or 3.0)
             sigmoid_eqd2 += BrachyFraction.calculate_eqd2(ebrt_dose, ebrt_fx, br.alpha_beta_sigmoid or 3.0)
 
-        # Add Brachy fractions
+        # Add Brachy fractions & aggregate course totals
         for sess in br.sessions.all():
             for fx in sess.fractions.all():
+                total_fx_count += 1
+                if fx.dose_delivered_gy:
+                    total_physical_dose += fx.dose_delivered_gy
                 if fx.hrctv_d90_gy:
+                    total_hrctv_d90 += fx.hrctv_d90_gy
                     tumor_eqd2 += BrachyFraction.calculate_eqd2(fx.hrctv_d90_gy, 1, br.alpha_beta_tumor or 10.0)
                 elif fx.dose_delivered_gy:
                     tumor_eqd2 += BrachyFraction.calculate_eqd2(fx.dose_delivered_gy, 1, br.alpha_beta_tumor or 10.0)
                 
                 if fx.bladder_dose_2cc_gy:
+                    total_bladder_2cc += fx.bladder_dose_2cc_gy
                     bladder_eqd2 += BrachyFraction.calculate_eqd2(fx.bladder_dose_2cc_gy, 1, br.alpha_beta_bladder or 3.0)
                 if fx.rectum_dose_2cc_gy:
+                    total_rectum_2cc += fx.rectum_dose_2cc_gy
                     rectum_eqd2 += BrachyFraction.calculate_eqd2(fx.rectum_dose_2cc_gy, 1, br.alpha_beta_rectum or 3.0)
                 if fx.sigmoid_dose_2cc_gy:
+                    total_sigmoid_2cc += fx.sigmoid_dose_2cc_gy
                     sigmoid_eqd2 += BrachyFraction.calculate_eqd2(fx.sigmoid_dose_2cc_gy, 1, br.alpha_beta_sigmoid or 3.0)
+
+        # Keep total_fractions_delivered on model synchronized with actual fractions
+        if br.total_fractions_delivered != total_fx_count:
+            br.total_fractions_delivered = total_fx_count
+            br.save(update_fields=['total_fractions_delivered'])
+
+        # Attach computed summary attributes to course instance for template rendering
+        br.summary_total_dose = round(total_physical_dose, 1)
+        br.summary_total_hrctv_d90 = round(total_hrctv_d90, 1)
+        br.summary_total_rectum = round(total_rectum_2cc, 1)
+        br.summary_total_bladder = round(total_bladder_2cc, 1)
+        br.summary_total_sigmoid = round(total_sigmoid_2cc, 1)
+        br.summary_fx_count = total_fx_count
+        br.summary_tumor_eqd2 = round(tumor_eqd2, 1)
+        br.summary_bladder_eqd2 = round(bladder_eqd2, 1)
+        br.summary_rectum_eqd2 = round(rectum_eqd2, 1)
+        br.summary_sigmoid_eqd2 = round(sigmoid_eqd2, 1)
 
         eqd2_summary.append({
             'course': br,
@@ -497,7 +540,12 @@ def brachy_form_view(request, mr_no, course_id=None):
 
         course.prescription_dose_gy = float(request.POST.get('prescription_dose_gy')) if request.POST.get('prescription_dose_gy') else None
         course.total_fractions_planned = int(request.POST.get('total_fractions_planned')) if request.POST.get('total_fractions_planned') else 3
-        course.total_fractions_delivered = int(request.POST.get('total_fractions_delivered')) if request.POST.get('total_fractions_delivered') else 0
+        if course_id:
+            course.total_fractions_delivered = BrachyFraction.objects.filter(brachy_session__brachy_course=course).count()
+        elif request.POST.get('total_fractions_delivered'):
+            course.total_fractions_delivered = int(request.POST.get('total_fractions_delivered'))
+        else:
+            course.total_fractions_delivered = 0
 
         course.brachy_start_date = request.POST.get('brachy_start_date') or None
         course.brachy_end_date = request.POST.get('brachy_end_date') or None
