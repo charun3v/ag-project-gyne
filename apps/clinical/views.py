@@ -356,7 +356,7 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
     enc_type_lower = enc_type.lower()
     if 'post-nact' in enc_type_lower or 'nact' in enc_type_lower:
         match_query = 'Post-NACT'
-    elif 'pre' in enc_type_lower or 'brachy' in enc_type_lower:
+    elif 'brachy' in enc_type_lower:
         match_query = 'Pre-Brachy'
     elif 'follow' in enc_type_lower:
         match_query = 'Follow-up'
@@ -426,9 +426,9 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
         if 'save_next' in request.POST:
             return redirect('investigations_hub', mr_no=patient.mr_no)
         if 'save_stay' in request.POST:
-            if 'post-nact' in enc_type_lower or 'nact' in enc_type_lower:
+            if 'post-nact' in enc_type_lower or (encounter_type_obj and 'nact' in encounter_type_obj.encounter_type_name.lower()):
                 enc_slug = 'post-nact'
-            elif 'pre' in encounter_type_obj.encounter_type_name.lower():
+            elif 'brachy' in enc_type_lower or (encounter_type_obj and 'brachy' in encounter_type_obj.encounter_type_name.lower()):
                 enc_slug = 'pre-brachy'
             else:
                 enc_slug = 'baseline'
@@ -438,9 +438,9 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
     # Fetch marked SVG findings for display
     svg_findings = encounter.svg_findings.filter(soft_deleted=False) if encounter else []
 
-    if 'post-nact' in enc_type_lower or 'nact' in enc_type_lower:
+    if 'post-nact' in enc_type_lower or (encounter_type_obj and 'nact' in encounter_type_obj.encounter_type_name.lower()):
         enc_slug = 'post-nact'
-    elif 'pre' in encounter_type_obj.encounter_type_name.lower():
+    elif 'brachy' in enc_type_lower or (encounter_type_obj and 'brachy' in encounter_type_obj.encounter_type_name.lower()):
         enc_slug = 'pre-brachy'
     else:
         enc_slug = 'baseline'
@@ -468,7 +468,7 @@ def ibs_diagram_view(request, encounter_id):
     enc_type_name = encounter.encounter_type.encounter_type_name.lower() if encounter.encounter_type else ""
     if 'post-nact' in enc_type_name or 'nact' in enc_type_name:
         enc_slug = 'post-nact'
-    elif 'pre' in enc_type_name or 'brachy' in enc_type_name:
+    elif 'brachy' in enc_type_name:
         enc_slug = 'pre-brachy'
     else:
         enc_slug = 'baseline'
@@ -553,7 +553,7 @@ def auto_populate_svg_view(request, encounter_id):
     enc_type_name = encounter.encounter_type.encounter_type_name.lower() if encounter.encounter_type else ""
     if 'post-nact' in enc_type_name or 'nact' in enc_type_name:
         enc_slug = 'post-nact'
-    elif 'pre' in enc_type_name or 'brachy' in enc_type_name:
+    elif 'brachy' in enc_type_name:
         enc_slug = 'pre-brachy'
     else:
         enc_slug = 'baseline'
@@ -575,7 +575,7 @@ def auto_populate_previous_diagram_view(request, encounter_id):
 
     prior_encounter = None
 
-    if 'pre' in current_type_name or 'brachy' in current_type_name:
+    if 'brachy' in current_type_name:
         # Check Post-NACT first
         prior_nact = patient.encounters.filter(
             soft_deleted=False,
@@ -613,7 +613,7 @@ def auto_populate_previous_diagram_view(request, encounter_id):
     # Determine enc_slug
     if 'post-nact' in current_type_name or 'nact' in current_type_name:
         enc_slug = 'post-nact'
-    elif 'pre' in current_type_name or 'brachy' in current_type_name:
+    elif 'brachy' in current_type_name:
         enc_slug = 'pre-brachy'
     else:
         enc_slug = 'baseline'

@@ -130,9 +130,9 @@
                             Prior Radiation Therapy (Pelvic / Abdominal)
                         </label>
                         <div id="prior_rt_container" style="{% if not history or not history.prior_radiation %}display: none;{% endif %} margin-top: 4px;">
-                            <input type="text" name="prior_radiation_details" id="prior_radiation_details"
-                                   value="{% if history %}{{ history.prior_radiation_details|default:'' }}{% endif %}" 
-                                   class="access-input" placeholder="Prior RT dose, fields, dates, institution...">
+                            <textarea name="prior_radiation_details" id="prior_radiation_details"
+                                      class="access-textarea" rows="2" style="resize: vertical; width: 100%; font-size: 11px;"
+                                      placeholder="Prior RT dose, fields, dates, institution...">{% if history %}{{ history.prior_radiation_details|default:'' }}{% endif %}</textarea>
                         </div>
                     </div>
                     <div style="margin-bottom: 6px;">
@@ -141,9 +141,9 @@
                             Previous Pelvic / Abdominal Surgeries
                         </label>
                         <div id="previous_surgery_container" style="{% if not history or not history.previous_surgery %}display: none;{% endif %} margin-top: 4px;">
-                            <input type="text" name="previous_surgery_details" id="previous_surgery_details"
-                                   value="{% if history %}{{ history.previous_surgery_details|default:'' }}{% endif %}" 
-                                   class="access-input" placeholder="TAH-BSO, laparotomy, cesarean, dates...">
+                            <textarea name="previous_surgery_details" id="previous_surgery_details"
+                                      class="access-textarea" rows="2" style="resize: vertical; width: 100%; font-size: 11px;"
+                                      placeholder="TAH-BSO, laparotomy, cesarean, dates...">{% if history %}{{ history.previous_surgery_details|default:'' }}{% endif %}</textarea>
                         </div>
                     </div>
                     <div>
