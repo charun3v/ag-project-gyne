@@ -43,12 +43,20 @@ def dashboard_view(request):
     Computes status badges for each of the 11 workflow tiles per patient.
     """
     patients_qs = Patient.objects.filter(soft_deleted=False).prefetch_related(
-        'diagnoses', 'encounters', 'histories', 'ebrt_courses', 'brachy_courses',
-        'nact_courses', 'adjuvant_courses', 'follow_up_records', 'documents'
+        'diagnoses__primary_site', 'encounters__encounter_type', 'histories',
+        'ebrt_courses__course_status', 'brachy_courses__course_status',
+        'nact_courses__nact_status', 'adjuvant_courses__chemo_status',
+        'follow_up_records__disease_status', 'documents',
+        'blood_tests', 'imaging_studies', 'pathology_reports', 'molecular_tests'
     )
 
     patients_data = []
     for pt in patients_qs:
+        # Demographics: Complete if phone, age/dob, and address/district present
+        demographics_completed = bool(pt.phone and (pt.date_of_birth or pt.age) and (pt.address or pt.district or pt.state))
+        demographics_tile_class = 'tile-done' if demographics_completed else 'tile-partial'
+        demographics_status_text = '✓ Done' if demographics_completed else 'Edit'
+
         # Diagnosis
         diag_list = list(pt.diagnoses.filter(soft_deleted=False).order_by('-is_current', 'diagnosis_sequence', '-date_of_diagnosis'))
         curr_diag = diag_list[0] if diag_list else None
@@ -57,31 +65,125 @@ def dashboard_view(request):
         stage_text = curr_diag.stage_text if curr_diag else ""
         all_diag_desc = "; ".join([d.diagnosis_description or (f"{d.primary_site.site if d.primary_site else 'Cancer'} Stage {d.stage_text or '—'}") for d in diag_list])
 
+        if not curr_diag:
+            diagnosis_tile_class = ''
+            diagnosis_status_text = '—'
+        else:
+            diagnosis_completed = bool(curr_diag.primary_site and curr_diag.stage_text and curr_diag.histology)
+            diagnosis_tile_class = 'tile-done' if diagnosis_completed else 'tile-partial'
+            if diagnosis_completed:
+                diagnosis_status_text = f"✓ {diag_count} Diag" if diag_count > 1 else f"✓ Stage {stage_text or 'Done'}"
+            else:
+                diagnosis_status_text = 'Incomplete'
+
         # History
-        has_hist = pt.histories.filter(soft_deleted=False).exists()
+        hist_list = list(pt.histories.filter(soft_deleted=False).order_by('-snapshot_date'))
+        curr_hist = hist_list[0] if hist_list else None
+        if not curr_hist:
+            history_tile_class = ''
+            history_status_text = '—'
+        else:
+            history_completed = bool(
+                curr_hist.bleeding_pv or curr_hist.water_discharge_pv or curr_hist.dyspareunia or curr_hist.loin_pain or
+                curr_hist.hpi or curr_hist.hypertension or curr_hist.hypothyroidism or curr_hist.diabetic or
+                curr_hist.seizures or curr_hist.past_med_surg or curr_hist.smoking or curr_hist.tobacco_chewing or
+                curr_hist.prior_radiation or curr_hist.previous_surgery or curr_hist.comorbidity_notes
+            )
+            history_tile_class = 'tile-done' if history_completed else 'tile-partial'
+            history_status_text = '✓ Done' if history_completed else 'Incomplete'
 
         # Baseline Exam
         base_enc = pt.encounters.filter(encounter_type__encounter_type_name__icontains='Baseline', soft_deleted=False).first()
+        if not base_enc:
+            baseline_exam_tile_class = ''
+            baseline_exam_status_text = '—'
+        else:
+            base_completed = bool(base_enc.tumour_size_cm is not None or base_enc.examination_findings or base_enc.findings_locked or base_enc.parametrial_invasion)
+            baseline_exam_tile_class = 'tile-done' if base_completed else 'tile-partial'
+            baseline_exam_status_text = f"✓ {base_enc.encounter_date.strftime('%d %b')}" if base_completed else 'Incomplete'
+
+        # Pre-Brachy Exam
         preb_enc = pt.encounters.filter(encounter_type__encounter_type_name__icontains='Pre-Brachy', soft_deleted=False).first()
+        if not preb_enc:
+            prebrachy_exam_tile_class = ''
+            prebrachy_exam_status_text = '—'
+        else:
+            preb_completed = bool(preb_enc.tumour_size_cm is not None or preb_enc.examination_findings or preb_enc.findings_locked or preb_enc.tandem_sounded)
+            prebrachy_exam_tile_class = 'tile-done' if preb_completed else 'tile-partial'
+            prebrachy_exam_status_text = '✓ Done' if preb_completed else 'Incomplete'
+
+        # Post-NACT Exam
         postnact_enc = pt.encounters.filter(encounter_type__encounter_type_name__icontains='Post-NACT', soft_deleted=False).first()
+        if not postnact_enc:
+            postnact_exam_tile_class = ''
+        else:
+            postnact_completed = bool(postnact_enc.tumour_size_cm is not None or postnact_enc.examination_findings or postnact_enc.findings_locked)
+            postnact_exam_tile_class = 'tile-done' if postnact_completed else 'tile-partial'
 
         # Investigations
-        has_inv = (
-            pt.blood_tests.filter(soft_deleted=False).exists() or
-            pt.imaging_studies.filter(soft_deleted=False).exists() or
-            pt.pathology_reports.filter(soft_deleted=False).exists() or
-            pt.molecular_tests.filter(soft_deleted=False).exists()
-        )
+        has_blood = pt.blood_tests.filter(soft_deleted=False).exists()
+        has_img = pt.imaging_studies.filter(soft_deleted=False).exists()
+        has_path = pt.pathology_reports.filter(soft_deleted=False).exists()
+        has_mol = pt.molecular_tests.filter(soft_deleted=False).exists()
+        has_inv = has_blood or has_img or has_path or has_mol
+        if not has_inv:
+            investigations_tile_class = ''
+            investigations_status_text = '—'
+        else:
+            inv_completed = bool(has_blood and has_img and has_path)
+            investigations_tile_class = 'tile-done' if inv_completed else 'tile-partial'
+            investigations_status_text = '✓ Complete' if inv_completed else 'Partial'
 
         # Treatments
-        ebrt = pt.ebrt_courses.filter(soft_deleted=False).first()
-        brachy = pt.brachy_courses.filter(soft_deleted=False).first()
+        # NACT
         nact = pt.nact_courses.filter(soft_deleted=False).first()
-        adjuvant = pt.adjuvant_courses.first()
+        if not nact or not nact.nact_received:
+            nact_tile_class = ''
+            nact_status_text = '—'
+        else:
+            nact_completed = bool(nact.nact_status and nact.nact_status.status_name and nact.nact_status.status_name.lower() == 'complete')
+            nact_tile_class = 'tile-done' if nact_completed else 'tile-partial'
+            nact_status_text = '✓ Complete' if nact_completed else ('Incomplete' if (nact.nact_status and 'incom' in nact.nact_status.status_name.lower()) else 'Active')
 
-        # Follow-Up
+        # EBRT
+        ebrt = pt.ebrt_courses.filter(soft_deleted=False).first()
+        if not ebrt:
+            ebrt_tile_class = ''
+            ebrt_status_text = '—'
+        else:
+            ebrt_completed = bool(ebrt.treatment_completed or (ebrt.course_status and ebrt.course_status.status_name and ebrt.course_status.status_name.lower() == 'completed'))
+            ebrt_tile_class = 'tile-done' if ebrt_completed else 'tile-partial'
+            ebrt_status_text = f"✓ {ebrt.total_dose_gy or 0}Gy" if ebrt_completed else f"{ebrt.total_dose_gy or 0}Gy Incomplete"
+
+        # Brachytherapy
+        brachy = pt.brachy_courses.filter(soft_deleted=False).first()
+        if not brachy or not brachy.brachy_received:
+            brachy_tile_class = ''
+            brachy_status_text = '—'
+        else:
+            brachy_completed = bool((brachy.completion_status and brachy.completion_status.lower() == 'completed') or (brachy.course_status and brachy.course_status.status_name and brachy.course_status.status_name.lower() == 'completed'))
+            brachy_tile_class = 'tile-done' if brachy_completed else 'tile-partial'
+            brachy_status_text = f"✓ {brachy.total_fractions_delivered or 0} Fx" if brachy_completed else f"{brachy.total_fractions_delivered or 0} Fx Incomplete"
+
+        # Adjuvant Chemotherapy
+        adjuvant = pt.adjuvant_courses.filter(soft_deleted=False).first() if hasattr(pt.adjuvant_courses, 'filter') else pt.adjuvant_courses.first()
+        if not adjuvant or not adjuvant.adjuvant_received:
+            adjuvant_tile_class = ''
+            adjuvant_status_text = '—'
+        else:
+            adjuvant_completed = bool(adjuvant.chemo_status and adjuvant.chemo_status.status_name and adjuvant.chemo_status.status_name.lower() == 'complete')
+            adjuvant_tile_class = 'tile-done' if adjuvant_completed else 'tile-partial'
+            adjuvant_status_text = '✓ Complete' if adjuvant_completed else ('Incomplete' if (adjuvant.chemo_status and 'incom' in adjuvant.chemo_status.status_name.lower()) else 'Active')
+
+        # Follow-Up (User rule: except follow-up, which becomes green if logged!)
         last_fu = pt.follow_up_records.filter(soft_deleted=False).first()
         fu_status_str = last_fu.disease_status.status_name if (last_fu and last_fu.disease_status) else ""
+        if last_fu:
+            followup_tile_class = 'tile-done'  # Green exception!
+            followup_status_text = f"✓ {fu_status_str or 'Logged'}"
+        else:
+            followup_tile_class = ''
+            followup_status_text = '—'
 
         # Documents
         doc_count = pt.documents.count()
@@ -97,21 +199,46 @@ def dashboard_view(request):
             'diag_count': diag_count,
             'stage_text': stage_text,
             'all_diag_desc': all_diag_desc,
-            'has_history': has_hist,
+            'has_history': bool(curr_hist),
             'has_baseline_exam': bool(base_enc),
             'baseline_exam_date': base_enc.encounter_date if base_enc else None,
             'has_prebrachy_exam': bool(preb_enc),
             'has_postnact_exam': bool(postnact_enc),
             'has_investigations': has_inv,
-            'has_nact': bool(nact),
+            'has_nact': bool(nact and nact.nact_received),
             'has_ebrt': bool(ebrt),
             'ebrt_dose': ebrt.total_dose_gy if ebrt else 0,
-            'has_brachy': bool(brachy),
+            'has_brachy': bool(brachy and brachy.brachy_received),
             'brachy_fx_count': brachy.total_fractions_delivered if brachy else 0,
-            'has_adjuvant': bool(adjuvant),
+            'has_adjuvant': bool(adjuvant and adjuvant.adjuvant_received),
             'has_followup': bool(last_fu),
             'last_fu_status': fu_status_str or ("Logged" if last_fu else ""),
             'document_count': doc_count,
+
+            # Status Classes & Labels
+            'demographics_tile_class': demographics_tile_class,
+            'demographics_status_text': demographics_status_text,
+            'history_tile_class': history_tile_class,
+            'history_status_text': history_status_text,
+            'baseline_exam_tile_class': baseline_exam_tile_class,
+            'baseline_exam_status_text': baseline_exam_status_text,
+            'prebrachy_exam_tile_class': prebrachy_exam_tile_class,
+            'prebrachy_exam_status_text': prebrachy_exam_status_text,
+            'postnact_exam_tile_class': postnact_exam_tile_class,
+            'investigations_tile_class': investigations_tile_class,
+            'investigations_status_text': investigations_status_text,
+            'diagnosis_tile_class': diagnosis_tile_class,
+            'diagnosis_status_text': diagnosis_status_text,
+            'nact_tile_class': nact_tile_class,
+            'nact_status_text': nact_status_text,
+            'ebrt_tile_class': ebrt_tile_class,
+            'ebrt_status_text': ebrt_status_text,
+            'brachy_tile_class': brachy_tile_class,
+            'brachy_status_text': brachy_status_text,
+            'adjuvant_tile_class': adjuvant_tile_class,
+            'adjuvant_status_text': adjuvant_status_text,
+            'followup_tile_class': followup_tile_class,
+            'followup_status_text': followup_status_text,
         })
 
     return render(request, 'core/dashboard.html', {'patients': patients_data})
@@ -653,6 +780,14 @@ def lookup_save_view(request, category, item_id=None):
     sec_field = cfg['secondary_field']
 
     if request.method == 'POST':
+        if not item_id:
+            raw_id = request.POST.get('item_id')
+            if raw_id:
+                try:
+                    item_id = int(raw_id)
+                except (ValueError, TypeError):
+                    item_id = None
+
         item = get_object_or_404(model, **{pk_field: item_id}) if item_id else None
         name_val = request.POST.get('name_value', '').strip()
         sec_val = request.POST.get('secondary_value', '').strip() if sec_field else None

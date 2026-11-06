@@ -65,22 +65,22 @@
                 </div>
 
                 <!-- 1. Demographics Tile -->
-                <a href="{% url 'patient_edit' pt.mr_no %}" class="dash-tile {% if pt.has_demographics %}tile-done{% else %}tile-partial{% endif %}" title="Edit Patient Demographics">
+                <a href="{% url 'patient_edit' pt.mr_no %}" class="dash-tile {{ pt.demographics_tile_class }}" title="Edit Patient Demographics">
                     <span class="tile-title">Demographics</span>
-                    <span class="tile-status">{% if pt.has_demographics %}✓ Done{% else %}Edit{% endif %}</span>
+                    <span class="tile-status">{{ pt.demographics_status_text }}</span>
                 </a>
 
                 <!-- 2. History Tile -->
-                <a href="{% url 'history_detail' pt.mr_no %}" class="dash-tile {% if pt.has_history %}tile-done{% endif %}" title="Baseline Clinical History & Comorbidities">
+                <a href="{% url 'history_detail' pt.mr_no %}" class="dash-tile {{ pt.history_tile_class }}" title="Baseline Clinical History & Comorbidities">
                     <span class="tile-title">History</span>
-                    <span class="tile-status">{% if pt.has_history %}✓ Done{% else %}—{% endif %}</span>
+                    <span class="tile-status">{{ pt.history_status_text }}</span>
                 </a>
 
                 <!-- 3. Examination (Baseline) Tile -->
                 <div style="display: flex; gap: 2px; height: 100%;">
-                    <a href="{% url 'examination_detail' pt.mr_no 'Baseline' %}" class="dash-tile {% if pt.has_baseline_exam %}tile-done{% endif %}" title="Baseline Pelvic Examination & Diagram" style="flex: 1;">
+                    <a href="{% url 'examination_detail' pt.mr_no 'Baseline' %}" class="dash-tile {{ pt.baseline_exam_tile_class }}" title="Baseline Pelvic Examination & Diagram" style="flex: 1;">
                         <span class="tile-title">Exam</span>
-                        <span class="tile-status">{% if pt.has_baseline_exam %}✓ {{ pt.baseline_exam_date|date:"d M" }}{% else %}—{% endif %}</span>
+                        <span class="tile-status">{{ pt.baseline_exam_status_text }}</span>
                     </a>
                     <a href="{% url 'examination_pdf' pt.mr_no 'baseline' %}" target="_blank" class="dash-tile" title="View/Download Examination & Imaging PDF (with IBS Pelvic Diagrams)" style="width: 20px; padding: 2px 0; background: #e8f4fd; border-color: #70a0d0; color: #003366; text-decoration: none; justify-content: center;">
                         <span style="font-size: 11px;" title="PDF">📄</span>
@@ -89,9 +89,9 @@
 
                 <!-- 4. Investigations Hub Tile -->
                 <div style="display: flex; gap: 2px; height: 100%;">
-                    <a href="{% url 'investigations_hub' pt.mr_no %}" class="dash-tile {% if pt.has_investigations %}tile-done{% endif %}" title="Blood, Imaging, Pathology, Molecular Hub" style="flex: 1;">
+                    <a href="{% url 'investigations_hub' pt.mr_no %}" class="dash-tile {{ pt.investigations_tile_class }}" title="Blood, Imaging, Pathology, Molecular Hub" style="flex: 1;">
                         <span class="tile-title">Invest</span>
-                        <span class="tile-status">{% if pt.has_investigations %}✓ View{% else %}—{% endif %}</span>
+                        <span class="tile-status">{{ pt.investigations_status_text }}</span>
                     </a>
                     <a href="{% url 'investigations_pdf' pt.mr_no %}" target="_blank" class="dash-tile" title="View/Download Examination & Imaging PDF (with IBS Pelvic Diagrams)" style="width: 20px; padding: 2px 0; background: #e8f4fd; border-color: #70a0d0; color: #003366; text-decoration: none; justify-content: center;">
                         <span style="font-size: 11px;" title="PDF">📄</span>
@@ -99,52 +99,52 @@
                 </div>
 
                 <!-- 5. Diagnosis Tile (After Investigations) -->
-                <a href="{% url 'diagnosis_detail' pt.mr_no %}" class="dash-tile {% if pt.has_diagnosis %}tile-done{% endif %}" title="{% if pt.all_diag_desc %}{{ pt.all_diag_desc }}{% else %}Cancer Diagnosis & Staging{% endif %}">
+                <a href="{% url 'diagnosis_detail' pt.mr_no %}" class="dash-tile {{ pt.diagnosis_tile_class }}" title="{% if pt.all_diag_desc %}{{ pt.all_diag_desc }}{% else %}Cancer Diagnosis & Staging{% endif %}">
                     <span class="tile-title">Diagnosis</span>
-                    <span class="tile-status">{% if pt.diag_count > 1 %}✓ {{ pt.diag_count }} Diag{% elif pt.has_diagnosis %}✓ Stage {{ pt.stage_text|default:"Done" }}{% else %}—{% endif %}</span>
+                    <span class="tile-status">{{ pt.diagnosis_status_text }}</span>
                 </a>
 
                 <!-- 6. NACT Tile -->
                 <div style="display: flex; gap: 2px; height: 100%;">
-                    <a href="{% url 'nact_router' pt.mr_no %}" class="dash-tile {% if pt.has_nact %}tile-done{% endif %}" title="Neoadjuvant Chemotherapy" style="flex: 1;">
+                    <a href="{% url 'nact_router' pt.mr_no %}" class="dash-tile {{ pt.nact_tile_class }}" title="Neoadjuvant Chemotherapy" style="flex: 1;">
                         <span class="tile-title">NACT</span>
-                        <span class="tile-status">{% if pt.has_nact %}✓ Active{% else %}—{% endif %}</span>
+                        <span class="tile-status">{{ pt.nact_status_text }}</span>
                     </a>
                     {% if pt.has_nact %}
-                    <a href="{% url 'examination_detail' pt.mr_no 'post-nact' %}" class="dash-tile {% if pt.has_postnact_exam %}tile-done{% endif %}" title="Post-NACT Reassessment Exam & Diagram" style="width: 20px; padding: 2px 0; font-size: 10px; justify-content: center; text-decoration: none;">
+                    <a href="{% url 'examination_detail' pt.mr_no 'post-nact' %}" class="dash-tile {{ pt.postnact_exam_tile_class }}" title="Post-NACT Reassessment Exam & Diagram" style="width: 20px; padding: 2px 0; font-size: 10px; justify-content: center; text-decoration: none;">
                         <span title="Post-NACT Exam & Diagram">📍</span>
                     </a>
                     {% endif %}
                 </div>
 
                 <!-- 7. EBRT Tile -->
-                <a href="{% url 'ebrt_router' pt.mr_no %}" class="dash-tile {% if pt.has_ebrt %}tile-done{% endif %}" title="External Beam Radiotherapy">
+                <a href="{% url 'ebrt_router' pt.mr_no %}" class="dash-tile {{ pt.ebrt_tile_class }}" title="External Beam Radiotherapy">
                     <span class="tile-title">EBRT</span>
-                    <span class="tile-status">{% if pt.has_ebrt %}✓ {{ pt.ebrt_dose }}Gy{% else %}—{% endif %}</span>
+                    <span class="tile-status">{{ pt.ebrt_status_text }}</span>
                 </a>
 
                 <!-- 8. Pre-Brachy Exam Tile -->
-                <a href="{% url 'examination_detail' pt.mr_no 'Pre-Brachy' %}" class="dash-tile {% if pt.has_prebrachy_exam %}tile-done{% endif %}" title="Pre-Brachy Reassessment Exam & Diagram">
+                <a href="{% url 'examination_detail' pt.mr_no 'Pre-Brachy' %}" class="dash-tile {{ pt.prebrachy_exam_tile_class }}" title="Pre-Brachy Reassessment Exam & Diagram">
                     <span class="tile-title">Pre-Brachy</span>
-                    <span class="tile-status">{% if pt.has_prebrachy_exam %}✓ Done{% else %}—{% endif %}</span>
+                    <span class="tile-status">{{ pt.prebrachy_exam_status_text }}</span>
                 </a>
 
                 <!-- 9. Brachytherapy Tile -->
-                <a href="{% url 'radiotherapy_hub' pt.mr_no %}" class="dash-tile {% if pt.has_brachy %}tile-done{% endif %}" title="Brachytherapy Course & Fraction Dosimetry">
+                <a href="{% url 'radiotherapy_hub' pt.mr_no %}" class="dash-tile {{ pt.brachy_tile_class }}" title="Brachytherapy Course & Fraction Dosimetry">
                     <span class="tile-title">Brachy</span>
-                    <span class="tile-status">{% if pt.has_brachy %}✓ {{ pt.brachy_fx_count }} Fx{% else %}—{% endif %}</span>
+                    <span class="tile-status">{{ pt.brachy_status_text }}</span>
                 </a>
 
                 <!-- 10. Adjuvant Chemo Tile -->
-                <a href="{% url 'adjuvant_router' pt.mr_no %}" class="dash-tile {% if pt.has_adjuvant %}tile-done{% endif %}" title="Adjuvant Chemotherapy">
+                <a href="{% url 'adjuvant_router' pt.mr_no %}" class="dash-tile {{ pt.adjuvant_tile_class }}" title="Adjuvant Chemotherapy">
                     <span class="tile-title">Adj Chemo</span>
-                    <span class="tile-status">{% if pt.has_adjuvant %}✓ Active{% else %}—{% endif %}</span>
+                    <span class="tile-status">{{ pt.adjuvant_status_text }}</span>
                 </a>
 
                 <!-- 11. Follow-Up Tile -->
-                <a href="{% url 'followup_list' pt.mr_no %}" class="dash-tile {% if pt.has_followup %}tile-done{% endif %}" title="Follow-Up Surveillance & Recurrence" style="padding: 2px 4px;">
+                <a href="{% url 'followup_list' pt.mr_no %}" class="dash-tile {{ pt.followup_tile_class }}" title="Follow-Up Surveillance & Recurrence" style="padding: 2px 4px;">
                     <span class="tile-title">Follow-Up</span>
-                    <span class="tile-status" style="font-size: 10px; line-height: 1.2;">{% if pt.has_followup %}✓ {{ pt.last_fu_status }}{% else %}—{% endif %}</span>
+                    <span class="tile-status" style="font-size: 10px; line-height: 1.2;">{{ pt.followup_status_text }}</span>
                 </a>
 
                 <!-- 12. Documents / Media Uploads Tile -->

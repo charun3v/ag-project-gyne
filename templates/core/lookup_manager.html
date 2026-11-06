@@ -178,6 +178,7 @@
         </div>
         <form id="editForm" method="post" action="">
             {% csrf_token %}
+            <input type="hidden" id="editItemId" name="item_id" value="">
             <div style="padding: 12px;">
                 <div style="margin-bottom: 8px;">
                     <label class="access-label" style="font-weight: bold;">{{ cfg.name_label }} *</label>
@@ -219,7 +220,8 @@
 
 <script>
 function openEditModal(id, name, sec, order, isActive) {
-    document.getElementById('editForm').action = '/admin-panel/lookups/{{ category }}/' + id + '/edit/';
+    document.getElementById('editItemId').value = id || '';
+    document.getElementById('editForm').action = '/admin-panel/lookups/{{ category }}/' + (id ? id + '/' : '') + 'edit/';
     document.getElementById('editName').value = name;
     if (document.getElementById('editSec')) {
         document.getElementById('editSec').value = sec || '';

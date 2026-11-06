@@ -199,7 +199,7 @@
                 {% if fu and fu.follow_up_status_id %}
                     {% if user.is_staff or user.is_superuser %}
                     <button type="submit" formaction="{% url 'followup_delete' patient.mr_no fu.follow_up_status_id %}" 
-                            onclick="return confirm('Are you sure you want to delete this follow-up visit on {{ fu.follow_up_date|date:"d-M-Y" }}?');"
+                            onclick="return confirm('Are you sure you want to delete this follow-up visit?');"
                             class="btn-access" style="color: #b00000; border-color: #ffcccc;">
                         🗑️ Delete Entry
                     </button>

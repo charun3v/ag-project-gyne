@@ -17,6 +17,7 @@ urlpatterns = [
     path('admin-panel/lookups/', views.lookup_manager_view, name='lookup_manager_default'),
     path('admin-panel/lookups/<str:category>/', views.lookup_manager_view, name='lookup_manager'),
     path('admin-panel/lookups/<str:category>/add/', views.lookup_save_view, name='lookup_add'),
+    path('admin-panel/lookups/<str:category>/edit/', views.lookup_save_view, name='lookup_edit_no_id'),
     path('admin-panel/lookups/<str:category>/<int:item_id>/edit/', views.lookup_save_view, name='lookup_edit'),
     path('admin-panel/lookups/<str:category>/<int:item_id>/toggle/', views.lookup_toggle_active_view, name='lookup_toggle_active'),
 
