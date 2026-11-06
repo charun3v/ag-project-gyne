@@ -174,7 +174,13 @@ def ebrt_form_view(request, mr_no, course_id=None):
         concurrent_received = request.POST.get('concurrent_received') == '1'
         conc_regimen_id = request.POST.get('conc_chemo_regimen_id') or None
         conc_planned = int(request.POST.get('conc_planned_cycles') or 5)
-        conc_received = int(request.POST.get('conc_received_cycles') or 0)
+        conc_received_raw = request.POST.get('conc_received_cycles')
+        if conc_received_raw is not None and conc_received_raw != '':
+            conc_received = int(conc_received_raw)
+        elif concurrent_course and concurrent_course.received_cycles is not None:
+            conc_received = concurrent_course.received_cycles
+        else:
+            conc_received = conc_planned
 
         # Validate existing concurrent chemotherapy dates within EBRT dates
         if concurrent_received and concurrent_course:
@@ -262,7 +268,7 @@ def ebrt_form_view(request, mr_no, course_id=None):
             if conc_regimen_id:
                 concurrent_course.chemo_regimen_id = conc_regimen_id
             concurrent_course.planned_cycles = conc_planned
-            concurrent_course.received_cycles = max(conc_received, concurrent_course.cycles.count())
+            concurrent_course.received_cycles = conc_received
             concurrent_course.conc_chemo_start_date = ebrt_start_date
             concurrent_course.conc_chemo_end_date = ebrt_end_date
             concurrent_course.save()
@@ -285,7 +291,7 @@ def ebrt_form_view(request, mr_no, course_id=None):
         else:
             messages.success(request, f"EBRT course for {patient.pt_name} saved.")
         if 'save_next' in request.POST:
-            return redirect('brachy_router', mr_no=patient.mr_no)
+            return redirect('examination_detail', mr_no=patient.mr_no, enc_type='pre-brachy')
         if concurrent_received and not course_id:
             return redirect(f"/radiotherapy/{patient.mr_no}/ebrt/{course.ebrt_course_id}/edit/#concChemoContainer")
         return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
@@ -335,6 +341,8 @@ def ebrt_concurrent_cycle_save_view(request, mr_no, course_id, cycle_id=None):
             patient=patient,
             linked_ebrt_course=course,
             concurrent_received=True,
+            planned_cycles=5,
+            received_cycles=5,
             entered_by=request.user.username
         )
 
@@ -362,7 +370,18 @@ def ebrt_concurrent_cycle_save_view(request, mr_no, course_id, cycle_id=None):
         cycle.cycle_status = request.POST.get('cycle_status', 'Administered')
         cycle.save()
     else:
-        cycle_num = conc_course.cycles.count() + 1
+        current_cycle_count = conc_course.cycles.count()
+        received_limit = conc_course.received_cycles if (conc_course.received_cycles is not None and conc_course.received_cycles > 0) else conc_course.planned_cycles
+        if received_limit is not None and current_cycle_count >= received_limit:
+            messages.error(
+                request,
+                f"Validation Failed: Cannot add cycle #{current_cycle_count + 1}. "
+                f"You have declared {received_limit} cycles administered. "
+                f"Please update 'Cycles Administered' in the EBRT course record if additional cycles were given."
+            )
+            return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
+
+        cycle_num = current_cycle_count + 1
         cycle = ConcurrentChemoCycle.objects.create(
             course=conc_course,
             cycle_number=cycle_num,
@@ -418,7 +437,8 @@ def ebrt_concurrent_cycle_save_view(request, mr_no, course_id, cycle_id=None):
                     if carbo_reg:
                         conc_course.chemo_regimen = carbo_reg
 
-    conc_course.received_cycles = conc_course.cycles.count()
+    if conc_course.received_cycles is None:
+        conc_course.received_cycles = conc_course.cycles.count()
     conc_course.save()
 
     msg = f"Concurrent chemotherapy cycle #{cycle.cycle_number} updated." if cycle_id else f"Concurrent chemotherapy cycle #{cycle.cycle_number} recorded."
@@ -446,7 +466,6 @@ def ebrt_concurrent_cycle_delete_view(request, mr_no, course_id, cycle_id):
     if conc_course:
         cycle = get_object_or_404(ConcurrentChemoCycle, conc_chemo_cycle_id=cycle_id, course=conc_course)
         cycle.delete()
-        conc_course.received_cycles = conc_course.cycles.count()
         conc_course.save()
         messages.success(request, "Concurrent chemotherapy cycle removed.")
 

@@ -243,17 +243,17 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 520px; margin-bottom: 12px; align-items: start;">
                         <div>
                             <label class="access-label" style="font-weight: bold; color: #b00000;">Number of Cycles Planned *</label>
-                            <input type="number" name="conc_planned_cycles" min="1" max="10" 
+                            <input type="number" name="conc_planned_cycles" id="concPlannedCycles" min="1" max="10" 
                                    value="{% if concurrent_course %}{{ concurrent_course.planned_cycles }}{% else %}5{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                             <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">Declared cycles must complete before EBRT completes</span>
                         </div>
                         <div>
-                            <label class="access-label" style="font-weight: bold; color: #003366;">Cycles Administered</label>
-                            <input type="number" name="conc_received_cycles" 
-                                   value="{% if concurrent_course %}{{ concurrent_course.received_cycles }}{% else %}0{% endif %}" 
-                                   class="access-input" readonly style="background: #f0f0f0;">
-                            <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">Auto-calculated from recorded cycles below</span>
+                            <label class="access-label" style="font-weight: bold; color: #b00000;">Cycles Administered *</label>
+                            <input type="number" name="conc_received_cycles" id="concReceivedCycles" min="0" max="10" 
+                                   value="{% if concurrent_course and concurrent_course.received_cycles is not None %}{{ concurrent_course.received_cycles }}{% else %}5{% endif %}" 
+                                   class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
+                            <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">Manually entered total; cycle details cannot exceed this limit</span>
                         </div>
                     </div>
 
@@ -261,12 +261,21 @@
                     <div style="border: 1px solid #b0c4de; border-radius: 3px; overflow: hidden; margin-top: 10px;">
                         <div style="background: #e6edf5; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #b0c4de;">
                             <span style="font-weight: bold; font-size: 11px; color: #003366;">
-                                Concurrent Administration Grid (Dates must satisfy: RT Start &le; Date &le; RT End)
+                                Concurrent Administration Grid (Dates must satisfy: RT Start &le; Date &le; RT End) &mdash;
+                                <span style="font-weight: normal; color: #444;">
+                                    Recorded: <strong>{{ concurrent_cycles|length }}</strong> / Limit: <strong>{% if concurrent_course and concurrent_course.received_cycles is not None %}{{ concurrent_course.received_cycles }}{% else %}5{% endif %}</strong>
+                                </span>
                             </span>
                             {% if not course or not course.approval_locked %}
-                            <button type="button" class="btn-access btn-primary-action" onclick="openAddConcCycleModal()" style="font-size: 11px; padding: 2px 8px;">
-                                ➕ Record Cycle Administration
-                            </button>
+                                {% if concurrent_course and concurrent_course.received_cycles is not None and concurrent_cycles|length >= concurrent_course.received_cycles %}
+                                <button type="button" class="btn-access" onclick="openAddConcCycleModal()" style="font-size: 11px; padding: 2px 8px; color: #888; border-color: #ccc;" title="Administered cycles limit reached. Increase 'Cycles Administered' above to add more.">
+                                    ➕ Add Cycle (Limit {{ concurrent_course.received_cycles }} Reached)
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn-access btn-primary-action" onclick="openAddConcCycleModal()" style="font-size: 11px; padding: 2px 8px;">
+                                    ➕ Record Cycle Administration
+                                </button>
+                                {% endif %}
                             {% endif %}
                         </div>
 
@@ -420,7 +429,7 @@
                     💾 Save EBRT Course Record
                 </button>
                 <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
-                    ➡️ Save & Proceed to Brachytherapy
+                    ➡️ Save & Proceed to Pre-Brachy Evaluation
                 </button>
                 {% else %}
                 <span style="font-size: 12px; color: #555; font-style: italic;">
@@ -568,6 +577,14 @@
 
 {% if course and course.ebrt_course_id %}
     function openAddConcCycleModal() {
+        const concAdminInput = document.getElementById('concReceivedCycles');
+        const administeredLimit = concAdminInput ? parseInt(concAdminInput.value || '0', 10) : 5;
+        const currentCount = {{ concurrent_cycles|length|default:0 }};
+        if (administeredLimit > 0 && currentCount >= administeredLimit) {
+            alert("Cannot add cycle: you have declared " + administeredLimit + " cycle(s) administered, and " + currentCount + " cycle(s) have already been recorded.\n\nPlease increase 'Cycles Administered' in Section 4 and save the course record if additional cycles were given.");
+            return;
+        }
+
         const modal = document.getElementById('addConcCycleModal');
         const title = document.getElementById('concCycleModalTitle');
         const form = document.getElementById('concCycleForm');
@@ -646,6 +663,14 @@
     }
 
     function openDuplicateConcCycleModal(sourceCycleNum, cycleDate, cycleStatus, agentId, dose, unitId, days, routeId) {
+        const concAdminInput = document.getElementById('concReceivedCycles');
+        const administeredLimit = concAdminInput ? parseInt(concAdminInput.value || '0', 10) : 5;
+        const currentCount = {{ concurrent_cycles|length|default:0 }};
+        if (administeredLimit > 0 && currentCount >= administeredLimit) {
+            alert("Cannot duplicate cycle: you have declared " + administeredLimit + " cycle(s) administered, and " + currentCount + " cycle(s) have already been recorded.\n\nPlease increase 'Cycles Administered' in Section 4 and save the course record if additional cycles were given.");
+            return;
+        }
+
         const modal = document.getElementById('addConcCycleModal');
         const title = document.getElementById('concCycleModalTitle');
         const form = document.getElementById('concCycleForm');
