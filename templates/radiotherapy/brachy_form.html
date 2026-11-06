@@ -120,24 +120,32 @@
                     <!-- Applications Planned & Completed Counter Card (Below Radiobiological LQ parameters) -->
                     <div style="background: #f0f4f9; border: 1.5px solid #b0c4de; border-radius: 4px; padding: 10px 14px; margin-bottom: 12px;">
                         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
-                            <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <label class="access-label" style="font-weight: bold; color: #003366; font-size: 12px; margin: 0;">
                                         Number of Brachy applications Planned:
                                     </label>
+                                    <input type="number" name="total_applications_planned" 
+                                           value="{% if course and course.total_applications_planned %}{{ course.total_applications_planned }}{% else %}2{% endif %}" 
+                                           class="access-input" style="width: 60px; font-weight: bold; font-size: 13px; text-align: center;" min="1" required>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label class="access-label" style="font-weight: bold; color: #003366; font-size: 12px; margin: 0;">
+                                        Number of Fractions Planned:
+                                    </label>
                                     <input type="number" name="total_fractions_planned" 
-                                           value="{% if course %}{{ course.total_fractions_planned }}{% else %}3{% endif %}" 
-                                           class="access-input" style="width: 70px; font-weight: bold; font-size: 13px; text-align: center;" min="1" required>
+                                           value="{% if course and course.total_fractions_planned %}{{ course.total_fractions_planned }}{% else %}4{% endif %}" 
+                                           class="access-input" style="width: 60px; font-weight: bold; font-size: 13px; text-align: center;" min="1" required>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <span style="font-weight: bold; color: #003366; font-size: 12px;">
                                         Number of Brachytherapy applications completed:
                                     </span>
-                                    <span class="badge" style="font-size: 13px; padding: 4px 12px; background: {% if sessions|length >= course.total_fractions_planned|default:3 %}#15803d{% else %}#003366{% endif %}; color: #ffffff; border-radius: 3px; font-weight: bold;">
+                                    <span class="badge" style="font-size: 13px; padding: 4px 10px; background: {% if sessions|length >= course.total_applications_planned|default:2 %}#15803d{% else %}#003366{% endif %}; color: #ffffff; border-radius: 3px; font-weight: bold;">
                                         {{ sessions|length }}
                                     </span>
-                                    <span style="font-size: 11px; color: #555;">
-                                        ({{ completed_fractions|length }} Fractions Delivered)
+                                    <span style="font-size: 11px; color: #15803d; font-weight: bold; background: #dcfce7; padding: 2px 7px; border-radius: 3px;">
+                                        ({{ completed_fractions|length }} Fraction{{ completed_fractions|length|pluralize }} Delivered)
                                     </span>
                                 </div>
                             </div>

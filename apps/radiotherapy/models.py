@@ -461,7 +461,8 @@ class BrachyCourse(models.Model):
     linked_ebrt_course = models.ForeignKey(EBRTCourse, on_delete=models.SET_NULL, null=True, blank=True, db_column='Linked_EBRTCourseID')
     
     prescription_dose_gy = models.FloatField(null=True, blank=True, db_column='Prescription_Dose_Gy')
-    total_fractions_planned = models.IntegerField(default=3, db_column='Total_Fractions_Planned')
+    total_applications_planned = models.IntegerField(default=2, null=True, blank=True, db_column='Total_Applications_Planned')
+    total_fractions_planned = models.IntegerField(default=4, db_column='Total_Fractions_Planned')
     total_fractions_delivered = models.IntegerField(default=0, db_column='Total_Fractions_Delivered')
     
     brachy_start_date = models.DateField(null=True, blank=True, db_column='Brachy_Start_Date')

@@ -187,7 +187,7 @@
                         <td>{{ br.brachy_start_date|date:'d-M-Y'|default:'-' }} to {{ br.brachy_end_date|date:'d-M-Y'|default:'-' }}</td>
                         <td>
                             <span style="background: #e8eef4; padding: 2px 7px; font-weight: bold; border-radius: 2px; font-size: 11px;">
-                                {{ br.sessions.count }} application{{ br.sessions.count|pluralize }}
+                                {{ br.sessions.count }} application{{ br.sessions.count|pluralize }}{% if br.total_applications_planned %} ({{ br.total_applications_planned }} planned){% endif %}
                             </span>
                         </td>
                         <td>
@@ -235,7 +235,7 @@
                                     {% endif %}
                                 </div>
                                 <div style="font-size: 11px; color: #475569; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                                    <span>Applications Logged: <strong style="color: #003366;">{{ br.sessions.count }}</strong></span>
+                                    <span>Applications Logged: <strong style="color: #003366;">{{ br.sessions.count }}</strong> / {{ br.total_applications_planned|default:br.sessions.count }} planned</span>
                                     <span>Fractions Delivered: <strong style="color: #166534;">{{ br.summary_fx_count }}</strong> / {{ br.total_fractions_planned }} planned</span>
                                     <span>Status: <strong style="color: {% if br.completion_status == 'Completed' %}#166534{% else %}#003366{% endif %};">{{ br.course_status.status_name|default:br.completion_status|default:'In Progress' }}</strong></span>
                                 </div>

@@ -106,6 +106,15 @@ def radiotherapy_hub_view(request, mr_no):
             br.total_fractions_delivered = total_fx_count
             br.save(update_fields=['total_fractions_delivered'])
 
+        # Keep total_fractions_planned synchronized so it never shows delivered > planned
+        if not br.total_fractions_planned or br.total_fractions_planned < total_fx_count:
+            br.total_fractions_planned = total_fx_count
+            br.save(update_fields=['total_fractions_planned'])
+
+        if not br.total_applications_planned:
+            br.total_applications_planned = max(br.sessions.count(), 2)
+            br.save(update_fields=['total_applications_planned'])
+
         # Attach computed summary attributes to course instance for template rendering
         br.summary_total_dose = round(total_physical_dose, 1)
         br.summary_total_hrctv_d90 = round(total_hrctv_d90, 1)
@@ -539,7 +548,8 @@ def brachy_form_view(request, mr_no, course_id=None):
         course.linked_ebrt_course_id = request.POST.get('linked_ebrt_course_id') or None
 
         course.prescription_dose_gy = float(request.POST.get('prescription_dose_gy')) if request.POST.get('prescription_dose_gy') else None
-        course.total_fractions_planned = int(request.POST.get('total_fractions_planned')) if request.POST.get('total_fractions_planned') else 3
+        course.total_applications_planned = int(request.POST.get('total_applications_planned')) if request.POST.get('total_applications_planned') else 2
+        course.total_fractions_planned = int(request.POST.get('total_fractions_planned')) if request.POST.get('total_fractions_planned') else 4
         if course_id:
             course.total_fractions_delivered = BrachyFraction.objects.filter(brachy_session__brachy_course=course).count()
         elif request.POST.get('total_fractions_delivered'):
