@@ -284,7 +284,9 @@ def diagnosis_detail_view(request, mr_no, diagnosis_id=None):
 
             hist_raw = diagnosis.histology_other or (diagnosis.histology.histology_name if diagnosis.histology else '')
             if hist_raw:
-                hist_str = re.sub(r'carcinoma', 'Ca', hist_raw, flags=re.I)
+                hist_str = re.sub(r'\bcell\s+carcinoma\b', 'cell Ca', hist_raw, flags=re.I)
+                hist_str = re.sub(r'\bcarcinoma\b', 'Ca', hist_str, flags=re.I)
+                hist_str = re.sub(r'\badenocarcinoma\b', 'Adeno Ca', hist_str, flags=re.I)
             else:
                 hist_str = ''
 
@@ -293,12 +295,10 @@ def diagnosis_detail_view(request, mr_no, diagnosis_id=None):
                 g_match = re.search(r'G([1-4])', diagnosis.grade.grade_name, re.I)
                 if g_match:
                     grade_str = f"Grade {g_match.group(1)}"
-                elif 'cannot' not in diagnosis.grade.grade_name.lower():
+                elif 'cannot' not in diagnosis.grade.grade_name.lower() and 'gx' not in diagnosis.grade.grade_name.lower():
                     grade_str = diagnosis.grade.grade_name.split(' - ')[0]
 
-            stage_str = f"Stage {diagnosis.stage_text}" if diagnosis.stage_text else ''
-
-            parts = [p for p in [site_str, hist_str, grade_str, stage_str] if p]
+            parts = [p for p in [site_str, hist_str, grade_str] if p]
             if parts:
                 diagnosis.diagnosis_description = ", ".join(parts)
 

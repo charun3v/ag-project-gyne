@@ -164,7 +164,7 @@
                     <input type="text" name="diagnosis_description" id="id_diagnosis_description" 
                            value="{% if diagnosis %}{{ diagnosis.diagnosis_description|default:'' }}{% endif %}" 
                            class="access-input" style="width: 100%; box-sizing: border-box; font-size: 13px; font-weight: bold; color: #003366; padding: 6px 10px; border: 1px solid #707070;"
-                           placeholder="e.g. Ca Cervix, Squamous cell Ca, Grade 2, Stage IVA" required>
+                           placeholder="e.g. Ca Cervix, Squamous cell Ca, Grade 2" required>
                     <div style="font-size: 10px; color: #666; margin-top: 4px;">
                         Type or auto-assemble the complete oncologic diagnosis. This full text populates headers, clinical summaries, and reports.
                     </div>
@@ -298,8 +298,7 @@
                         </label>
                         <input type="text" name="stage_text" id="id_stage_text"
                                value="{% if diagnosis %}{{ diagnosis.stage_text|default:'' }}{% endif %}" 
-                               class="access-input" style="font-weight: bold; color: #003366;" placeholder="e.g. IIB, IIIC1, IVA" required
-                               onkeyup="updateFullDiagnosisSuggestion()">
+                               class="access-input" style="font-weight: bold; color: #003366;" placeholder="e.g. IIB, IIIC1, IVA" required>
                     </div>
                     <div>
                         <label class="access-label">T Status (Primary Tumor)</label>
@@ -408,7 +407,9 @@ function autoAssembleFullDiagnosis() {
         histText = otherHist;
     }
     if (histText) {
-        histText = histText.replace(/carcinoma/gi, 'Ca');
+        histText = histText.replace(/\bcell\s+carcinoma\b/gi, 'cell Ca')
+                           .replace(/\bcarcinoma\b/gi, 'Ca')
+                           .replace(/\badenocarcinoma\b/gi, 'Adeno Ca');
     }
 
     const gradeSelect = document.getElementById('id_grade_id');
@@ -418,22 +419,15 @@ function autoAssembleFullDiagnosis() {
         const match = fullGrade.match(/G([1-4])/i);
         if (match) {
             gradeText = 'Grade ' + match[1];
-        } else if (!fullGrade.toLowerCase().includes('cannot')) {
+        } else if (!fullGrade.toLowerCase().includes('cannot') && !fullGrade.toLowerCase().includes('gx')) {
             gradeText = fullGrade.split(' - ')[0];
         }
-    }
-
-    const stageInput = document.getElementById('id_stage_text');
-    let stageText = stageInput ? stageInput.value.trim() : '';
-    if (stageText && !/^stage\b/i.test(stageText)) {
-        stageText = 'Stage ' + stageText;
     }
 
     const parts = [];
     if (siteText) parts.push(siteText);
     if (histText) parts.push(histText);
     if (gradeText) parts.push(gradeText);
-    if (stageText) parts.push(stageText);
 
     if (parts.length > 0) {
         document.getElementById('id_diagnosis_description').value = parts.join(', ');
