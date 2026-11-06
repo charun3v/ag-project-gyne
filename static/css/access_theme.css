@@ -199,6 +199,72 @@ body {
     padding: 14px;
 }
 
+/* Dedicated Access Subform Box Containers (Compartments) */
+.access-subform {
+    background-color: #ffffff;
+    border: 1.5px solid #003366;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.access-subform-header {
+    background: linear-gradient(180deg, #003366, #002244);
+    color: #ffffff;
+    padding: 7px 12px;
+    font-weight: bold;
+    font-size: 12.5px;
+    letter-spacing: 0.3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #00172e;
+}
+
+.access-subform-header span {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.access-subform-body {
+    padding: 12px;
+    background-color: #ffffff;
+}
+
+/* Standard Access Grid Table */
+.access-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    font-size: 12px;
+}
+
+.access-table th {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: #003366;
+    font-size: 11px;
+}
+
+.access-table td {
+    border: 1px solid #e2e8f0;
+    padding: 6px 8px;
+    vertical-align: middle;
+}
+
+.access-table tr:nth-child(even) {
+    background-color: #f8fafc;
+}
+
+.access-table tr:hover {
+    background-color: #f0f7fd;
+}
+
 /* High-Density Form Controls */
 .form-grid {
     display: grid;
