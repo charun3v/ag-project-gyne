@@ -272,6 +272,36 @@ def diagnosis_detail_view(request, mr_no, diagnosis_id=None):
         else:
             diagnosis.is_current = False
 
+        # Auto-assemble full diagnosis description if left blank
+        if not diagnosis.diagnosis_description:
+            import re
+            site_obj = diagnosis.primary_site
+            site_raw = site_obj.site if site_obj else ''
+            if site_raw and not site_raw.lower().startswith('ca') and not site_raw.lower().startswith('cancer'):
+                site_str = f"Ca {site_raw}"
+            else:
+                site_str = site_raw
+
+            hist_raw = diagnosis.histology_other or (diagnosis.histology.histology_name if diagnosis.histology else '')
+            if hist_raw:
+                hist_str = re.sub(r'carcinoma', 'Ca', hist_raw, flags=re.I)
+            else:
+                hist_str = ''
+
+            grade_str = ''
+            if diagnosis.grade and diagnosis.grade.grade_name:
+                g_match = re.search(r'G([1-4])', diagnosis.grade.grade_name, re.I)
+                if g_match:
+                    grade_str = f"Grade {g_match.group(1)}"
+                elif 'cannot' not in diagnosis.grade.grade_name.lower():
+                    grade_str = diagnosis.grade.grade_name.split(' - ')[0]
+
+            stage_str = f"Stage {diagnosis.stage_text}" if diagnosis.stage_text else ''
+
+            parts = [p for p in [site_str, hist_str, grade_str, stage_str] if p]
+            if parts:
+                diagnosis.diagnosis_description = ", ".join(parts)
+
         diagnosis.save()
 
         AuditLog.objects.create(

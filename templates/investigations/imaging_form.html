@@ -101,8 +101,8 @@
                     🎯 2. Pelvic MRI Anatomical Staging Metrics (tblMRIPelvisDetail)
                 </legend>
 
-                <!-- Dimensions & Volume -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                <!-- Dimensions -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
                     <div>
                         <label class="access-label">Tumour Dimension 1 (cm)</label>
                         <input type="number" step="0.1" name="tumour_dimension_1_cm" 
@@ -120,12 +120,6 @@
                         <input type="number" step="0.1" name="tumour_dimension_3_cm" 
                                value="{% if pelvis_detail and pelvis_detail.tumour_dimension_3_cm %}{{ pelvis_detail.tumour_dimension_3_cm }}{% endif %}" 
                                class="access-input" placeholder="e.g. 4.2">
-                    </div>
-                    <div>
-                        <label class="access-label">Tumour Volume (cc)</label>
-                        <input type="number" step="0.1" name="tumour_volume_cc" 
-                               value="{% if pelvis_detail and pelvis_detail.tumour_volume_cc %}{{ pelvis_detail.tumour_volume_cc }}{% endif %}" 
-                               class="access-input" placeholder="e.g. 38.5">
                     </div>
                 </div>
 
@@ -147,13 +141,15 @@
                             Uterine Corpus Extension
                         </label>
                     </div>
-                    <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 6px;">
+                    <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 6px;" id="mri_vaginal_container">
                         <label style="font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="vaginal_involvement" value="1" {% if pelvis_detail and pelvis_detail.vaginal_involvement %}checked{% endif %}>
-                            Vaginal Involvement
+                            <input type="checkbox" name="vaginal_involvement" id="mri_vaginal_involvement_chk" value="1" 
+                                   {% if pelvis_detail and pelvis_detail.vaginal_involvement %}checked{% endif %}
+                                   onchange="toggleMRIVaginal()">
+                            Vaginal Extension / Involvement (Yes / No)
                         </label>
-                        <select name="vaginal_extent" class="access-select" style="margin-top: 4px;">
-                            <option value="">-- Vaginal Extent --</option>
+                        <select name="vaginal_extent" id="mri_vaginal_extent_select" class="access-select" style="margin-top: 4px;">
+                            <option value="">-- Vaginal Extent * --</option>
                             <option value="Upper Third" {% if pelvis_detail and pelvis_detail.vaginal_extent == 'Upper Third' %}selected{% endif %}>Upper 1/3 only</option>
                             <option value="Middle Third" {% if pelvis_detail and pelvis_detail.vaginal_extent == 'Middle Third' %}selected{% endif %}>Middle 1/3</option>
                             <option value="Lower Third" {% if pelvis_detail and pelvis_detail.vaginal_extent == 'Lower Third' %}selected{% endif %}>Lower 1/3</option>
@@ -414,11 +410,32 @@ function toggleMRILymphNodes() {
     }
 }
 
+function toggleMRIVaginal() {
+    const chk = document.getElementById('mri_vaginal_involvement_chk');
+    const sel = document.getElementById('mri_vaginal_extent_select');
+    const container = document.getElementById('mri_vaginal_container');
+    const isChecked = chk && chk.checked;
+
+    if (container) {
+        container.style.opacity = isChecked ? '1' : '0.5';
+    }
+    if (sel) {
+        sel.disabled = !isChecked;
+        sel.required = isChecked;
+        if (!isChecked) {
+            sel.value = '';
+        } else {
+            sel.focus();
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     updateSiteSelectionSummary();
     checkMRIPelvisStagingVisibility();
     toggleMRIParametrium();
     toggleMRILymphNodes();
+    toggleMRIVaginal();
 });
 </script>
         </form>

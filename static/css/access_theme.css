@@ -225,13 +225,23 @@ body {
 .form-group input[type="time"],
 .form-group input[type="password"],
 .form-group select,
-.form-group textarea {
+.form-group textarea,
+.access-input,
+.access-select,
+.access-textarea {
     font-family: inherit;
     font-size: 12px;
     padding: 4px 6px;
     border: 1px solid var(--ms-border);
     background-color: #ffffff;
     border-radius: 1px;
+    box-sizing: border-box;
+}
+
+.access-input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]),
+.access-select,
+.access-textarea {
+    width: 100%;
 }
 
 .form-group input:focus,

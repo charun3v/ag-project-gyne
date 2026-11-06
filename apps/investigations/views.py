@@ -238,15 +238,33 @@ def imaging_form_view(request, mr_no, imaging_id=None):
             pelvis_detail.tumour_dimension_1_cm = float(request.POST.get('tumour_dimension_1_cm')) if request.POST.get('tumour_dimension_1_cm') else None
             pelvis_detail.tumour_dimension_2_cm = float(request.POST.get('tumour_dimension_2_cm')) if request.POST.get('tumour_dimension_2_cm') else None
             pelvis_detail.tumour_dimension_3_cm = float(request.POST.get('tumour_dimension_3_cm')) if request.POST.get('tumour_dimension_3_cm') else None
-            pelvis_detail.tumour_volume_cc = float(request.POST.get('tumour_volume_cc')) if request.POST.get('tumour_volume_cc') else None
+            pelvis_detail.tumour_volume_cc = None
 
             pelvis_detail.cervix_involved = bool(request.POST.get('cervix_involved'))
             pelvis_detail.cervical_stromal_invasion = bool(request.POST.get('cervical_stromal_invasion'))
             pelvis_detail.cervical_stromal_extent = request.POST.get('cervical_stromal_extent', '')
 
             pelvis_detail.uterine_corpus_involved = bool(request.POST.get('uterine_corpus_involved'))
+            
+            # Vaginal Involvement / Extension: mandatory extent when checked
             pelvis_detail.vaginal_involvement = bool(request.POST.get('vaginal_involvement'))
-            pelvis_detail.vaginal_extent = request.POST.get('vaginal_extent', '')
+            if pelvis_detail.vaginal_involvement:
+                vaginal_extent_val = request.POST.get('vaginal_extent', '').strip()
+                if not vaginal_extent_val:
+                    messages.error(request, "Vaginal Extent is mandatory when Vaginal Extension is selected.")
+                    return render(request, 'investigations/imaging_form.html', {
+                        'patient': patient,
+                        'imaging': imaging,
+                        'pelvis_detail': pelvis_detail,
+                        'imaging_types': imaging_types,
+                        'imaging_sites': imaging_sites,
+                        'selected_site_ids': site_ids,
+                        'organ_statuses': organ_statuses,
+                        'nodal_stations_lookup': nodal_stations_lookup,
+                    })
+                pelvis_detail.vaginal_extent = vaginal_extent_val
+            else:
+                pelvis_detail.vaginal_extent = ''
 
             # Parametrial Involvement on MRI
             pelvis_detail.parametrium_involved = bool(request.POST.get('parametrium_involved'))
