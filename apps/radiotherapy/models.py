@@ -503,6 +503,8 @@ class BrachySession(models.Model):
     
     applicator = models.ForeignKey(ApplicatorType, on_delete=models.CASCADE, db_column='BrachyApplicatorID', related_name='sessions')
     image_guidance = models.ForeignKey(BrachyImageGuidance, on_delete=models.CASCADE, db_column='BrachyImageGuidanceID')
+    brachy_dosing = models.ForeignKey(BrachyDosing, on_delete=models.SET_NULL, null=True, blank=True, db_column='BrachyDosingID', help_text="Dosing system / prescription point for this application")
+    brachy_source = models.ForeignKey(BrachySourceType, on_delete=models.SET_NULL, null=True, blank=True, db_column='BrachySourceID', help_text="Source and HDR afterloader used for this application")
     anaesthesia_type = models.ForeignKey(AnaesthesiaType, on_delete=models.SET_NULL, null=True, blank=True, db_column='AnaesthesiaTypeID')
     is_template = models.ForeignKey(BrachyISTemplate, on_delete=models.SET_NULL, null=True, blank=True, db_column='ISTemplateID')
     session_status = models.ForeignKey(BrachySessionStatus, on_delete=models.SET_NULL, null=True, blank=True, db_column='BrachySessionStatusID')

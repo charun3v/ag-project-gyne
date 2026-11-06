@@ -89,6 +89,46 @@
 
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
                     <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">
+                            Dosing System
+                            {% if user.is_staff or user.is_superuser %}
+                                <a href="{% url 'lookup_manager' 'dosing' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Dosing Systems">[⚙️ Edit List]</a>
+                            {% endif %}
+                        </label>
+                        <select name="brachy_dosing" id="id_brachy_dosing" class="access-select">
+                            <option value="">-- Select Dosing --</option>
+                            {% for d in dosings %}
+                                <option value="{{ d.dosing_id }}" 
+                                    {% if form.brachy_dosing.value|stringformat:"s" == d.dosing_id|stringformat:"s" %}selected
+                                    {% elif session and session.brachy_dosing_id == d.dosing_id %}selected
+                                    {% elif not session and course and course.brachy_dosing_id == d.dosing_id %}selected{% endif %}>
+                                    {{ d.dosing_point }} ({{ d.dosing_system }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.brachy_dosing.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.brachy_dosing.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">
+                            Source & HDR Afterloader
+                            {% if user.is_staff or user.is_superuser %}
+                                <a href="{% url 'lookup_manager' 'source' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Sources">[⚙️ Edit List]</a>
+                            {% endif %}
+                        </label>
+                        <select name="brachy_source" id="id_brachy_source" class="access-select">
+                            <option value="">-- Select Source --</option>
+                            {% for s in sources %}
+                                <option value="{{ s.source_id }}" 
+                                    {% if form.brachy_source.value|stringformat:"s" == s.source_id|stringformat:"s" %}selected
+                                    {% elif session and session.brachy_source_id == s.source_id %}selected
+                                    {% elif not session and course and course.brachy_source_id == s.source_id %}selected{% endif %}>
+                                    {{ s.source_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.brachy_source.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.brachy_source.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
                         <label class="access-label">Anaesthesia Type</label>
                         <select name="anaesthesia_type" class="access-select">
                             <option value="">-- Select Anaesthesia --</option>
@@ -114,7 +154,10 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div style="grid-column: span 2;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 8px;">
+                    <div>
                         <label class="access-label">Procedure Performed By</label>
                         <input type="text" name="procedure_performed_by" 
                                value="{% if form.procedure_performed_by.value %}{{ form.procedure_performed_by.value }}{% elif session %}{{ session.procedure_performed_by }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}" 
@@ -227,13 +270,13 @@
                 </div>
             </fieldset>
 
-            <!-- Section 2: Fraction Dosimetry & Target/OAR Dose Metrics -->
+            <!-- Section 2: Fraction Details (Dose, HRCTV 90, Rectum 2cc, Bladder 2cc, Sigmoid 2cc) -->
             <fieldset style="border: 2px solid #003366; padding: 10px; margin-bottom: 12px; background: #fafafa;">
                 <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
-                    🎯 2. Fraction Dosimetry, Target Volumes & OAR Constraints (tblBrachyFractions)
+                    🎯 2. Fraction Details & Dosimetry (Dose, HRCTV D90, Rectum 2cc, Bladder 2cc, Sigmoid 2cc)
                 </legend>
                 
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 8px;">
                     <div>
                         <label class="access-label" style="font-weight: bold; color: #b00000;">Dose Delivered (Gy) *</label>
                         <input type="number" step="0.1" name="dose_delivered_gy" 
@@ -241,44 +284,44 @@
                                class="access-input" required placeholder="e.g. 7.0">
                     </div>
                     <div>
+                        <label class="access-label" style="font-weight: bold; color: #1b5e20;">Target HRCTV D90 (Gy)</label>
+                        <input type="number" step="0.1" name="hrctv_d90_gy" 
+                               value="{% if fraction and fraction.hrctv_d90_gy %}{{ fraction.hrctv_d90_gy }}{% endif %}" 
+                               class="access-input" style="font-weight: bold; color: #1b5e20;" placeholder="e.g. 7.4">
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #c2410c;">Rectum 2cc (Gy)</label>
+                        <input type="number" step="0.1" name="rectum_dose_2cc_gy" 
+                               value="{% if fraction and fraction.rectum_dose_2cc_gy %}{{ fraction.rectum_dose_2cc_gy }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 4.2">
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #c2410c;">Bladder 2cc (Gy)</label>
+                        <input type="number" step="0.1" name="bladder_dose_2cc_gy" 
+                               value="{% if fraction and fraction.bladder_dose_2cc_gy %}{{ fraction.bladder_dose_2cc_gy }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 5.1">
+                    </div>
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #c2410c;">Sigmoid 2cc (Gy)</label>
+                        <input type="number" step="0.1" name="sigmoid_dose_2cc_gy" 
+                               value="{% if fraction and fraction.sigmoid_dose_2cc_gy %}{{ fraction.sigmoid_dose_2cc_gy }}{% endif %}" 
+                               class="access-input" placeholder="e.g. 3.8">
+                    </div>
+                </div>
+
+                <!-- Secondary Parameters (Dwell Time & Volume) -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #d0dbe5;">
+                    <div>
                         <label class="access-label">Total Dwell Time (seconds)</label>
                         <input type="number" step="0.1" name="total_dwell_time_seconds" 
                                value="{% if fraction and fraction.total_dwell_time_seconds %}{{ fraction.total_dwell_time_seconds }}{% endif %}" 
                                class="access-input" placeholder="e.g. 345.5">
                     </div>
                     <div>
-                        <label class="access-label" style="font-weight: bold; color: #1b5e20;">Target HRCTV D90 (Gy)</label>
-                        <input type="number" step="0.1" name="hrctv_d90_gy" 
-                               value="{% if fraction and fraction.hrctv_d90_gy %}{{ fraction.hrctv_d90_gy }}{% endif %}" 
-                               class="access-input" style="font-weight: bold;" placeholder="e.g. 7.4">
-                    </div>
-                    <div>
                         <label class="access-label">Target HRCTV Volume (cc)</label>
                         <input type="number" step="0.1" name="volume_hrctv_cc" 
                                value="{% if fraction and fraction.volume_hrctv_cc %}{{ fraction.volume_hrctv_cc }}{% endif %}" 
                                class="access-input" placeholder="e.g. 26.5">
-                    </div>
-                </div>
-
-                <!-- Organs at Risk (OAR D2cc) -->
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #fff3e0; padding: 8px; border: 1px solid #ffe0b2;">
-                    <div>
-                        <label class="access-label" style="font-weight: bold; color: #e65100;">Bladder D2cc (Gy)</label>
-                        <input type="number" step="0.1" name="bladder_dose_2cc_gy" 
-                               value="{% if fraction and fraction.bladder_dose_2cc_gy %}{{ fraction.bladder_dose_2cc_gy }}{% endif %}" 
-                               class="access-input" placeholder="e.g. 5.1">
-                    </div>
-                    <div>
-                        <label class="access-label" style="font-weight: bold; color: #e65100;">Rectum D2cc (Gy)</label>
-                        <input type="number" step="0.1" name="rectum_dose_2cc_gy" 
-                               value="{% if fraction and fraction.rectum_dose_2cc_gy %}{{ fraction.rectum_dose_2cc_gy }}{% endif %}" 
-                               class="access-input" placeholder="e.g. 4.2">
-                    </div>
-                    <div>
-                        <label class="access-label" style="font-weight: bold; color: #e65100;">Sigmoid D2cc (Gy)</label>
-                        <input type="number" step="0.1" name="sigmoid_dose_2cc_gy" 
-                               value="{% if fraction and fraction.sigmoid_dose_2cc_gy %}{{ fraction.sigmoid_dose_2cc_gy }}{% endif %}" 
-                               class="access-input" placeholder="e.g. 3.8">
                     </div>
                 </div>
             </fieldset>

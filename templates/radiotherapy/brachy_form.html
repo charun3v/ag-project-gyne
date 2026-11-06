@@ -13,13 +13,13 @@
     </div>
 </div>
 
-<!-- Prominent Tag to EBRT Course Banner (Displayed at the top - below patient details) -->
-<div style="background: #eef4fa; border: 1.5px solid #003366; padding: 10px 16px; margin-bottom: 14px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+<!-- Prominent Tag to EBRT Course & Treatment Facility Banner (Displayed at the top - below patient details) -->
+<div style="background: #eef4fa; border: 1.5px solid #003366; padding: 10px 16px; margin-bottom: 14px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <label for="form_linked_ebrt_id" style="font-weight: bold; color: #003366; font-size: 13px; margin: 0; display: flex; align-items: center; gap: 6px;">
             <span style="font-size: 15px;">🔗</span> Tag to EBRT Course:
         </label>
-        <select name="linked_ebrt_course_id" id="form_linked_ebrt_id" form="brachy_main_form" class="access-select" style="min-width: 440px; font-weight: bold; color: #003366; font-size: 12px; border: 1.5px solid #003366; background: #ffffff; padding: 5px 10px;" onchange="onLinkedEbrtChange(this)">
+        <select name="linked_ebrt_course_id" id="form_linked_ebrt_id" form="brachy_main_form" class="access-select" style="min-width: 320px; font-weight: bold; color: #003366; font-size: 12px; border: 1.5px solid #003366; background: #ffffff; padding: 5px 10px;" onchange="onLinkedEbrtChange(this)">
             <option value="" data-dose="45.0" data-fx="25">-- Select / Link EBRT Course --</option>
             {% for eb in ebrt_courses %}
                 <option value="{{ eb.ebrt_course_id }}" 
@@ -34,8 +34,23 @@
             <span style="font-size: 11px; color: #b91c1c; font-style: italic;">(No prior EBRT courses recorded for this patient)</span>
         {% endif %}
     </div>
-    <div style="font-size: 11px; color: #334155; font-weight: 500;">
-        📊 Ingests EBRT dosimetry &amp; fractions into Cumulative EQD2 calculation
+
+    <!-- Brachy Treatment Facility (To the right of Tag to EBRT Course) -->
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <label for="form_treatment_centre_id" style="font-weight: bold; color: #003366; font-size: 13px; margin: 0; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 15px;">🏥</span> Brachy Treatment Facility:
+        </label>
+        <select name="treatment_centre_id" id="form_treatment_centre_id" form="brachy_main_form" class="access-select" style="min-width: 270px; font-weight: bold; color: #003366; font-size: 12px; border: 1.5px solid #003366; background: #ffffff; padding: 5px 10px;" onchange="syncTreatmentCentre();">
+            <option value="">-- Select Treatment Facility --</option>
+            {% for c in centres %}
+                <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% elif not course and "kidwai" in c.centre_name|lower %}selected{% elif not course.treatment_centre_id and "kidwai" in c.centre_name|lower %}selected{% endif %}>
+                    {{ c.centre_name }}
+                </option>
+            {% endfor %}
+        </select>
+        {% if user.is_staff or user.is_superuser %}
+            <a href="{% url 'lookup_manager' 'centre' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Treatment Centres">[⚙️ Edit List]</a>
+        {% endif %}
     </div>
 </div>
 
@@ -52,104 +67,18 @@
                 </div>
             </div>
             <div class="access-subform-body">
-                <form method="post" id="brachy_main_form" action="" onsubmit="syncLinkedEbrt();">
+                <form method="post" id="brachy_main_form" action="" onsubmit="syncFormFields();">
                     {% csrf_token %}
                     <input type="hidden" name="linked_ebrt_course_id" id="hidden_linked_ebrt_course_id" value="{% if course and course.linked_ebrt_course_id %}{{ course.linked_ebrt_course_id }}{% elif not course and ebrt_courses %}{{ ebrt_courses.0.ebrt_course_id }}{% endif %}">
+                    <input type="hidden" name="treatment_centre_id" id="hidden_treatment_centre_id" value="{% if course and course.treatment_centre_id %}{{ course.treatment_centre_id }}{% endif %}">
+                    <input type="hidden" name="prescription_dose_gy" value="{% if course and course.prescription_dose_gy %}{{ course.prescription_dose_gy }}{% endif %}">
+                    <input type="hidden" name="brachy_start_date" value="{% if course and course.brachy_start_date %}{{ course.brachy_start_date|date:'Y-m-d' }}{% endif %}">
+                    <input type="hidden" name="brachy_end_date" value="{% if course and course.brachy_end_date %}{{ course.brachy_end_date|date:'Y-m-d' }}{% endif %}">
 
-                    <!-- Section 1: Course Configuration & Associated EBRT -->
-                    <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
-                        <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
-                            1. Dosing System & Facility
-                        </legend>
-                        
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
-                            <div>
-                                <label class="access-label" style="font-weight: bold; color: #b00000;">Dosing System / Prescription Point *</label>
-                                <select name="brachy_dosing_id" class="access-select" required>
-                                    <option value="">-- Select Dosing --</option>
-                                    {% for d in dosings %}
-                                        <option value="{{ d.dosing_id }}" {% if course and course.brachy_dosing_id == d.dosing_id %}selected{% endif %}>
-                                            {{ d.dosing_point }} ({{ d.dosing_system }})
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="access-label">
-                                    Source & HDR Afterloader
-                                    <a href="{% url 'lookup_manager' 'source' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Sources & Afterloaders">[⚙️ Edit List]</a>
-                                </label>
-                                <select name="brachy_source_id" class="access-select">
-                                    <option value="">-- Select Source --</option>
-                                    {% for s in sources %}
-                                        <option value="{{ s.source_id }}" {% if course and course.brachy_source_id == s.source_id %}selected{% endif %}>
-                                            {{ s.source_name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="access-label">
-                                    Treatment Facility
-                                    <a href="{% url 'lookup_manager' 'centre' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Treatment Centres">[⚙️ Edit List]</a>
-                                </label>
-                                <select name="treatment_centre_id" class="access-select">
-                                    <option value="">-- Select Centre --</option>
-                                    {% for c in centres %}
-                                        <option value="{{ c.centre_id }}" {% if course and course.treatment_centre_id == c.centre_id %}selected{% elif not course and "kidwai" in c.centre_name|lower %}selected{% elif not course.treatment_centre_id and "kidwai" in c.centre_name|lower %}selected{% endif %}>
-                                            {{ c.centre_name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
-                            <div>
-                                <label class="access-label">Prescription Dose (Gy)</label>
-                                <input type="number" step="0.1" name="prescription_dose_gy" 
-                                       value="{% if course and course.prescription_dose_gy %}{{ course.prescription_dose_gy }}{% endif %}" 
-                                       class="access-input" placeholder="e.g. 21.0 or 28.0">
-                            </div>
-                            <div>
-                                <label class="access-label">Total Fractions Planned *</label>
-                                <input type="number" name="total_fractions_planned" 
-                                       value="{% if course %}{{ course.total_fractions_planned }}{% else %}3{% endif %}" 
-                                       class="access-input" required>
-                            </div>
-                            <div>
-                                <label class="access-label">Brachy Start Date</label>
-                                <input type="date" name="brachy_start_date" 
-                                       value="{% if course and course.brachy_start_date %}{{ course.brachy_start_date|date:'Y-m-d' }}{% endif %}" 
-                                       class="access-input">
-                            </div>
-                            <div>
-                                <label class="access-label">Brachy End Date</label>
-                                <input type="date" name="brachy_end_date" 
-                                       value="{% if course and course.brachy_end_date %}{{ course.brachy_end_date|date:'Y-m-d' }}{% endif %}" 
-                                       class="access-input">
-                            </div>
-                        </div>
-
-                        <!-- Completion Status Ribbon with Direct Checkbox -->
-                        <div style="background: #eef7ee; border: 1px solid #b7dfb7; padding: 8px 12px; border-radius: 2px; display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
-                            <label style="font-weight: bold; color: #155724; display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-size: 12px;">
-                                <input type="checkbox" name="is_course_completed" value="1" 
-                                       {% if course and course.completion_status == 'Completed' %}checked{% endif %}
-                                       style="width: 16px; height: 16px;">
-                                ✅ Mark Brachy Course Completed
-                            </label>
-                            <div style="font-size: 11px; color: #2e7d32;">
-                                <strong>Status:</strong> {% if course and course.completion_status == 'Completed' %}<span style="color: #1b5e20; font-weight: bold;">Completed</span>{% else %}<span style="color: #b45309; font-weight: bold;">In Progress</span>{% endif %} | 
-                                Delivered: <strong>{{ course.total_fractions_delivered|default:0 }}</strong> / {{ course.total_fractions_planned|default:3 }} Planned Fractions
-                            </div>
-                        </div>
-                    </fieldset>
-
-                    <!-- Section 2: Radiobiological Linear-Quadratic Parameters (EQD2) -->
+                    <!-- Radiobiological Linear-Quadratic Parameters (Directly below Tag to EBRT Course & Facility) -->
                     <fieldset style="border: 2px solid #2e7d32; padding: 10px; margin-bottom: 12px; background: #fbfdfb;">
                         <legend style="font-weight: bold; color: #1b5e20; padding: 0 5px; font-size: 11px;">
-                            📐 2. Radiobiological LQ Parameters (α/β Ratios for EQD2 Calculations)
+                            📐 Radiobiological LQ Parameters (α/β Ratios for EQD2 Calculations)
                         </legend>
                         
                         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
@@ -188,22 +117,58 @@
                         </div>
                     </fieldset>
 
-                    <!-- Save & Command Ribbon -->
-                    <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
-                        <button type="submit" name="save_stay" value="1" class="btn-access btn-primary-action">
-                            💾 Save Brachytherapy Course
-                        </button>
-                        <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
-                            ➡️ Save & Proceed to Follow-Up & Surveillance
-                        </button>
-                        {% if course %}
-                            <a href="{% url 'brachy_session_add' patient.mr_no course.brachy_course_id %}" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; border-color: #70a0d0;">
-                                ➕ Add Application
+                    <!-- Applications Planned & Completed Counter Card (Below Radiobiological LQ parameters) -->
+                    <div style="background: #f0f4f9; border: 1.5px solid #b0c4de; border-radius: 4px; padding: 10px 14px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+                            <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label class="access-label" style="font-weight: bold; color: #003366; font-size: 12px; margin: 0;">
+                                        Number of Brachy applications Planned:
+                                    </label>
+                                    <input type="number" name="total_fractions_planned" 
+                                           value="{% if course %}{{ course.total_fractions_planned }}{% else %}3{% endif %}" 
+                                           class="access-input" style="width: 70px; font-weight: bold; font-size: 13px; text-align: center;" min="1" required>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-weight: bold; color: #003366; font-size: 12px;">
+                                        Number of Brachytherapy applications completed:
+                                    </span>
+                                    <span class="badge" style="font-size: 13px; padding: 4px 12px; background: {% if sessions|length >= course.total_fractions_planned|default:3 %}#15803d{% else %}#003366{% endif %}; color: #ffffff; border-radius: 3px; font-weight: bold;">
+                                        {{ sessions|length }}
+                                    </span>
+                                    <span style="font-size: 11px; color: #555;">
+                                        ({{ completed_fractions|length }} Fractions Delivered)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Course Completion Checkbox -->
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <label style="font-weight: bold; color: #155724; display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-size: 12px;">
+                                    <input type="checkbox" name="is_course_completed" value="1" 
+                                           {% if course and course.completion_status == 'Completed' %}checked{% endif %}
+                                           style="width: 16px; height: 16px;">
+                                    ✅ Mark Brachy Course Completed
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Action Ribbon: Add Application details button & Saves -->
+                        <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #d0dbe5; flex-wrap: wrap;">
+                            <button type="submit" name="save_stay" value="1" class="btn-access btn-primary-action" style="padding: 5px 12px;">
+                                💾 Save Brachytherapy Course
+                            </button>
+                            <button type="submit" name="add_session" value="1" class="btn-access" style="background: #2563eb; color: #ffffff; font-weight: bold; border-color: #1d4ed8; padding: 5px 14px; font-size: 12px;">
+                                ➕ Add Application details
+                            </button>
+                            <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold; padding: 5px 12px;">
+                                ➡️ Save & Proceed to Follow-Up & Surveillance
+                            </button>
+                            <div style="flex-grow: 1;"></div>
+                            <a href="{% url 'radiotherapy_hub' patient.mr_no %}" class="btn-access" style="color: #666;">
+                                ✖️ Cancel / Back to Hub
                             </a>
-                        {% endif %}
-                        <a href="{% url 'radiotherapy_hub' patient.mr_no %}" class="btn-access" style="color: #666;">
-                            ✖️ Cancel / Back to Hub
-                        </a>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -232,6 +197,12 @@
                                     {% endif %}
                                 </span>
                                 <span style="margin-left: 10px; color: #666; font-size: 11px;">Guidance: {{ sess.image_guidance.guidance_name }}</span>
+                                {% if sess.brachy_dosing or course.brachy_dosing %}
+                                    <span style="margin-left: 10px; color: #003366; font-size: 11px;">Dosing: <strong>{{ sess.brachy_dosing.dosing_point|default:course.brachy_dosing.dosing_point }}</strong></span>
+                                {% endif %}
+                                {% if sess.brachy_source or course.brachy_source %}
+                                    <span style="margin-left: 10px; color: #003366; font-size: 11px;">Source: <strong>{{ sess.brachy_source.source_name|default:course.brachy_source.source_name }}</strong></span>
+                                {% endif %}
                                 <div style="font-size: 10px; color: #334155; margin-top: 3px;">
                                     📏 Measurements:
                                     {% if sess.tandem_length_cm %}Tandem: <strong>{{ sess.tandem_length_cm }} cm</strong> &nbsp;|&nbsp;{% endif %}
@@ -270,8 +241,8 @@
                                         <th style="width: 90px;">Date</th>
                                         <th>Delivered Dose</th>
                                         <th>HRCTV D90</th>
-                                        <th>Bladder 2cc</th>
                                         <th>Rectum 2cc</th>
+                                        <th>Bladder 2cc</th>
                                         <th>Sigmoid 2cc</th>
                                         <th>Dwell Time</th>
                                         <th style="width: 70px; text-align: center;">Action</th>
@@ -284,8 +255,8 @@
                                             <td>{{ fx.fraction_date|date:'d-M-Y' }}</td>
                                             <td><strong style="color: #003366;">{{ fx.dose_delivered_gy|default:'-' }} Gy</strong></td>
                                             <td><strong style="color: #1b5e20;">{{ fx.hrctv_d90_gy|default:'-' }} Gy</strong></td>
-                                            <td>{{ fx.bladder_dose_2cc_gy|default:'-' }} Gy</td>
                                             <td>{{ fx.rectum_dose_2cc_gy|default:'-' }} Gy</td>
+                                            <td>{{ fx.bladder_dose_2cc_gy|default:'-' }} Gy</td>
                                             <td>{{ fx.sigmoid_dose_2cc_gy|default:'-' }} Gy</td>
                                             <td>{{ fx.total_dwell_time_seconds|default:'0' }}s</td>
                                             <td style="text-align: center;">
@@ -332,14 +303,14 @@
                                                value="{% if sess.fractions.last and sess.fractions.last.hrctv_d90_gy %}{{ sess.fractions.last.hrctv_d90_gy }}{% endif %}" placeholder="e.g. 7.4">
                                     </div>
                                     <div>
-                                        <label class="access-label">Bladder 2cc (Gy)</label>
-                                        <input type="number" step="0.1" name="bladder_dose_2cc_gy" class="access-input" 
-                                               value="{% if sess.fractions.last and sess.fractions.last.bladder_dose_2cc_gy %}{{ sess.fractions.last.bladder_dose_2cc_gy }}{% endif %}" placeholder="e.g. 5.1">
-                                    </div>
-                                    <div>
                                         <label class="access-label">Rectum 2cc (Gy)</label>
                                         <input type="number" step="0.1" name="rectum_dose_2cc_gy" class="access-input" 
                                                value="{% if sess.fractions.last and sess.fractions.last.rectum_dose_2cc_gy %}{{ sess.fractions.last.rectum_dose_2cc_gy }}{% endif %}" placeholder="e.g. 4.2">
+                                    </div>
+                                    <div>
+                                        <label class="access-label">Bladder 2cc (Gy)</label>
+                                        <input type="number" step="0.1" name="bladder_dose_2cc_gy" class="access-input" 
+                                               value="{% if sess.fractions.last and sess.fractions.last.bladder_dose_2cc_gy %}{{ sess.fractions.last.bladder_dose_2cc_gy }}{% endif %}" placeholder="e.g. 5.1">
                                     </div>
                                     <div>
                                         <label class="access-label">Sigmoid 2cc (Gy)</label>
@@ -347,6 +318,16 @@
                                                value="{% if sess.fractions.last and sess.fractions.last.sigmoid_dose_2cc_gy %}{{ sess.fractions.last.sigmoid_dose_2cc_gy }}{% endif %}" placeholder="e.g. 3.8">
                                     </div>
                                 </div>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <button type="submit" class="btn-access btn-primary-action" style="font-size: 11px; padding: 3px 10px;">
+                                        💾 Save Fraction Dosimetry
+                                    </button>
+                                    <button type="button" class="btn-access" style="font-size: 11px; padding: 3px 8px;" onclick="toggleAppForm('appForm_{{ sess.brachy_session_id }}')">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     <button type="submit" class="btn-access btn-primary-action" style="font-size: 11px; padding: 3px 10px;">
                                         💾 Save Fraction Dosimetry
@@ -566,6 +547,19 @@ function syncLinkedEbrt() {
     }
 }
 
+function syncTreatmentCentre() {
+    var sel = document.getElementById('form_treatment_centre_id');
+    var hid = document.getElementById('hidden_treatment_centre_id');
+    if (sel && hid) {
+        hid.value = sel.value;
+    }
+}
+
+function syncFormFields() {
+    syncLinkedEbrt();
+    syncTreatmentCentre();
+}
+
 function onLinkedEbrtChange(selectElem) {
     syncLinkedEbrt();
     var opt = selectElem.options[selectElem.selectedIndex];
@@ -580,7 +574,7 @@ function onLinkedEbrtChange(selectElem) {
 
 // Initial calculation on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
-    syncLinkedEbrt();
+    syncFormFields();
     recalculateEQD2();
 });
 </script>

@@ -666,6 +666,8 @@ def brachy_session_form_view(request, mr_no, course_id, session_id=None):
 
     applicators = ApplicatorType.objects.filter(active=True).order_by('display_order', 'name')
     guidances = BrachyImageGuidance.objects.filter(is_active=True)
+    sources = BrachySourceType.objects.filter(is_active=True)
+    dosings = BrachyDosing.objects.filter(is_active=True)
     anaesthesias = AnaesthesiaType.objects.filter(is_active=True)
     session_statuses = BrachySessionStatus.objects.filter(is_active=True)
     fraction = session.fractions.first() if session else None
@@ -677,6 +679,13 @@ def brachy_session_form_view(request, mr_no, course_id, session_id=None):
             session = form.save(commit=False)
             session.brachy_course = course
             session.save()
+
+            # Sync dosing and source to course if not set on course
+            if session.brachy_dosing and not course.brachy_dosing:
+                course.brachy_dosing = session.brachy_dosing
+            if session.brachy_source and not course.brachy_source:
+                course.brachy_source = session.brachy_source
+            course.save()
 
             # Update or create fraction dosimetry
             if not fraction:
@@ -752,6 +761,8 @@ def brachy_session_form_view(request, mr_no, course_id, session_id=None):
         'fraction': fraction,
         'applicators': applicators,
         'guidances': guidances,
+        'sources': sources,
+        'dosings': dosings,
         'anaesthesias': anaesthesias,
         'session_statuses': session_statuses,
         'applicator_rules_json': json.dumps(rules_dict),

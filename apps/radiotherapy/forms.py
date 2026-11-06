@@ -6,6 +6,8 @@ from .models import (
     BrachyImageGuidance,
     AnaesthesiaType,
     BrachySessionStatus,
+    BrachyDosing,
+    BrachySourceType,
     ApplicatorFieldRule,
 )
 from .validators import validate_applicator_measurements, ALL_MEASUREMENT_CODES
@@ -48,6 +50,8 @@ class BrachySessionForm(forms.ModelForm):
             'session_date',
             'applicator',
             'image_guidance',
+            'brachy_dosing',
+            'brachy_source',
             'anaesthesia_type',
             'session_status',
             'procedure_performed_by',
@@ -67,6 +71,8 @@ class BrachySessionForm(forms.ModelForm):
             'session_date': forms.DateInput(attrs={'class': 'access-input', 'type': 'date'}),
             'applicator': forms.Select(attrs={'class': 'access-select', 'id': 'id_applicator', 'onchange': 'onApplicatorChange(this)'}),
             'image_guidance': forms.Select(attrs={'class': 'access-select'}),
+            'brachy_dosing': forms.Select(attrs={'class': 'access-select'}),
+            'brachy_source': forms.Select(attrs={'class': 'access-select'}),
             'anaesthesia_type': forms.Select(attrs={'class': 'access-select'}),
             'session_status': forms.Select(attrs={'class': 'access-select'}),
             'procedure_performed_by': forms.TextInput(attrs={'class': 'access-input'}),
@@ -83,6 +89,10 @@ class BrachySessionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['applicator'].queryset = ApplicatorType.objects.filter(active=True)
         self.fields['image_guidance'].queryset = BrachyImageGuidance.objects.filter(is_active=True)
+        self.fields['brachy_dosing'].queryset = BrachyDosing.objects.filter(is_active=True)
+        self.fields['brachy_dosing'].required = False
+        self.fields['brachy_source'].queryset = BrachySourceType.objects.filter(is_active=True)
+        self.fields['brachy_source'].required = False
         self.fields['anaesthesia_type'].queryset = AnaesthesiaType.objects.filter(is_active=True)
         self.fields['session_status'].queryset = BrachySessionStatus.objects.filter(is_active=True)
 
@@ -90,7 +100,12 @@ class BrachySessionForm(forms.ModelForm):
         if not self.instance.pk:
             self.fields['packing_adequate'].initial = True
             self.fields['imaging_done'].initial = True
-            self.fields['session_number'].initial = 1
+            self.fields['session_number'].initial = (self.course.sessions.count() + 1) if self.course else 1
+            if self.course:
+                if self.course.brachy_dosing:
+                    self.fields['brachy_dosing'].initial = self.course.brachy_dosing
+                if self.course.brachy_source:
+                    self.fields['brachy_source'].initial = self.course.brachy_source
 
     def clean(self):
         from datetime import date
