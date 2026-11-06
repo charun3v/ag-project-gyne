@@ -208,11 +208,15 @@
                                     {% endif %}
                                 </span>
                                 <span style="margin-left: 10px; color: #666; font-size: 11px;">Guidance: {{ sess.image_guidance.guidance_name }}</span>
-                                {% if sess.brachy_dosing or course.brachy_dosing %}
-                                    <span style="margin-left: 10px; color: #003366; font-size: 11px;">Dosing: <strong>{{ sess.brachy_dosing.dosing_point|default:course.brachy_dosing.dosing_point }}</strong></span>
+                                {% if sess.brachy_dosing %}
+                                    <span style="margin-left: 10px; color: #003366; font-size: 11px;">Dosing: <strong>{{ sess.brachy_dosing.dosing_point }}</strong></span>
+                                {% elif course.brachy_dosing %}
+                                    <span style="margin-left: 10px; color: #003366; font-size: 11px;">Dosing: <strong>{{ course.brachy_dosing.dosing_point }}</strong></span>
                                 {% endif %}
-                                {% if sess.brachy_source or course.brachy_source %}
-                                    <span style="margin-left: 10px; color: #003366; font-size: 11px;">Source: <strong>{{ sess.brachy_source.source_name|default:course.brachy_source.source_name }}</strong></span>
+                                {% if sess.brachy_source %}
+                                    <span style="margin-left: 10px; color: #003366; font-size: 11px;">Source: <strong>{{ sess.brachy_source.source_name }}</strong></span>
+                                {% elif course.brachy_source %}
+                                    <span style="margin-left: 10px; color: #003366; font-size: 11px;">Source: <strong>{{ course.brachy_source.source_name }}</strong></span>
                                 {% endif %}
                                 <div style="font-size: 10px; color: #334155; margin-top: 3px;">
                                     📏 Measurements:
