@@ -79,9 +79,10 @@ class BrachySessionForm(forms.ModelForm):
             'procedure_notes': forms.Textarea(attrs={'class': 'access-textarea', 'rows': 2}),
             'insertion_complications': forms.Textarea(attrs={'class': 'access-textarea', 'rows': 2}),
             'tandem_length_cm': forms.NumberInput(attrs={'class': 'access-input', 'step': '0.1', 'placeholder': 'e.g. 6.0'}),
-            'ovoid_diameter_mm': forms.NumberInput(attrs={'class': 'access-input', 'step': '0.1', 'placeholder': 'e.g. 20'}),
-            'ovoid_length_mm': forms.NumberInput(attrs={'class': 'access-input', 'step': '0.1', 'placeholder': 'e.g. 30'}),
-            'ring_diameter_mm': forms.NumberInput(attrs={'class': 'access-input', 'step': '0.1', 'placeholder': 'e.g. 30'}),
+            'ovoid_diameter_mm': forms.NumberInput(attrs={'class': 'access-input', 'step': '0.1', 'placeholder': 'e.g. 2.0'}),
+            'ovoid_length_mm': forms.NumberInput(attrs={'class': 'access-input', 'step': '0.1'}),
+            'ring_diameter_mm': forms.NumberInput(attrs={'class': 'access-input', 'step': '0.1', 'placeholder': 'e.g. 3.0'}),
+            'fractions_planned': forms.NumberInput(attrs={'class': 'access-input', 'min': 1, 'style': 'width: 80px;'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -95,17 +96,40 @@ class BrachySessionForm(forms.ModelForm):
         self.fields['brachy_source'].required = False
         self.fields['anaesthesia_type'].queryset = AnaesthesiaType.objects.filter(is_active=True)
         self.fields['session_status'].queryset = BrachySessionStatus.objects.filter(is_active=True)
+        self.fields['ovoid_length_mm'].required = False
 
-        # Set default values if new instance
+        # Set default values if new instance (matching clinical defaults and screenshot)
         if not self.instance.pk:
             self.fields['packing_adequate'].initial = True
             self.fields['imaging_done'].initial = True
             self.fields['session_number'].initial = (self.course.sessions.count() + 1) if self.course else 1
-            if self.course:
-                if self.course.brachy_dosing:
-                    self.fields['brachy_dosing'].initial = self.course.brachy_dosing
-                if self.course.brachy_source:
-                    self.fields['brachy_source'].initial = self.course.brachy_source
+            self.fields['fractions_planned'].initial = 1
+
+            # Default 1: Image Guidance -> CT-based
+            ct_guidance = BrachyImageGuidance.objects.filter(guidance_name__icontains='CT').first()
+            if ct_guidance:
+                self.fields['image_guidance'].initial = ct_guidance.guidance_id
+
+            # Default 2: Dosing System -> HR-CTV D90 (GEC-ESTRO)
+            if self.course and self.course.brachy_dosing:
+                self.fields['brachy_dosing'].initial = self.course.brachy_dosing
+            else:
+                hr_dosing = BrachyDosing.objects.filter(dosing_point__icontains='HR-CTV').first() or BrachyDosing.objects.filter(dosing_system__icontains='GEC-ESTRO').first()
+                if hr_dosing:
+                    self.fields['brachy_dosing'].initial = hr_dosing.dosing_id
+
+            # Default 3: Source -> Ir-192 HDR
+            if self.course and self.course.brachy_source:
+                self.fields['brachy_source'].initial = self.course.brachy_source
+            else:
+                ir_source = BrachySourceType.objects.filter(source_name__icontains='Ir-192 HDR').first()
+                if ir_source:
+                    self.fields['brachy_source'].initial = ir_source.source_id
+
+            # Default 4: Anaesthesia -> Spinal
+            spinal = AnaesthesiaType.objects.filter(anaesthesia_name__icontains='Spinal').first()
+            if spinal:
+                self.fields['anaesthesia_type'].initial = spinal.anaesthesia_id
 
     def clean(self):
         from datetime import date

@@ -55,7 +55,7 @@
 </div>
 
 <!-- Main 2-Column Responsive Layout: Left Form & Sessions, Right Cumulative Dosimetry Sidebar -->
-<div style="display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: start;">
+<div style="display: grid; grid-template-columns: 1fr 310px; gap: 12px; align-items: start;">
 
     <!-- ==================== LEFT COLUMN ==================== -->
     <div style="min-width: 0;">
@@ -191,6 +191,7 @@
                             <div>
                                 <strong style="color: #003366; font-size: 13px;">Application #{{ sess.session_number }}</strong>
                                 <span style="color: #555; margin-left: 8px;">(Date: <strong>{{ sess.session_date|date:'d-M-Y' }}</strong>)</span>
+                                <span style="margin-left: 10px; color: #003366; font-size: 11px;">Fractions in Application: <strong>{{ sess.fractions_planned|default:1 }}</strong></span>
                                 <span style="margin-left: 12px;">Applicator: <strong>{{ sess.applicator.name }}</strong>
                                     {% if user.is_staff or user.is_superuser %}
                                         <a href="{% url 'applicator_rules_admin' %}" target="_blank" style="font-size: 9px; color: #003366; text-decoration: underline;" title="Configure Applicator Rules">[⚙️ Rules]</a>
@@ -206,11 +207,10 @@
                                 <div style="font-size: 10px; color: #334155; margin-top: 3px;">
                                     📏 Measurements:
                                     {% if sess.tandem_length_cm %}Tandem: <strong>{{ sess.tandem_length_cm }} cm</strong> &nbsp;|&nbsp;{% endif %}
-                                    {% if sess.ovoid_diameter_mm %}Ovoid Dia: <strong>{{ sess.ovoid_diameter_mm }} mm</strong> &nbsp;|&nbsp;{% endif %}
-                                    {% if sess.ovoid_length_mm %}Ovoid Len: <strong>{{ sess.ovoid_length_mm }} mm</strong> &nbsp;|&nbsp;{% endif %}
+                                    {% if sess.ovoid_diameter_mm %}Ovoid Size: <strong>{{ sess.ovoid_diameter_mm }} cm</strong> &nbsp;|&nbsp;{% endif %}
                                     {% if sess.ring_diameter_mm %}Ring Dia: <strong>{{ sess.ring_diameter_mm }} mm</strong> &nbsp;|&nbsp;{% endif %}
                                     {% if sess.needle_count %}Needles: <strong>{{ sess.needle_count }}</strong> &nbsp;|&nbsp;{% endif %}
-                                    {% if not sess.tandem_length_cm and not sess.ovoid_diameter_mm and not sess.ovoid_length_mm and not sess.ring_diameter_mm and not sess.needle_count %}<em>None recorded</em> &nbsp;|&nbsp;{% endif %}
+                                    {% if not sess.tandem_length_cm and not sess.ovoid_diameter_mm and not sess.ring_diameter_mm and not sess.needle_count %}<em>None recorded</em> &nbsp;|&nbsp;{% endif %}
                                     Status: <strong>{{ sess.session_status.status_name|default:'Planned' }}</strong>
                                     {% if sess.is_approved %}<span style="color: #15803d; font-weight: bold;">[🔒 Approved]</span>{% endif %}
                                 </div>
@@ -245,7 +245,7 @@
                                         <th>Bladder 2cc</th>
                                         <th>Sigmoid 2cc</th>
                                         <th>Dwell Time</th>
-                                        <th style="width: 70px; text-align: center;">Action</th>
+                                        <th style="width: 85px; text-align: center;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -259,10 +259,57 @@
                                             <td>{{ fx.bladder_dose_2cc_gy|default:'-' }} Gy</td>
                                             <td>{{ fx.sigmoid_dose_2cc_gy|default:'-' }} Gy</td>
                                             <td>{{ fx.total_dwell_time_seconds|default:'0' }}s</td>
-                                            <td style="text-align: center;">
+                                            <td style="text-align: center; white-space: nowrap;">
+                                                <button type="button" class="btn-access" style="font-size: 9px; padding: 1px 5px; color: #003366; margin-right: 2px;" title="Edit Fraction" onclick="toggleEditFraction('editFx_{{ fx.brachy_fraction_id }}')">✏️ Edit</button>
                                                 <form method="post" action="{% url 'brachy_application_delete' patient.mr_no course.brachy_course_id sess.brachy_session_id fx.brachy_fraction_id %}" style="display: inline;" onsubmit="return confirm('Remove Fraction #{{ fx.fraction_number_in_session }}?');">
                                                     {% csrf_token %}
                                                     <button type="submit" class="btn-access" style="font-size: 9px; padding: 1px 5px; color: #b00000;" title="Delete Fraction">✕</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        <!-- Expandable inline edit row for Fraction -->
+                                        <tr id="editFx_{{ fx.brachy_fraction_id }}" style="display: none; background: #fffdf5; border-bottom: 2px solid #f59e0b;">
+                                            <td colspan="9" style="padding: 8px 10px;">
+                                                <form method="post" action="{% url 'brachy_application_edit' patient.mr_no course.brachy_course_id sess.brachy_session_id fx.brachy_fraction_id %}">
+                                                    {% csrf_token %}
+                                                    <div style="font-weight: bold; color: #92400e; font-size: 11px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                                        <span>✏️ Edit Parameters for Application #{{ sess.session_number }} - Fraction #{{ fx.fraction_number_in_session }} (Total Fx #{{ fx.overall_fraction_number }})</span>
+                                                        <button type="button" class="btn-access" style="font-size: 9px; padding: 1px 6px;" onclick="toggleEditFraction('editFx_{{ fx.brachy_fraction_id }}')">Close</button>
+                                                    </div>
+                                                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 6px;">
+                                                        <div>
+                                                            <label class="access-label" style="font-size: 9px;">Fraction Date *</label>
+                                                            <input type="date" name="fraction_date" value="{{ fx.fraction_date|date:'Y-m-d' }}" min="{{ sess.session_date|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="access-input" style="font-size: 11px; padding: 2px 4px;" required>
+                                                        </div>
+                                                        <div>
+                                                            <label class="access-label" style="font-size: 9px; font-weight: bold; color: #b00000;">Dose (Gy) *</label>
+                                                            <input type="number" step="0.1" name="dose_delivered_gy" value="{{ fx.dose_delivered_gy }}" class="access-input" style="font-size: 11px; padding: 2px 4px; font-weight: bold;" required>
+                                                        </div>
+                                                        <div>
+                                                            <label class="access-label" style="font-size: 9px; font-weight: bold; color: #1b5e20;">HRCTV D90</label>
+                                                            <input type="number" step="0.1" name="hrctv_d90_gy" value="{{ fx.hrctv_d90_gy|default:'' }}" class="access-input" style="font-size: 11px; padding: 2px 4px;">
+                                                        </div>
+                                                        <div>
+                                                            <label class="access-label" style="font-size: 9px; color: #c2410c;">Rectum 2cc</label>
+                                                            <input type="number" step="0.1" name="rectum_dose_2cc_gy" value="{{ fx.rectum_dose_2cc_gy|default:'' }}" class="access-input" style="font-size: 11px; padding: 2px 4px;">
+                                                        </div>
+                                                        <div>
+                                                            <label class="access-label" style="font-size: 9px; color: #c2410c;">Bladder 2cc</label>
+                                                            <input type="number" step="0.1" name="bladder_dose_2cc_gy" value="{{ fx.bladder_dose_2cc_gy|default:'' }}" class="access-input" style="font-size: 11px; padding: 2px 4px;">
+                                                        </div>
+                                                        <div>
+                                                            <label class="access-label" style="font-size: 9px; color: #c2410c;">Sigmoid 2cc</label>
+                                                            <input type="number" step="0.1" name="sigmoid_dose_2cc_gy" value="{{ fx.sigmoid_dose_2cc_gy|default:'' }}" class="access-input" style="font-size: 11px; padding: 2px 4px;">
+                                                        </div>
+                                                        <div>
+                                                            <label class="access-label" style="font-size: 9px;">Dwell Time (s)</label>
+                                                            <input type="number" step="0.1" name="total_dwell_time_seconds" value="{{ fx.total_dwell_time_seconds|default:'0' }}" class="access-input" style="font-size: 11px; padding: 2px 4px;">
+                                                        </div>
+                                                    </div>
+                                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                                        <button type="submit" class="btn-access btn-primary-action" style="font-size: 10px; padding: 2px 10px;">💾 Update Fraction</button>
+                                                        <button type="button" class="btn-access" style="font-size: 10px; padding: 2px 6px;" onclick="toggleEditFraction('editFx_{{ fx.brachy_fraction_id }}')">Cancel</button>
+                                                    </div>
                                                 </form>
                                             </td>
                                         </tr>
@@ -328,16 +375,6 @@
                                 </div>
                             </form>
                         </div>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <button type="submit" class="btn-access btn-primary-action" style="font-size: 11px; padding: 3px 10px;">
-                                        💾 Save Fraction Dosimetry
-                                    </button>
-                                    <button type="button" class="btn-access" style="font-size: 11px; padding: 3px 8px;" onclick="toggleAppForm('appForm_{{ sess.brachy_session_id }}')">
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
                     </div>
                 {% empty %}
                     <div style="text-align: center; padding: 25px; color: #666; font-style: italic; background: #fafafa; border: 1px dashed #ccc;">
@@ -350,70 +387,70 @@
     </div>
 
     <!-- ==================== RIGHT COLUMN: DOSIMETRY & CUMULATIVE EQD2 SIDEBAR ==================== -->
-    <div style="position: sticky; top: 12px; background: #ffffff; border: 1px solid #b0c4de; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); overflow: hidden;">
-        <div style="background: linear-gradient(180deg, #003366, #002244); color: #ffffff; padding: 8px 12px; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: space-between;">
-            <span>📊 Dosimetry & EQD2 Calculator</span>
-            <span style="font-size: 10px; background: #004c99; padding: 2px 6px; border-radius: 2px;">GEC-ESTRO</span>
+    <div style="position: sticky; top: 12px; background: #ffffff; border: 1.5px solid #003366; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); overflow: hidden; width: 310px;">
+        <div style="background: linear-gradient(180deg, #003366, #002244); color: #ffffff; padding: 6px 10px; font-weight: bold; font-size: 11.5px; display: flex; align-items: center; justify-content: space-between;">
+            <span>📊 EQD2 Calculator</span>
+            <span style="font-size: 9px; background: #004c99; padding: 1px 5px; border-radius: 2px;">GEC-ESTRO</span>
         </div>
 
-        <div style="padding: 10px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="padding: 7px 8px; display: flex; flex-direction: column; gap: 7px;">
 
             <!-- 1. EBRT Parameters (Auto-populated & Editable) -->
-            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 8px;">
-                <div style="font-weight: bold; color: #003366; font-size: 11px; margin-bottom: 6px; display: flex; justify-content: space-between;">
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 6px;">
+                <div style="font-weight: bold; color: #003366; font-size: 10.5px; margin-bottom: 4px; display: flex; justify-content: space-between;">
                     <span>1. External Beam RT (EBRT)</span>
-                    <span style="font-size: 9px; color: #64748b; font-weight: normal;">(Editable)</span>
+                    <span style="font-size: 8.5px; color: #64748b; font-weight: normal;">(Editable)</span>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 3px;">
                     <div>
-                        <label class="access-label" style="font-size: 10px;">EBRT Dose (Gy)</label>
+                        <label class="access-label" style="font-size: 9px; margin-bottom: 1px;">EBRT Dose (Gy)</label>
                         <input type="number" step="0.1" id="side_ebrt_dose" value="{{ ebrt_dose|default:45.0 }}" 
-                               class="access-input" style="font-weight: bold; color: #003366; padding: 3px 6px;"
+                               class="access-input" style="font-weight: bold; color: #003366; padding: 2px 4px; font-size: 11px;"
                                oninput="recalculateEQD2()">
                     </div>
                     <div>
-                        <label class="access-label" style="font-size: 10px;">EBRT Fractions</label>
+                        <label class="access-label" style="font-size: 9px; margin-bottom: 1px;">EBRT Fractions</label>
                         <input type="number" step="1" id="side_ebrt_fx" value="{{ ebrt_fx|default:25 }}" 
-                               class="access-input" style="font-weight: bold; color: #003366; padding: 3px 6px;"
+                               class="access-input" style="font-weight: bold; color: #003366; padding: 2px 4px; font-size: 11px;"
                                oninput="recalculateEQD2()">
                     </div>
                 </div>
-                <div style="font-size: 10px; color: #475569; display: flex; justify-content: space-between;">
+                <div style="font-size: 9px; color: #475569; display: flex; justify-content: space-between;">
                     <span>Fraction size:</span>
                     <strong id="side_dpf_display">{{ ebrt_dose }} Gy / {{ ebrt_fx }}# = 1.80 Gy/#</strong>
                 </div>
             </div>
 
             <!-- 2. Completed Brachy Dates & Doses -->
-            <div style="background: #fffdf5; border: 1px solid #fde68a; border-radius: 3px; padding: 8px;">
-                <div style="font-weight: bold; color: #92400e; font-size: 11px; margin-bottom: 6px; display: flex; justify-content: space-between;">
-                    <span>2. Completed Brachy Fractions ({{ completed_fractions|length }})</span>
-                    <span style="font-size: 10px; color: #92400e; font-weight: bold;">Dose / D90</span>
+            <div style="background: #fffdf5; border: 1px solid #fde68a; border-radius: 3px; padding: 6px;">
+                <div style="font-weight: bold; color: #92400e; font-size: 10.5px; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                    <span>2. Completed Brachy ({{ completed_fractions|length }})</span>
+                    <span style="font-size: 9px; color: #92400e; font-weight: bold;">Dose / D90</span>
                 </div>
-                <div style="max-height: 140px; overflow-y: auto; font-size: 10px;">
+                <div style="max-height: 110px; overflow-y: auto; font-size: 9.5px;">
                     {% if completed_fractions %}
                         <table style="width: 100%; border-collapse: collapse;">
                             <thead>
                                 <tr style="border-bottom: 1px solid #fde68a; color: #78350f;">
-                                    <th style="text-align: left; padding: 2px 0;"># Date</th>
-                                    <th style="text-align: right; padding: 2px 2px;">Dose</th>
-                                    <th style="text-align: right; padding: 2px 2px;">B2cc</th>
-                                    <th style="text-align: right; padding: 2px 2px;">R2cc</th>
+                                    <th style="text-align: left; padding: 1.5px 0;"># Date</th>
+                                    <th style="text-align: right; padding: 1.5px 2px;">Dose</th>
+                                    <th style="text-align: right; padding: 1.5px 2px;">B2cc</th>
+                                    <th style="text-align: right; padding: 1.5px 2px;">R2cc</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for cf in completed_fractions %}
                                     <tr style="border-bottom: 1px dotted #fef3c7;">
-                                        <td style="padding: 2px 0;">
+                                        <td style="padding: 1.5px 0;">
                                             <strong>#{{ cf.overall_num }}</strong>: {{ cf.fraction_date|date:'d-M' }}
                                         </td>
-                                        <td style="text-align: right; padding: 2px 2px; font-weight: bold; color: #003366;">
+                                        <td style="text-align: right; padding: 1.5px 2px; font-weight: bold; color: #003366;">
                                             {{ cf.dose_delivered }} Gy
                                         </td>
-                                        <td style="text-align: right; padding: 2px 2px; color: #b45309;">
+                                        <td style="text-align: right; padding: 1.5px 2px; color: #b45309;">
                                             {{ cf.bladder_2cc }}
                                         </td>
-                                        <td style="text-align: right; padding: 2px 2px; color: #b45309;">
+                                        <td style="text-align: right; padding: 1.5px 2px; color: #b45309;">
                                             {{ cf.rectum_2cc }}
                                         </td>
                                     </tr>
@@ -421,7 +458,7 @@
                             </tbody>
                         </table>
                     {% else %}
-                        <div style="color: #a16207; font-style: italic; text-align: center; padding: 6px 0;">
+                        <div style="color: #a16207; font-style: italic; text-align: center; padding: 4px 0;">
                             No completed fractions logged yet.
                         </div>
                     {% endif %}
@@ -429,59 +466,59 @@
             </div>
 
             <!-- 3. Cumulative EQD2 Box (EBRT + Brachy) -->
-            <div style="background: #f0fdf4; border: 2px solid #86efac; border-radius: 4px; padding: 10px;">
-                <div style="font-weight: bold; color: #166534; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+            <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 4px; padding: 7px;">
+                <div style="font-weight: bold; color: #166534; font-size: 10px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">
                     🎯 Cumulative EQD2 (EBRT + Brachy)
                 </div>
 
-                <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
                     <!-- Tumour EQD2 -->
-                    <div style="background: #ffffff; border: 1px solid #bbf7d0; border-radius: 3px; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="background: #ffffff; border: 1px solid #bbf7d0; border-radius: 3px; padding: 4px 6px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: bold; color: #14532d; font-size: 11px;">Tumour EQD2₁₀</div>
-                            <div style="font-size: 9px; color: #64748b;">(EBRT: <span id="ebrt_t_disp">{{ ebrt_tumor_eqd2 }}</span> + BT: {{ tumor_brachy_eqd2 }})</div>
+                            <div style="font-weight: bold; color: #14532d; font-size: 10px;">Tumour EQD2₁₀</div>
+                            <div style="font-size: 8.5px; color: #64748b;">(EBRT: <span id="ebrt_t_disp">{{ ebrt_tumor_eqd2 }}</span> + BT: {{ tumor_brachy_eqd2 }})</div>
                         </div>
-                        <div id="side_tumor_eqd2" style="font-size: 15px; font-weight: bold; color: #15803d;">
+                        <div id="side_tumor_eqd2" style="font-size: 13px; font-weight: bold; color: #15803d;">
                             {{ cumulative_tumor_eqd2 }} Gy₁₀
                         </div>
                     </div>
 
                     <!-- Rectum 2cc EQD2 -->
-                    <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 3px; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 3px; padding: 4px 6px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: bold; color: #9a3412; font-size: 11px;">Rectum 2cc EQD2₃</div>
-                            <div style="font-size: 9px; color: #64748b;">(EBRT: <span id="ebrt_r_disp">{{ ebrt_rectum_eqd2 }}</span> + BT: {{ rectum_brachy_eqd2 }})</div>
+                            <div style="font-weight: bold; color: #9a3412; font-size: 10px;">Rectum 2cc EQD2₃</div>
+                            <div style="font-size: 8.5px; color: #64748b;">(EBRT: <span id="ebrt_r_disp">{{ ebrt_rectum_eqd2 }}</span> + BT: {{ rectum_brachy_eqd2 }})</div>
                         </div>
-                        <div id="side_rectum_eqd2" style="font-size: 14px; font-weight: bold; color: #c2410c;">
+                        <div id="side_rectum_eqd2" style="font-size: 12px; font-weight: bold; color: #c2410c;">
                             {{ cumulative_rectum_eqd2 }} Gy₃
                         </div>
                     </div>
 
                     <!-- Bladder 2cc EQD2 -->
-                    <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 3px; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 3px; padding: 4px 6px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: bold; color: #9a3412; font-size: 11px;">Bladder 2cc EQD2₃</div>
-                            <div style="font-size: 9px; color: #64748b;">(EBRT: <span id="ebrt_b_disp">{{ ebrt_bladder_eqd2 }}</span> + BT: {{ bladder_brachy_eqd2 }})</div>
+                            <div style="font-weight: bold; color: #9a3412; font-size: 10px;">Bladder 2cc EQD2₃</div>
+                            <div style="font-size: 8.5px; color: #64748b;">(EBRT: <span id="ebrt_b_disp">{{ ebrt_bladder_eqd2 }}</span> + BT: {{ bladder_brachy_eqd2 }})</div>
                         </div>
-                        <div id="side_bladder_eqd2" style="font-size: 14px; font-weight: bold; color: #c2410c;">
+                        <div id="side_bladder_eqd2" style="font-size: 12px; font-weight: bold; color: #c2410c;">
                             {{ cumulative_bladder_eqd2 }} Gy₃
                         </div>
                     </div>
 
                     <!-- Sigmoid 2cc EQD2 -->
-                    <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 3px; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 3px; padding: 4px 6px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: bold; color: #9a3412; font-size: 11px;">Sigmoid 2cc EQD2₃</div>
-                            <div style="font-size: 9px; color: #64748b;">(EBRT: <span id="ebrt_s_disp">{{ ebrt_sigmoid_eqd2 }}</span> + BT: {{ sigmoid_brachy_eqd2 }})</div>
+                            <div style="font-weight: bold; color: #9a3412; font-size: 10px;">Sigmoid 2cc EQD2₃</div>
+                            <div style="font-size: 8.5px; color: #64748b;">(EBRT: <span id="ebrt_s_disp">{{ ebrt_sigmoid_eqd2 }}</span> + BT: {{ sigmoid_brachy_eqd2 }})</div>
                         </div>
-                        <div id="side_sigmoid_eqd2" style="font-size: 14px; font-weight: bold; color: #c2410c;">
+                        <div id="side_sigmoid_eqd2" style="font-size: 12px; font-weight: bold; color: #c2410c;">
                             {{ cumulative_sigmoid_eqd2 }} Gy₃
                         </div>
                     </div>
                 </div>
 
-                <div style="margin-top: 8px; font-size: 9px; color: #166534; text-align: center; border-top: 1px dashed #bbf7d0; padding-top: 6px;">
-                    Linear-Quadratic model: EQD2 = D × (d + α/β) / (2 + α/β)
+                <div style="margin-top: 5px; font-size: 8px; color: #166534; text-align: center; border-top: 1px dashed #bbf7d0; padding-top: 3px;">
+                    EQD2 = D × (d + α/β) / (2 + α/β)
                 </div>
             </div>
 
@@ -494,6 +531,13 @@ function toggleAppForm(formId) {
     var elem = document.getElementById(formId);
     if (elem) {
         elem.style.display = (elem.style.display === 'none' || elem.style.display === '') ? 'block' : 'none';
+    }
+}
+
+function toggleEditFraction(rowId) {
+    var elem = document.getElementById(rowId);
+    if (elem) {
+        elem.style.display = (elem.style.display === 'none' || elem.style.display === '') ? 'table-row' : 'none';
     }
 }
 

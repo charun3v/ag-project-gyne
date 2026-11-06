@@ -78,7 +78,8 @@
                             {% for g in guidances %}
                                 <option value="{{ g.guidance_id }}" 
                                     {% if form.image_guidance.value|stringformat:"s" == g.guidance_id|stringformat:"s" %}selected
-                                    {% elif session and session.image_guidance_id == g.guidance_id %}selected{% endif %}>
+                                    {% elif session and session.image_guidance_id == g.guidance_id %}selected
+                                    {% elif not session and not form.image_guidance.value and "ct" in g.guidance_name|lower %}selected{% endif %}>
                                     {{ g.guidance_name }}
                                 </option>
                             {% endfor %}
@@ -101,7 +102,8 @@
                                 <option value="{{ d.dosing_id }}" 
                                     {% if form.brachy_dosing.value|stringformat:"s" == d.dosing_id|stringformat:"s" %}selected
                                     {% elif session and session.brachy_dosing_id == d.dosing_id %}selected
-                                    {% elif not session and course and course.brachy_dosing_id == d.dosing_id %}selected{% endif %}>
+                                    {% elif not session and course and course.brachy_dosing_id == d.dosing_id %}selected
+                                    {% elif not session and not form.brachy_dosing.value and "hr-ctv" in d.dosing_point|lower %}selected{% endif %}>
                                     {{ d.dosing_point }} ({{ d.dosing_system }})
                                 </option>
                             {% endfor %}
@@ -121,7 +123,8 @@
                                 <option value="{{ s.source_id }}" 
                                     {% if form.brachy_source.value|stringformat:"s" == s.source_id|stringformat:"s" %}selected
                                     {% elif session and session.brachy_source_id == s.source_id %}selected
-                                    {% elif not session and course and course.brachy_source_id == s.source_id %}selected{% endif %}>
+                                    {% elif not session and course and course.brachy_source_id == s.source_id %}selected
+                                    {% elif not session and not form.brachy_source.value and "ir-192" in s.source_name|lower %}selected{% endif %}>
                                     {{ s.source_name }}
                                 </option>
                             {% endfor %}
@@ -135,7 +138,8 @@
                             {% for an in anaesthesias %}
                                 <option value="{{ an.anaesthesia_id }}" 
                                     {% if form.anaesthesia_type.value|stringformat:"s" == an.anaesthesia_id|stringformat:"s" %}selected
-                                    {% elif session and session.anaesthesia_type_id == an.anaesthesia_id %}selected{% endif %}>
+                                    {% elif session and session.anaesthesia_type_id == an.anaesthesia_id %}selected
+                                    {% elif not session and not form.anaesthesia_type.value and "spinal" in an.anaesthesia_name|lower %}selected{% endif %}>
                                     {{ an.anaesthesia_name }}
                                 </option>
                             {% endfor %}
@@ -156,7 +160,14 @@
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 8px;">
+                <div style="display: grid; grid-template-columns: 240px 1fr; gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">Number of fractions in the application *</label>
+                        <input type="number" name="fractions_planned" 
+                               value="{% if form.fractions_planned.value %}{{ form.fractions_planned.value }}{% elif session and session.fractions_planned %}{{ session.fractions_planned }}{% else %}1{% endif %}" 
+                               class="access-input" min="1" required style="font-weight: bold; width: 100px;">
+                        {% if form.fractions_planned.errors %}<div style="color: #b00000; font-size: 10px;">{{ form.fractions_planned.errors.0 }}</div>{% endif %}
+                    </div>
                     <div>
                         <label class="access-label">Procedure Performed By</label>
                         <input type="text" name="procedure_performed_by" 
@@ -180,7 +191,7 @@
                         No physical measurement fields are configured for the selected applicator type.
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(5, 1fr) 90px 90px; gap: 10px; align-items: start;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr) 90px 90px; gap: 10px; align-items: start;">
                         <!-- 1. Tandem length (cm) -->
                         <div id="container_tandem_length_cm" style="display: none;">
                             <label class="access-label" style="font-weight: bold;" for="id_tandem_length_cm">
@@ -195,35 +206,21 @@
                             {% endif %}
                         </div>
 
-                        <!-- 2. Ovoid diameter (mm) -->
+                        <!-- 2. Ovoid size (cm) -->
                         <div id="container_ovoid_diameter_mm" style="display: none;">
                             <label class="access-label" style="font-weight: bold;" for="id_ovoid_diameter_mm">
-                                <span class="field-label">Ovoid diameter (mm)</span>
+                                <span class="field-label">Ovoid size (cm)</span>
                                 <span class="req-indicator" style="color: #b00000; display: none;">*</span>
                             </label>
                             <input type="number" step="0.1" name="ovoid_diameter_mm" id="id_ovoid_diameter_mm"
                                    value="{% if form.ovoid_diameter_mm.value != None %}{{ form.ovoid_diameter_mm.value }}{% elif session and session.ovoid_diameter_mm != None %}{{ session.ovoid_diameter_mm }}{% endif %}" 
-                                   class="access-input" placeholder="e.g. 20">
+                                   class="access-input" placeholder="e.g. 2.0">
                             {% if form.ovoid_diameter_mm.errors %}
                                 <div style="color: #b00000; font-size: 10px; margin-top: 2px;">{{ form.ovoid_diameter_mm.errors.0 }}</div>
                             {% endif %}
                         </div>
 
-                        <!-- 3. Ovoid length (mm) -->
-                        <div id="container_ovoid_length_mm" style="display: none;">
-                            <label class="access-label" style="font-weight: bold;" for="id_ovoid_length_mm">
-                                <span class="field-label">Ovoid length (mm)</span>
-                                <span class="req-indicator" style="color: #b00000; display: none;">*</span>
-                            </label>
-                            <input type="number" step="0.1" name="ovoid_length_mm" id="id_ovoid_length_mm"
-                                   value="{% if form.ovoid_length_mm.value != None %}{{ form.ovoid_length_mm.value }}{% elif session and session.ovoid_length_mm != None %}{{ session.ovoid_length_mm }}{% endif %}" 
-                                   class="access-input" placeholder="e.g. 30">
-                            {% if form.ovoid_length_mm.errors %}
-                                <div style="color: #b00000; font-size: 10px; margin-top: 2px;">{{ form.ovoid_length_mm.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-
-                        <!-- 4. Ring diameter (mm) -->
+                        <!-- 3. Ring diameter (mm) -->
                         <div id="container_ring_diameter_mm" style="display: none;">
                             <label class="access-label" style="font-weight: bold;" for="id_ring_diameter_mm">
                                 <span class="field-label">Ring diameter (mm)</span>
@@ -237,7 +234,7 @@
                             {% endif %}
                         </div>
 
-                        <!-- 5. Number of needles -->
+                        <!-- 4. Number of needles -->
                         <div id="container_needle_count" style="display: none;">
                             <label class="access-label" style="font-weight: bold;" for="id_needle_count">
                                 <span class="field-label">Number of needles</span>
@@ -378,12 +375,7 @@ const FIELD_CONFIG = {
     'ovoid_diameter_mm': {
         input: document.getElementById('id_ovoid_diameter_mm'),
         container: document.getElementById('container_ovoid_diameter_mm'),
-        label: 'Ovoid diameter (mm)'
-    },
-    'ovoid_length_mm': {
-        input: document.getElementById('id_ovoid_length_mm'),
-        container: document.getElementById('container_ovoid_length_mm'),
-        label: 'Ovoid length (mm)'
+        label: 'Ovoid size (cm)'
     },
     'ring_diameter_mm': {
         input: document.getElementById('id_ring_diameter_mm'),

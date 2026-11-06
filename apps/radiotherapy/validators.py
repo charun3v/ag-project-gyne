@@ -59,8 +59,8 @@ def validate_applicator_measurements(applicator_type, data, is_historical_approv
         if not is_enabled:
             # Stale or unexpected values supplied for non-enabled fields
             if not is_blank and not is_historical_approved:
-                # If needle_count default was 0 or '0', treat as unsupplied/cleared
-                if code == 'needle_count' and (val == 0 or val == '0'):
+                # If needle_count default was 0 or '0', or ovoid_length_mm, treat as unsupplied/cleared
+                if code in ('needle_count', 'ovoid_length_mm') and (val == 0 or val == '0' or code == 'ovoid_length_mm'):
                     continue
                 errors[code] = f"{label} does not apply to the selected applicator."
             continue
