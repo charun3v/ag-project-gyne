@@ -616,7 +616,16 @@ def lookup_manager_view(request, category='source'):
         category = 'source'
 
     model, cfg = get_lookup_model(category)
-    items = model.objects.all().order_by('display_order', cfg['name_field'])
+    raw_items = model.objects.all().order_by('display_order', cfg['name_field'])
+    items = []
+    for it in raw_items:
+        items.append({
+            'pk': it.pk,
+            'display_order': getattr(it, 'display_order', 1),
+            'name': getattr(it, cfg['name_field'], str(it)),
+            'secondary': getattr(it, cfg['secondary_field'], '') if cfg['secondary_field'] else '',
+            'is_active': getattr(it, 'is_active', True),
+        })
 
     return render(request, 'core/lookup_manager.html', {
         'category': category,

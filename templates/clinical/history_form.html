@@ -137,12 +137,14 @@
                     </div>
                     <div style="margin-bottom: 6px;">
                         <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="previous_surgery" value="1" {% if history and history.previous_surgery %}checked{% endif %}>
+                            <input type="checkbox" name="previous_surgery" id="previous_surgery_chk" value="1" {% if history and history.previous_surgery %}checked{% endif %} onchange="togglePreviousSurgery()">
                             Previous Pelvic / Abdominal Surgeries
                         </label>
-                        <input type="text" name="previous_surgery_details" 
-                               value="{% if history %}{{ history.previous_surgery_details|default:'' }}{% endif %}" 
-                               class="access-input" placeholder="TAH-BSO, laparotomy, cesarean, dates...">
+                        <div id="previous_surgery_container" style="{% if not history or not history.previous_surgery %}display: none;{% endif %} margin-top: 4px;">
+                            <input type="text" name="previous_surgery_details" id="previous_surgery_details"
+                                   value="{% if history %}{{ history.previous_surgery_details|default:'' }}{% endif %}" 
+                                   class="access-input" placeholder="TAH-BSO, laparotomy, cesarean, dates...">
+                        </div>
                     </div>
                     <div>
                         <label class="access-label">Past Medical / Surgical Remarks</label>
@@ -176,6 +178,21 @@ function togglePriorRT() {
     const chk = document.getElementById('prior_radiation_chk');
     const container = document.getElementById('prior_rt_container');
     const input = document.getElementById('prior_radiation_details');
+    if (chk && container) {
+        if (chk.checked) {
+            container.style.display = 'block';
+            input && input.focus();
+        } else {
+            container.style.display = 'none';
+            if (input) input.value = '';
+        }
+    }
+}
+
+function togglePreviousSurgery() {
+    const chk = document.getElementById('previous_surgery_chk');
+    const container = document.getElementById('previous_surgery_container');
+    const input = document.getElementById('previous_surgery_details');
     if (chk && container) {
         if (chk.checked) {
             container.style.display = 'block';

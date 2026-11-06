@@ -121,33 +121,11 @@
                             <tr>
                                 <td style="text-align: center;">{{ item.display_order }}</td>
                                 <td>
-                                    <strong>
-                                        {% if category == 'source' %}{{ item.source_name }}
-                                        {% elif category == 'machine' %}{{ item.machine_name }}
-                                        {% elif category == 'centre' %}{{ item.centre_name }}
-                                        {% elif category == 'intent' %}{{ item.intent_name }}
-                                        {% elif category == 'technique' %}{{ item.technique_name }}
-                                        {% elif category == 'dosing' %}{{ item.dosing_point }}
-                                        {% elif category == 'applicator' %}{{ item.applicator_name }}
-                                        {% elif category == 'guidance' %}{{ item.guidance_name }}
-                                        {% elif category == 'interruption' %}{{ item.reason_name }}
-                                        {% elif category == 'site' %}{{ item.site }}
-                                        {% elif category == 'histology' %}{{ item.histology_name }}
-                                        {% elif category == 'consultant' %}{{ item.consultant_name }}
-                                        {% elif category == 'regimen' %}{{ item.regimen_code }}
-                                        {% elif category == 'agent' %}{{ item.agent_name }}
-                                        {% endif %}
-                                    </strong>
+                                    <strong>{{ item.name }}</strong>
                                 </td>
 
                                 {% if cfg.secondary_field %}
-                                    <td>
-                                        {% if category == 'centre' %}{{ item.centre_code|default:'-' }}
-                                        {% elif category == 'dosing' %}{{ item.dosing_system|default:'-' }}
-                                        {% elif category == 'regimen' %}{{ item.regimen_description|default:'-' }}
-                                        {% elif category == 'agent' %}{{ item.agent_class|default:'-' }}
-                                        {% endif %}
-                                    </td>
+                                    <td>{{ item.secondary|default:'-' }}</td>
                                 {% endif %}
 
                                 <td style="text-align: center;">
@@ -161,9 +139,9 @@
                                 <td style="text-align: center; white-space: nowrap;">
                                     <button type="button" class="btn-access" style="font-size: 10px; padding: 2px 6px;"
                                             onclick="openEditModal(
-                                                '{% if category == 'source' %}{{ item.source_id }}{% elif category == 'machine' %}{{ item.machine_id }}{% elif category == 'centre' %}{{ item.centre_id }}{% elif category == 'intent' %}{{ item.intent_id }}{% elif category == 'technique' %}{{ item.technique_id }}{% elif category == 'dosing' %}{{ item.dosing_id }}{% elif category == 'applicator' %}{{ item.applicator_id }}{% elif category == 'guidance' %}{{ item.guidance_id }}{% elif category == 'interruption' %}{{ item.reason_id }}{% elif category == 'site' %}{{ item.site_id }}{% elif category == 'histology' %}{{ item.histology_id }}{% elif category == 'consultant' %}{{ item.consultant_id }}{% elif category == 'regimen' %}{{ item.regimen_id }}{% elif category == 'agent' %}{{ item.agent_id }}{% endif %}',
-                                                '{% if category == 'source' %}{{ item.source_name|escapejs }}{% elif category == 'machine' %}{{ item.machine_name|escapejs }}{% elif category == 'centre' %}{{ item.centre_name|escapejs }}{% elif category == 'intent' %}{{ item.intent_name|escapejs }}{% elif category == 'technique' %}{{ item.technique_name|escapejs }}{% elif category == 'dosing' %}{{ item.dosing_point|escapejs }}{% elif category == 'applicator' %}{{ item.applicator_name|escapejs }}{% elif category == 'guidance' %}{{ item.guidance_name|escapejs }}{% elif category == 'interruption' %}{{ item.reason_name|escapejs }}{% elif category == 'site' %}{{ item.site|escapejs }}{% elif category == 'histology' %}{{ item.histology_name|escapejs }}{% elif category == 'consultant' %}{{ item.consultant_name|escapejs }}{% elif category == 'regimen' %}{{ item.regimen_code|escapejs }}{% elif category == 'agent' %}{{ item.agent_name|escapejs }}{% endif %}',
-                                                '{% if category == 'centre' %}{{ item.centre_code|default:''|escapejs }}{% elif category == 'dosing' %}{{ item.dosing_system|default:''|escapejs }}{% elif category == 'regimen' %}{{ item.regimen_description|default:''|escapejs }}{% elif category == 'agent' %}{{ item.agent_class|default:''|escapejs }}{% endif %}',
+                                                '{{ item.pk }}',
+                                                '{{ item.name|escapejs }}',
+                                                '{{ item.secondary|default:''|escapejs }}',
                                                 '{{ item.display_order }}',
                                                 {{ item.is_active|yesno:'true,false' }}
                                             )">
