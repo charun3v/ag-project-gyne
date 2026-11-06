@@ -120,6 +120,8 @@ def _extract_imaging_details(img):
 
     if not details_parts and img.details:
         details_parts.append(img.details.strip())
+    if getattr(img, 'imaging_findings', None) and img.imaging_findings.strip():
+        details_parts.append(f"Findings: {img.imaging_findings.strip()}")
 
     details_str = '; '.join(details_parts) if details_parts else 'Not recorded'
     impression_str = img.impression.strip() if img.impression else (p_det.radiologist_impression.strip() if (p_det and p_det.radiologist_impression) else 'Not recorded')
@@ -449,7 +451,7 @@ def build_patient_summary_pdf(patient):
                 Paragraph("<strong>Parametrial Extent:</strong>", table_cell_bold),
                 Paragraph(para_s, table_cell_style),
                 Paragraph("<strong>Organ Invasion:</strong>", table_cell_bold),
-                Paragraph(f"Rectum: {'Inv' if latest_enc.rectal_invasion else 'Clear'}; Bladder: {'Inv' if latest_enc.bladder_invasion else 'Clear'}; Sound: {latest_enc.tandem_length_cm or '—'}cm", table_cell_style),
+                Paragraph(f"Rectum: {'Inv' if latest_enc.rectal_invasion else 'Clear'}; Bladder: {'Inv' if latest_enc.bladder_invasion else 'Clear'}", table_cell_style),
             ]
         ]
         t_exam = Table(exam_table_data, colWidths=[105, 175, 100, 159])
@@ -551,7 +553,7 @@ def build_patient_summary_pdf(patient):
     # ---------------------------------------------------------
     # 5. IMAGING DETAILS (WITH DATE) - Non-Table Layout
     # ---------------------------------------------------------
-    story.append(Paragraph("4. IMAGING & RADIOLOGY INVESTIGATIONS (WITH DATES)", sec_header_style))
+    story.append(Paragraph("4. IMAGING & RADIOLOGY INVESTIGATIONS", sec_header_style))
     imaging_studies = patient.imaging_studies.filter(soft_deleted=False).order_by('-imaging_date')
     if imaging_studies.exists():
         for img in imaging_studies:
@@ -576,7 +578,7 @@ def build_patient_summary_pdf(patient):
     # ---------------------------------------------------------
     story.append(Paragraph("5. ONCOLOGY TREATMENT DETAILS", sec_header_style))
 
-    # A. NACT (Neoadjuvant Chemotherapy)
+    # A. NACT (Neoadjuvant Chemotherapy) - Plain Text Readable Summary
     nact_course = patient.nact_courses.filter(soft_deleted=False).first()
     nact_given = bool(nact_course and nact_course.nact_received)
     
@@ -584,66 +586,61 @@ def build_patient_summary_pdf(patient):
         # Determine start and end date
         start_d_val = nact_course.nact_start_date
         end_d_val = nact_course.nact_end_date
-        if not start_d_val and nact_course.cycles.exists():
-            start_d_val = nact_course.cycles.order_by('cycle_date').first().cycle_date
-        if not end_d_val and nact_course.cycles.exists():
-            end_d_val = nact_course.cycles.order_by('cycle_date').last().cycle_date
+        cycles = nact_course.cycles.all().order_by('cycle_date', 'cycle_number')
+        if not start_d_val and cycles.exists():
+            start_d_val = cycles.first().cycle_date
+        if not end_d_val and cycles.exists():
+            end_d_val = cycles.last().cycle_date
 
         start_d = start_d_val.strftime('%d-%b-%Y') if start_d_val else "—"
         end_d = end_d_val.strftime('%d-%b-%Y') if end_d_val else "—"
         
-        # Collect distinct drugs
-        drug_summaries = []
-        for cyc in nact_course.cycles.all():
-            for drg in cyc.drugs.all():
-                d_str = f"{drg.chemo_agent.agent_name} ({drg.dose or ''} {drg.dose_unit.unit_name if drg.dose_unit else 'mg'})"
-                if d_str not in drug_summaries:
-                    drug_summaries.append(d_str)
-        drugs_txt = ", ".join(drug_summaries) if drug_summaries else "Regimen agents logged in cycles"
-
         reg_name = str(nact_course.chemo_regimen) if nact_course.chemo_regimen else "NACT"
+        freq_str = f"Every {nact_course.cycle_frequency_days} days" if nact_course.cycle_frequency_days else "—"
         resp_name = str(nact_course.response_to_nact) if nact_course.response_to_nact else "Evaluated"
 
-        nact_rows = [
-            [
-                Paragraph("<strong>NACT Administered:</strong>", table_cell_bold),
-                Paragraph("<strong>YES</strong>", ParagraphStyle('Y', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor("#2e7d32"))),
-                Paragraph("<strong>Start Date:</strong>", table_cell_bold),
-                Paragraph(start_d, table_cell_style),
-                Paragraph("<strong>End Date:</strong>", table_cell_bold),
-                Paragraph(end_d, table_cell_style),
-            ],
-            [
-                Paragraph("<strong>Regimen / Cycles:</strong>", table_cell_bold),
-                Paragraph(f"{reg_name} (Given: {nact_course.received_cycles} / Planned: {nact_course.planned_cycles})", table_cell_style),
-                Paragraph("<strong>Drugs Administered:</strong>", table_cell_bold),
-                Paragraph(drugs_txt, table_cell_style),
-                Paragraph("<strong>Response:</strong>", table_cell_bold),
-                Paragraph(resp_name, table_cell_style),
-            ]
+        nact_lines = [
+            f"<b>A. Neoadjuvant Chemotherapy (NACT):</b> <font color='#2e7d32'><b>YES — Administered</b></font><br/>"
+            f"&nbsp;&nbsp;&nbsp;&nbsp;<b>Regimen:</b> {reg_name} &nbsp;|&nbsp; "
+            f"<b>Frequency:</b> {freq_str} &nbsp;|&nbsp; "
+            f"<b>Cycles:</b> {nact_course.received_cycles} administered / {nact_course.planned_cycles} planned &nbsp;|&nbsp; "
+            f"<b>Dates:</b> {start_d} to {end_d} &nbsp;|&nbsp; "
+            f"<b>Response:</b> {resp_name}"
         ]
-        t_nact = Table(nact_rows, colWidths=[95, 95, 65, 75, 60, 149])
-        t_nact.setStyle(TableStyle([
+
+        if cycles.exists():
+            for cyc in cycles:
+                c_date = cyc.cycle_date.strftime('%d-%b-%Y') if cyc.cycle_date else '—'
+                drug_items = []
+                for drg in cyc.drugs.all():
+                    d_agent = drg.chemo_agent.agent_name if drg.chemo_agent else "Drug"
+                    d_dose = f"{drg.dose:g}" if isinstance(drg.dose, float) and drg.dose.is_integer() else f"{drg.dose or ''}"
+                    d_unit = drg.dose_unit.unit_name if drg.dose_unit else 'mg'
+                    d_route = drg.chemo_route.route_name if drg.chemo_route else "IV Infusion"
+                    d_days = f"{drg.no_of_days} day{'s' if drg.no_of_days and drg.no_of_days > 1 else ''}"
+                    d_day_admin = f"Day {drg.day_of_administration}" if drg.day_of_administration else "Day 1"
+                    drug_items.append(f"{d_agent} {d_dose} {d_unit} ({d_day_admin}, {d_days}, {d_route})")
+                
+                drugs_str = "; ".join(drug_items) if drug_items else "No drug details recorded"
+                status_str = f" [{cyc.cycle_status}]" if cyc.cycle_status else ""
+                nact_lines.append(
+                    f"&nbsp;&nbsp;&nbsp;&nbsp;• <b>Cycle #{cyc.cycle_number} ({c_date}):</b> {drugs_str}{status_str}"
+                )
+        else:
+            nact_lines.append("&nbsp;&nbsp;&nbsp;&nbsp;<em>No specific cycle administration records logged.</em>")
+
+        t_nact_box = Table([[Paragraph("<br/>".join(nact_lines), table_cell_style)]], colWidths=[539])
+        t_nact_box.setStyle(TableStyle([
             ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor("#c0c8d0")),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e0e6ed")),
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#fafffa")),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 2.5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2.5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
         ]))
-        story.append(t_nact)
+        story.append(t_nact_box)
     else:
-        t_nact_no = Table([[
-            Paragraph("<strong>A. NACT Administered:</strong>", table_cell_bold),
-            Paragraph("NO (Not Given / Not Indicated)", table_cell_style)
-        ]], colWidths=[120, 419])
-        t_nact_no.setStyle(TableStyle([
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor("#e0e0e0")),
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#fafafa")),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-        ]))
-        story.append(t_nact_no)
+        story.append(Table([[Paragraph("<strong>A. NACT Administered:</strong> NO (Not Given / Not Indicated)", table_cell_style)]], colWidths=[539]))
     story.append(Spacer(1, 4))
 
     # B. EBRT (External Beam Radiotherapy)
@@ -654,6 +651,15 @@ def build_patient_summary_pdf(patient):
             eb_end = eb.ebrt_end_date.strftime('%d-%b-%Y') if eb.ebrt_end_date else "—"
             eb_dose = f"{eb.total_dose_gy or '—'} Gy"
             eb_fx = f"{eb.total_fractions or '—'} fractions ({eb.dose_per_fraction_gy or '—'} Gy/#)"
+
+            # EBRT OTT (inclusive of both dates: end - start + 1)
+            if eb.ebrt_start_date and eb.ebrt_end_date:
+                eb_days = (eb.ebrt_end_date - eb.ebrt_start_date).days + 1
+                eb_ott_str = f"<b>{eb_days} days</b> ({eb.ebrt_start_date.strftime('%d-%b')} to {eb.ebrt_end_date.strftime('%d-%b-%Y')})"
+                if eb.treatment_interrupted and eb.interruption_days:
+                    eb_ott_str += f" [{eb.interruption_days}d lost]"
+            else:
+                eb_ott_str = "—"
             
             # Check concurrent chemotherapy
             conc_info = "None given"
@@ -668,24 +674,28 @@ def build_patient_summary_pdf(patient):
                 conc_info = f"YES — {', '.join(agents_c) if agents_c else 'Concurrent Chemo'} ({conc_course.received_cycles} cycles delivered)"
 
             sim_str = eb.simulation_date.strftime('%d-%b-%Y') if eb.simulation_date else "—"
+            tech_str = str(eb.ebrt_technique) if eb.ebrt_technique else '3DCRT/IMRT'
+            intent_str = str(eb.ebrt_intent) if eb.ebrt_intent else 'Radical'
+            sites_str = ", ".join([s.ebrt_site.site_name for s in eb.sites.all()]) if eb.sites.exists() else "Whole Pelvis"
+
             ebrt_rows = [
                 [
                     Paragraph(f"<strong>B. EBRT Course #{eb.course_sequence}:</strong>", table_cell_bold),
-                    Paragraph(f"<strong>Total Dose:</strong> {eb_dose} | <strong>Fractions:</strong> {eb_fx}", table_cell_style),
+                    Paragraph(f"<strong>Total Dose:</strong> {eb_dose} | <strong>Fractions:</strong> {eb_fx} | <strong>Technique:</strong> {tech_str} ({intent_str})", table_cell_style),
                     Paragraph("<strong>Start Date:</strong>", table_cell_bold),
                     Paragraph(eb_start, table_cell_style),
                     Paragraph("<strong>End Date:</strong>", table_cell_bold),
                     Paragraph(eb_end, table_cell_style),
                 ],
                 [
-                    Paragraph("<strong>Technique & Planning:</strong>", table_cell_bold),
-                    Paragraph(f"Technique: {str(eb.ebrt_technique) if eb.ebrt_technique else '3DCRT/IMRT'} | Sim: {sim_str}", table_cell_style),
-                    Paragraph("<strong>Concurrent Chemo:</strong>", table_cell_bold),
-                    Paragraph(conc_info, table_cell_style),
+                    Paragraph("<strong>Planning & Chemo:</strong>", table_cell_bold),
+                    Paragraph(f"Sim: {sim_str} | Sites: {sites_str} | Concurrent Chemo: {conc_info}", table_cell_style),
+                    Paragraph("<strong>EBRT OTT:</strong>", table_cell_bold),
+                    Paragraph(eb_ott_str, table_cell_style),
                     "", ""
                 ]
             ]
-            t_eb = Table(ebrt_rows, colWidths=[110, 160, 65, 70, 55, 79])
+            t_eb = Table(ebrt_rows, colWidths=[105, 160, 65, 75, 55, 79])
             t_eb.setStyle(TableStyle([
                 ('SPAN', (3, 1), (5, 1)),
                 ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor("#c0c8d0")),
@@ -705,35 +715,122 @@ def build_patient_summary_pdf(patient):
     brachy_courses = patient.brachy_courses.filter(soft_deleted=False).order_by('course_sequence')
     if brachy_courses.exists():
         for bc in brachy_courses:
-            # Query all fractions across sessions
+            # Determine start and end date of brachy
+            first_brachy_date = None
+            last_brachy_date = None
+            for s in bc.sessions.all():
+                if s.session_date:
+                    if not first_brachy_date or s.session_date < first_brachy_date:
+                        first_brachy_date = s.session_date
+                    if not last_brachy_date or s.session_date > last_brachy_date:
+                        last_brachy_date = s.session_date
+                for f in s.fractions.all():
+                    if f.fraction_date:
+                        if not first_brachy_date or f.fraction_date < first_brachy_date:
+                            first_brachy_date = f.fraction_date
+                        if not last_brachy_date or f.fraction_date > last_brachy_date:
+                            last_brachy_date = f.fraction_date
+            if not first_brachy_date and bc.brachy_start_date:
+                first_brachy_date = bc.brachy_start_date
+            if not last_brachy_date and bc.brachy_end_date:
+                last_brachy_date = bc.brachy_end_date
+
+            bc_start_str = first_brachy_date.strftime('%d-%b-%Y') if first_brachy_date else "—"
+            bc_end_str = last_brachy_date.strftime('%d-%b-%Y') if last_brachy_date else "—"
+            if first_brachy_date and last_brachy_date:
+                bc_days = (last_brachy_date - first_brachy_date).days + 1
+                bc_ott_str = f"<b>{bc_days} days</b> ({first_brachy_date.strftime('%d-%b')} to {last_brachy_date.strftime('%d-%b-%Y')})"
+            else:
+                bc_ott_str = "—"
+
+            dosing_str = bc.brachy_dosing.dosing_point if bc.brachy_dosing else (bc.sessions.first().brachy_dosing.dosing_point if bc.sessions.exists() and bc.sessions.first().brachy_dosing else "HR-CTV D90 (GEC-ESTRO)")
+            source_str = bc.brachy_source.source_name if bc.brachy_source else (bc.sessions.first().brachy_source.source_name if bc.sessions.exists() and bc.sessions.first().brachy_source else "HDR Ir-192")
+            centre_str = bc.treatment_centre.centre_name if bc.treatment_centre else "KMIO"
+
+            # Applicator summaries
+            app_summaries = []
+            for s in bc.sessions.all():
+                meas = []
+                if s.tandem_length_cm: meas.append(f"Tandem: {s.tandem_length_cm} cm")
+                if s.ovoid_diameter_mm: meas.append(f"Ovoid: {s.ovoid_diameter_mm} cm")
+                if s.ring_diameter_mm: meas.append(f"Ring: {s.ring_diameter_mm} mm")
+                if s.needle_count: meas.append(f"Needles: {s.needle_count}")
+                meas_str = f" ({', '.join(meas)})" if meas else ""
+                app_date = s.session_date.strftime('%d-%b-%Y') if s.session_date else "—"
+                app_name = s.applicator.name if s.applicator else "Applicator"
+                app_summaries.append(f"<b>App #{s.session_number}</b> ({app_date}): {app_name}{meas_str}")
+            app_desc = "; ".join(app_summaries) if app_summaries else "Applicators logged"
+
+            # Fractions and Physical Totals
             all_fractions = []
+            tot_physical_dose = 0.0
+            tot_hrctv = 0.0
+            tot_rectum = 0.0
+            tot_bladder = 0.0
+            tot_sigmoid = 0.0
+
             for s in bc.sessions.all():
                 for f in s.fractions.all():
-                    all_fractions.append((f.overall_fraction_number, f.dose_delivered_gy or f.prescribed_dose_gy or 0, f.fraction_date))
-            
-            all_fractions.sort(key=lambda x: x[0])
-            fx_details_list = []
-            for num, d_val, f_date in all_fractions:
-                date_str = f_date.strftime('%d-%b-%Y') if f_date else "—"
-                fx_details_list.append(f"<strong>Fraction #{num}:</strong> {d_val} Gy ({date_str})")
-            
-            fx_formatted_str = ";  ".join(fx_details_list) if fx_details_list else "Fractions in progress / pending log"
+                    d_val = f.dose_delivered_gy or f.prescribed_dose_gy or 0.0
+                    tot_physical_dose += d_val
+                    if f.hrctv_d90_gy: tot_hrctv += f.hrctv_d90_gy
+                    if f.rectum_dose_2cc_gy: tot_rectum += f.rectum_dose_2cc_gy
+                    if f.bladder_dose_2cc_gy: tot_bladder += f.bladder_dose_2cc_gy
+                    if f.sigmoid_dose_2cc_gy: tot_sigmoid += f.sigmoid_dose_2cc_gy
 
-            app_name = bc.sessions.first().applicator.applicator_name if (bc.sessions.exists() and bc.sessions.first().applicator) else "Standard Applicator"
-            source_name = str(bc.brachy_source) if bc.brachy_source else "Ir-192 HDR"
+                    f_dt = f.fraction_date.strftime('%d-%b-%Y') if f.fraction_date else "—"
+                    d_parts = [f"{d_val} Gy"]
+                    if f.hrctv_d90_gy: d_parts.append(f"D90: {f.hrctv_d90_gy}Gy")
+                    if f.rectum_dose_2cc_gy: d_parts.append(f"R2cc: {f.rectum_dose_2cc_gy}Gy")
+                    if f.bladder_dose_2cc_gy: d_parts.append(f"B2cc: {f.bladder_dose_2cc_gy}Gy")
+                    if f.sigmoid_dose_2cc_gy: d_parts.append(f"Sig2cc: {f.sigmoid_dose_2cc_gy}Gy")
+                    all_fractions.append((f.overall_fraction_number, f"<strong>Fx #{f.overall_fraction_number}:</strong> {' | '.join(d_parts)} ({f_dt})"))
+
+            all_fractions.sort(key=lambda x: x[0])
+            fx_formatted_str = ";  ".join([x[1] for x in all_fractions]) if all_fractions else "Fractions in progress / pending log"
+
+            num_apps = bc.sessions.count()
+            planned_apps = bc.total_applications_planned or num_apps
+            planned_fx = bc.total_fractions_planned or len(all_fractions)
 
             brachy_rows = [
                 [
-                    Paragraph(f"<strong>C. Brachytherapy #{bc.course_sequence}:</strong>", table_cell_bold),
-                    Paragraph(f"Applicator: <strong>{app_name}</strong> | Source: {source_name} | Planned: {bc.total_fractions_planned} Fx", table_cell_style),
+                    Paragraph(f"<strong>C. Brachytherapy Course #{bc.course_sequence}:</strong>", table_cell_bold),
+                    Paragraph(f"<strong>Dosing:</strong> {dosing_str} | <strong>Source:</strong> {source_str} | <strong>Facility:</strong> {centre_str}", table_cell_style),
+                    Paragraph("<strong>Start Date:</strong>", table_cell_bold),
+                    Paragraph(bc_start_str, table_cell_style),
+                    Paragraph("<strong>End Date:</strong>", table_cell_bold),
+                    Paragraph(bc_end_str, table_cell_style),
+                ],
+                [
+                    Paragraph("<strong>Applications & Fractions:</strong>", table_cell_bold),
+                    Paragraph(f"Applications: <b>{num_apps}/{planned_apps} planned</b> | Fractions: <b>{len(all_fractions)}/{planned_fx} planned</b>", table_cell_style),
+                    Paragraph("<strong>Brachy OTT:</strong>", table_cell_bold),
+                    Paragraph(bc_ott_str, table_cell_style),
+                    "", ""
+                ],
+                [
+                    Paragraph("<strong>Applicators:</strong>", table_cell_bold),
+                    Paragraph(app_desc, table_cell_style),
+                    "", "", "", ""
                 ],
                 [
                     Paragraph("<strong>Delivered Fractions:</strong>", table_cell_bold),
                     Paragraph(fx_formatted_str, table_cell_style),
+                    "", "", "", ""
+                ],
+                [
+                    Paragraph("<strong>Physical Totals:</strong>", table_cell_bold),
+                    Paragraph(f"Delivered Dose: <b>{tot_physical_dose:.1f} Gy</b> | HR-CTV D90: <b>{tot_hrctv:.1f} Gy</b> | Rectum 2cc: <b>{tot_rectum:.1f} Gy</b> | Bladder 2cc: <b>{tot_bladder:.1f} Gy</b> | Sigmoid 2cc: <b>{tot_sigmoid:.1f} Gy</b>", table_cell_style),
+                    "", "", "", ""
                 ]
             ]
-            t_bc = Table(brachy_rows, colWidths=[110, 429])
+            t_bc = Table(brachy_rows, colWidths=[105, 160, 65, 75, 55, 79])
             t_bc.setStyle(TableStyle([
+                ('SPAN', (3, 1), (5, 1)),
+                ('SPAN', (1, 2), (5, 2)),
+                ('SPAN', (1, 3), (5, 3)),
+                ('SPAN', (1, 4), (5, 4)),
                 ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor("#c0c8d0")),
                 ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e0e6ed")),
                 ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#fffdf5")),
@@ -747,21 +844,17 @@ def build_patient_summary_pdf(patient):
         story.append(Table([[Paragraph("<strong>C. Brachytherapy:</strong>", table_cell_bold), Paragraph("NO (No Brachytherapy recorded)", table_cell_style)]], colWidths=[110, 429]))
         story.append(Spacer(1, 4))
 
-    # --- Radiation Oncology Overall Treatment Time (OTT) & Cumulative Radiobiological Dosimetry (EQD2) ---
+    # --- D. Radiation Oncology Overall Treatment Time (OTT) & Cumulative Radiobiological Dosimetry (EQD2) ---
     if ebrt_courses.exists() or brachy_courses.exists():
         first_eb = ebrt_courses.first() if ebrt_courses.exists() else None
         
-        # 1. EBRT OTT (inclusive of both dates: end - start + 1)
-        if first_eb and first_eb.ebrt_start_date and first_eb.ebrt_end_date:
-            eb_days = (first_eb.ebrt_end_date - first_eb.ebrt_start_date).days + 1
-            ebrt_ott_val = f"<strong>{eb_days} days</strong> ({first_eb.ebrt_start_date.strftime('%d-%b')} to {first_eb.ebrt_end_date.strftime('%d-%b-%Y')})"
-        else:
-            ebrt_ott_val = "—"
-
-        # 2. Total Treatment OTT (Date of last fraction of Brachy - EBRT start date + 1, inclusive)
+        # 1. Total Treatment OTT: Date of last fraction of Brachy - EBRT start date + 1, inclusive
         last_brachy_date = None
         for bc in brachy_courses:
             for s in bc.sessions.all():
+                if s.session_date:
+                    if not last_brachy_date or s.session_date > last_brachy_date:
+                        last_brachy_date = s.session_date
                 for fx in s.fractions.all():
                     if fx.fraction_date:
                         if not last_brachy_date or fx.fraction_date > last_brachy_date:
@@ -771,14 +864,14 @@ def build_patient_summary_pdf(patient):
 
         if first_eb and first_eb.ebrt_start_date and last_brachy_date:
             tot_days = (last_brachy_date - first_eb.ebrt_start_date).days + 1
-            total_ott_val = f"<strong>{tot_days} days</strong> ({first_eb.ebrt_start_date.strftime('%d-%b')} to {last_brachy_date.strftime('%d-%b-%Y')})"
+            total_ott_val = f"<strong>{tot_days} days</strong> ({first_eb.ebrt_start_date.strftime('%d-%b')} to {last_brachy_date.strftime('%d-%b-%Y')}) [Last Day of Brachy ({last_brachy_date.strftime('%d-%b')}) - EBRT Start ({first_eb.ebrt_start_date.strftime('%d-%b')})]"
         elif first_eb and first_eb.ebrt_start_date and first_eb.ebrt_end_date:
             eb_days = (first_eb.ebrt_end_date - first_eb.ebrt_start_date).days + 1
             total_ott_val = f"<strong>{eb_days} days</strong> (EBRT only: {first_eb.ebrt_start_date.strftime('%d-%b')} to {first_eb.ebrt_end_date.strftime('%d-%b-%Y')})"
         else:
             total_ott_val = "—"
 
-        # 3. Cumulative EQD2 calculations (Tumour a/b=10, OARs a/b=3)
+        # 2. Cumulative EQD2 calculations (Tumour a/b=10, OARs a/b=3)
         cum_tumor_eqd2 = 0.0
         cum_rectum_eqd2 = 0.0
         cum_bladder_eqd2 = 0.0
@@ -814,22 +907,22 @@ def build_patient_summary_pdf(patient):
             f"Tumour: <font color='#166534'><b>{cum_tumor_eqd2:.1f} Gy₁₀</b></font> &nbsp;|&nbsp; "
             f"Rectum 2cc: <font color='#9a3412'><b>{cum_rectum_eqd2:.1f} Gy₃</b></font> &nbsp;|&nbsp; "
             f"Bladder 2cc: <font color='#9a3412'><b>{cum_bladder_eqd2:.1f} Gy₃</b></font> &nbsp;|&nbsp; "
-            f"Sigmoid 2cc: <font color='#9a3412'><b>{cum_sigmoid_eqd2:.1f} Gy₃</b></font>"
+            f"Sigmoid (Sig) 2cc: <font color='#9a3412'><b>{cum_sigmoid_eqd2:.1f} Gy₃</b></font>"
         )
 
         ott_rows = [
             [
-                Paragraph("<strong>Radiation OTT:</strong>", table_cell_bold),
-                Paragraph(f"EBRT OTT: {ebrt_ott_val} &nbsp;&nbsp;|&nbsp;&nbsp; Total Treatment OTT: {total_ott_val}", table_cell_style),
+                Paragraph("<strong>D. Total Treatment OTT:</strong>", table_cell_bold),
+                Paragraph(f"<font color='#003366' size='8.5'><b>{total_ott_val}</b></font>", table_cell_style),
             ],
             [
                 Paragraph("<strong>Cumulative EQD2:</strong>", table_cell_bold),
                 Paragraph(eqd2_str, table_cell_style),
             ]
         ]
-        t_ott = Table(ott_rows, colWidths=[110, 429])
+        t_ott = Table(ott_rows, colWidths=[120, 419])
         t_ott.setStyle(TableStyle([
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor("#a3c2a3")),
+            ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor("#2e7d32")),
             ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#d5ebd5")),
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f0fdf4")),
             ('TOPPADDING', (0, 0), (-1, -1), 2.5),
@@ -839,7 +932,7 @@ def build_patient_summary_pdf(patient):
         story.append(t_ott)
         story.append(Spacer(1, 4))
 
-    # D. Adjuvant Chemotherapy
+    # E. Adjuvant Chemotherapy
     adj_course = patient.adjuvant_courses.filter(soft_deleted=False).first()
     adj_given = bool(adj_course and adj_course.adjuvant_received)
     if adj_given:
@@ -861,7 +954,7 @@ def build_patient_summary_pdf(patient):
 
         adj_rows = [
             [
-                Paragraph("<strong>D. Adjuvant Chemo:</strong>", table_cell_bold),
+                Paragraph("<strong>E. Adjuvant Chemo:</strong>", table_cell_bold),
                 Paragraph(f"<strong>YES</strong> ({adj_course.received_cycles} / {adj_course.planned_cycles} cycles)", table_cell_style),
                 Paragraph("<strong>Start:</strong>", table_cell_bold),
                 Paragraph(adj_start, table_cell_style),
@@ -886,8 +979,9 @@ def build_patient_summary_pdf(patient):
         ]))
         story.append(t_adj)
     else:
-        story.append(Table([[Paragraph("<strong>D. Adjuvant Chemo:</strong>", table_cell_bold), Paragraph("NO (Not Given / Not Indicated)", table_cell_style)]], colWidths=[110, 429]))
+        story.append(Table([[Paragraph("<strong>E. Adjuvant Chemo:</strong>", table_cell_bold), Paragraph("NO (Not Given / Not Indicated)", table_cell_style)]], colWidths=[110, 429]))
     story.append(Spacer(1, 6))
+
 
     # ---------------------------------------------------------
     # 7. FOLLOW-UP DETAILS (INCLUDING FOLLOW-UP IMAGING)

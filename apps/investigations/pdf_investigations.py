@@ -404,7 +404,7 @@ def build_investigations_pdf(patient):
     story.append(Spacer(1, 4))
 
     # Section 4: Imaging & Radiology Investigations - Simple Non-Table Layout
-    story.append(Paragraph("4. IMAGING & RADIOLOGY INVESTIGATIONS (WITH DATES)", sec_title))
+    story.append(Paragraph("4. IMAGING & RADIOLOGY INVESTIGATIONS", sec_title))
     img_qs = patient.imaging_studies.filter(soft_deleted=False).order_by('-imaging_date')
     if img_qs.exists():
         for im in img_qs:
