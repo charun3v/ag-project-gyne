@@ -193,6 +193,12 @@
 
                     {% if not course.approval_locked %}
                     <div style="display: flex; gap: 6px;">
+                        <button type="button" class="btn-access" 
+                                onclick="openEditCycleModal('{{ cycle.adjuvant_cycle_id }}', '{{ cycle.cycle_number }}', '{{ cycle.cycle_date|date:'Y-m-d' }}', '{{ cycle.cycle_status }}', '{{ cycle.pre_cycle_notes|default:''|escapejs }}', '{{ cycle.cycle_toxicity|default:''|escapejs }}')" 
+                                style="font-size: 11px; padding: 2px 8px; color: #003366; background: #f0f7ff; border: 1px solid #b0c4de;" 
+                                title="Edit cycle date and status">
+                            ✏️ Edit Cycle
+                        </button>
                         {% if cycle.cycle_number > 1 %}
                             <form method="post" action="{% url 'adjuvant_copy_previous_cycle' patient.mr_no course.adjuvant_course_id cycle.adjuvant_cycle_id %}" style="display: inline;" onsubmit="return confirm('Copy drug regimen from Cycle #{{ cycle.cycle_number|add:-1 }} into this cycle?');">
                                 {% csrf_token %}
@@ -289,10 +295,10 @@
     </div>
 </div>
 
-<!-- Modal: Add Cycle -->
+<!-- Modal: Add Cycle (Date and Status only; drugs added later) -->
 {% if course and course.adjuvant_course_id and not course.approval_locked %}
 <div id="addCycleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-    <div style="background: #fff; width: 440px; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); overflow: hidden; border: 2px solid #003366;">
+    <div style="background: #fff; width: 420px; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); overflow: hidden; border: 2px solid #003366;">
         <div style="background: #003366; color: #fff; padding: 10px 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
             <span>Add New Adjuvant Chemotherapy Cycle</span>
             <span style="cursor: pointer; font-size: 16px;" onclick="closeAddCycleModal()">&times;</span>
@@ -300,29 +306,21 @@
         <form method="post" action="{% url 'adjuvant_cycle_add' patient.mr_no course.adjuvant_course_id %}">
             {% csrf_token %}
             <div style="padding: 16px; font-size: 12px; color: #333;">
-                <div style="margin-bottom: 12px;">
+                <div style="margin-bottom: 14px;">
                     <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
                     <input type="date" name="cycle_date" required class="access-input" value="{% now 'Y-m-d' %}">
                     <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">
                         Must strictly follow linked prior treatment completion date.
                     </span>
                 </div>
-                <div style="margin-bottom: 12px;">
-                    <label class="access-label">Cycle Status</label>
+                <div style="margin-bottom: 16px;">
+                    <label class="access-label" style="font-weight: bold; color: #003366;">Cycle Status</label>
                     <select name="cycle_status" class="access-select">
                         <option value="Administered" selected>Administered</option>
                         <option value="Dose Reduced">Dose Reduced</option>
                         <option value="Delayed">Delayed</option>
                         <option value="Omitted">Omitted</option>
                     </select>
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <label class="access-label">Pre-Cycle Clinical / Lab Notes</label>
-                    <input type="text" name="pre_cycle_notes" class="access-input" placeholder="e.g. CBC OK, Creatinine normal">
-                </div>
-                <div style="margin-bottom: 14px;">
-                    <label class="access-label">Toxicity Observations</label>
-                    <input type="text" name="cycle_toxicity" class="access-input" placeholder="e.g. Mild fatigue">
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 8px;">
                     <button type="button" class="btn-access" onclick="closeAddCycleModal()">Cancel</button>
@@ -334,6 +332,52 @@
         </form>
     </div>
 </div>
+
+<!-- Modal: Edit Cycle (Date and Status) -->
+<div id="editCycleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #fff; width: 440px; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); overflow: hidden; border: 2px solid #003366;">
+        <div style="background: #003366; color: #fff; padding: 10px 14px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+            <span id="editCycleModalTitle">Edit Adjuvant Chemotherapy Cycle</span>
+            <span style="cursor: pointer; font-size: 16px;" onclick="closeEditCycleModal()">&times;</span>
+        </div>
+        <form method="post" id="editCycleForm" action="">
+            {% csrf_token %}
+            <div style="padding: 16px; font-size: 12px; color: #333;">
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
+                    <input type="date" name="cycle_date" id="editCycleDate" required class="access-input">
+                    <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">
+                        Must strictly follow linked prior treatment completion date.
+                    </span>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label" style="font-weight: bold; color: #003366;">Cycle Status</label>
+                    <select name="cycle_status" id="editCycleStatus" class="access-select">
+                        <option value="Administered">Administered</option>
+                        <option value="Dose Reduced">Dose Reduced</option>
+                        <option value="Delayed">Delayed</option>
+                        <option value="Omitted">Omitted</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="access-label">Pre-Cycle Clinical / Lab Notes</label>
+                    <input type="text" name="pre_cycle_notes" id="editCyclePreNotes" class="access-input" placeholder="e.g. CBC OK, Creatinine normal">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label class="access-label">Toxicity Observations</label>
+                    <input type="text" name="cycle_toxicity" id="editCycleToxicity" class="access-input" placeholder="e.g. Mild fatigue">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" class="btn-access" onclick="closeEditCycleModal()">Cancel</button>
+                    <button type="submit" class="btn-access btn-primary-action">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 <!-- Modal: Add Drug Row -->
 <div id="addDrugModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
@@ -431,6 +475,23 @@ function closeAddCycleModal() {
     document.getElementById('addCycleModal').style.display = 'none';
 }
 
+function openEditCycleModal(cycleId, cycleNum, cycleDate, cycleStatus, preNotes, toxicity) {
+    const modal = document.getElementById('editCycleModal');
+    const title = document.getElementById('editCycleModalTitle');
+    const form = document.getElementById('editCycleForm');
+    title.textContent = 'Edit Adjuvant Chemotherapy Cycle #' + cycleNum;
+    form.action = "{% url 'adjuvant_cycle_edit' patient.mr_no course.adjuvant_course_id 0 %}".replace('/0/', '/' + cycleId + '/');
+    document.getElementById('editCycleDate').value = cycleDate || '';
+    document.getElementById('editCycleStatus').value = cycleStatus || 'Administered';
+    document.getElementById('editCyclePreNotes').value = preNotes || '';
+    document.getElementById('editCycleToxicity').value = toxicity || '';
+    modal.style.display = 'flex';
+}
+
+function closeEditCycleModal() {
+    document.getElementById('editCycleModal').style.display = 'none';
+}
+
 function openAddDrugModal(cycleId, cycleNum) {
     const modal = document.getElementById('addDrugModal');
     const title = document.getElementById('drugModalTitle');
@@ -479,6 +540,8 @@ function openAddCycleModal() {
     alert("Please save the adjuvant chemotherapy course parameters first before adding cycles.");
 }
 function closeAddCycleModal() {}
+function openEditCycleModal() {}
+function closeEditCycleModal() {}
 function openAddDrugModal() {}
 function openEditDrugModal() {}
 function closeAddDrugModal() {}

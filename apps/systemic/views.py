@@ -309,6 +309,46 @@ def nact_cycle_add_view(request, mr_no, course_id):
 
 
 @login_required
+def nact_cycle_edit_view(request, mr_no, course_id, cycle_id):
+    """
+    Updates an existing chemotherapy cycle under NACT course.
+    Validates cycle date against linked definitive treatment.
+    """
+    if request.method != 'POST':
+        return redirect('nact_edit', mr_no=mr_no, course_id=course_id)
+
+    patient = get_object_or_404(Patient, mr_no=mr_no)
+    course = get_object_or_404(NACTCourse, nact_course_id=course_id, patient=patient)
+    cycle = get_object_or_404(NACTCycle, nact_cycle_id=cycle_id, course=course)
+
+    if course.approval_locked:
+        messages.error(request, "Record is locked against modifications.")
+        return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
+
+    cycle_date = parse_date_str(request.POST.get('cycle_date'))
+    if not cycle_date:
+        messages.error(request, "Cycle date is mandatory.")
+        return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
+
+    # Date validation against linked definitive treatment
+    is_valid, err_msg = validate_nact_cycle_date(course, cycle_date)
+    if not is_valid:
+        messages.error(request, err_msg)
+        return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
+
+    cycle.cycle_date = cycle_date
+    cycle.cycle_status = request.POST.get('cycle_status') or cycle.cycle_status or 'Administered'
+    if 'pre_cycle_notes' in request.POST:
+        cycle.pre_cycle_notes = request.POST.get('pre_cycle_notes', '')
+    if 'cycle_toxicity' in request.POST:
+        cycle.cycle_toxicity = request.POST.get('cycle_toxicity', '')
+    cycle.save()
+
+    messages.success(request, f"Cycle #{cycle.cycle_number} updated successfully.")
+    return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
+
+
+@login_required
 def nact_copy_previous_cycle_view(request, mr_no, course_id, cycle_id):
     """
     Replicates the previous cycle's drug regimen (agents, doses, units, days, route)
@@ -574,6 +614,46 @@ def adjuvant_cycle_add_view(request, mr_no, course_id):
     )
 
     messages.success(request, f"Adjuvant Cycle #{cycle.cycle_number} created.")
+    return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
+
+
+@login_required
+def adjuvant_cycle_edit_view(request, mr_no, course_id, cycle_id):
+    """
+    Updates an existing chemotherapy cycle under Adjuvant Chemotherapy course.
+    Validates cycle date against linked prior definitive treatment.
+    """
+    if request.method != 'POST':
+        return redirect('adjuvant_edit', mr_no=mr_no, course_id=course_id)
+
+    patient = get_object_or_404(Patient, mr_no=mr_no)
+    course = get_object_or_404(AdjuvantChemoCourse, adjuvant_course_id=course_id, patient=patient)
+    cycle = get_object_or_404(AdjuvantChemoCycle, adjuvant_cycle_id=cycle_id, course=course)
+
+    if course.approval_locked:
+        messages.error(request, "Record is locked against modifications.")
+        return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
+
+    cycle_date = parse_date_str(request.POST.get('cycle_date'))
+    if not cycle_date:
+        messages.error(request, "Cycle date is mandatory.")
+        return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
+
+    # Date validation against prior definitive treatment
+    is_valid, err_msg = validate_adjuvant_cycle_date(course, cycle_date)
+    if not is_valid:
+        messages.error(request, err_msg)
+        return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
+
+    cycle.cycle_date = cycle_date
+    cycle.cycle_status = request.POST.get('cycle_status') or cycle.cycle_status or 'Administered'
+    if 'pre_cycle_notes' in request.POST:
+        cycle.pre_cycle_notes = request.POST.get('pre_cycle_notes', '')
+    if 'cycle_toxicity' in request.POST:
+        cycle.cycle_toxicity = request.POST.get('cycle_toxicity', '')
+    cycle.save()
+
+    messages.success(request, f"Adjuvant Cycle #{cycle.cycle_number} updated successfully.")
     return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
 
 
