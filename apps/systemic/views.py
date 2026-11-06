@@ -130,7 +130,11 @@ def nact_form_view(request, mr_no, course_id=None):
         if nact_received:
             course.chemo_regimen_id = request.POST.get('chemo_regimen_id') or None
             course.planned_cycles = int(request.POST.get('planned_cycles') or 3)
-            course.received_cycles = int(request.POST.get('received_cycles') or 0)
+            rc_val = request.POST.get('received_cycles')
+            if rc_val and rc_val.strip():
+                course.received_cycles = int(rc_val)
+            else:
+                course.received_cycles = course.planned_cycles or 3
             course.cycle_frequency_days = int(request.POST.get('cycle_frequency_days') or 21)
             course.nact_start_date = parse_date_str(request.POST.get('nact_start_date'))
             course.nact_end_date = parse_date_str(request.POST.get('nact_end_date'))
@@ -147,11 +151,12 @@ def nact_form_view(request, mr_no, course_id=None):
                 return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id) if course.nact_course_id else redirect('nact_add', mr_no=patient.mr_no)
 
             # Validate all existing cycles against newly selected definitive treatment links
-            for cyc in course.cycles.all():
-                is_valid, err_msg = validate_nact_cycle_date(course, cyc.cycle_date)
-                if not is_valid:
-                    messages.error(request, err_msg)
-                    return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
+            if course.nact_course_id:
+                for cyc in course.cycles.all():
+                    is_valid, err_msg = validate_nact_cycle_date(course, cyc.cycle_date)
+                    if not is_valid:
+                        messages.error(request, err_msg)
+                        return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
         else:
             course.chemo_regimen = None
             course.received_cycles = 0
@@ -160,6 +165,47 @@ def nact_form_view(request, mr_no, course_id=None):
 
         course.notes = request.POST.get('notes', '')
         course.save()
+
+        # Initial Cycle / Drug quick entry (if filled and course currently has no cycles)
+        if nact_received and not course.cycles.exists():
+            quick_cycle_date = parse_date_str(request.POST.get('quick_cycle_date'))
+            quick_agent_id = request.POST.get('quick_chemo_agent_id')
+            if quick_cycle_date or quick_agent_id:
+                c_date = quick_cycle_date or course.nact_start_date or date.today()
+                is_valid, err_msg = validate_nact_cycle_date(course, c_date)
+                if not is_valid:
+                    messages.warning(request, f"Course parameters saved, but initial cycle date is invalid: {err_msg}")
+                else:
+                    cycle = NACTCycle.objects.create(
+                        course=course,
+                        cycle_number=1,
+                        cycle_date=c_date,
+                        cycle_status=request.POST.get('quick_cycle_status') or 'Administered',
+                        pre_cycle_notes=request.POST.get('quick_pre_cycle_notes', ''),
+                        cycle_toxicity=request.POST.get('quick_cycle_toxicity', '')
+                    )
+                    if not course.nact_start_date:
+                        course.nact_start_date = c_date
+                    if quick_agent_id:
+                        dose_val = float(request.POST.get('quick_dose')) if request.POST.get('quick_dose') else None
+                        unit_val = int(request.POST.get('quick_dose_unit_id')) if request.POST.get('quick_dose_unit_id') else None
+                        route_val = int(request.POST.get('quick_chemo_route_id')) if request.POST.get('quick_chemo_route_id') else None
+                        days_val = int(request.POST.get('quick_no_of_days') or 1)
+                        day_admin_val = int(request.POST.get('quick_day_of_administration') or 1)
+                        is_admin = request.POST.get('quick_administered') != '0'
+                        NACTDrug.objects.create(
+                            cycle=cycle,
+                            chemo_agent_id=int(quick_agent_id),
+                            dose=dose_val,
+                            dose_unit_id=unit_val,
+                            chemo_route_id=route_val,
+                            no_of_days=days_val,
+                            day_of_administration=day_admin_val,
+                            administered=is_admin
+                        )
+                    if course.received_cycles < 1:
+                        course.received_cycles = max(1, course.planned_cycles)
+                    course.save()
 
         AuditLog.objects.create(
             username=request.user.username,
@@ -239,6 +285,24 @@ def nact_cycle_add_view(request, mr_no, course_id):
         pre_cycle_notes=request.POST.get('pre_cycle_notes', ''),
         cycle_toxicity=request.POST.get('cycle_toxicity', '')
     )
+
+    chemo_agent_id = request.POST.get('chemo_agent_id')
+    if chemo_agent_id:
+        dose_val = float(request.POST.get('dose')) if request.POST.get('dose') else None
+        unit_val = int(request.POST.get('dose_unit_id')) if request.POST.get('dose_unit_id') else None
+        route_val = int(request.POST.get('chemo_route_id')) if request.POST.get('chemo_route_id') else None
+        days_val = int(request.POST.get('no_of_days') or 1)
+        day_admin_val = int(request.POST.get('day_of_administration') or 1)
+        NACTDrug.objects.create(
+            cycle=cycle,
+            chemo_agent_id=int(chemo_agent_id),
+            dose=dose_val,
+            dose_unit_id=unit_val,
+            chemo_route_id=route_val,
+            no_of_days=days_val,
+            day_of_administration=day_admin_val,
+            administered=True
+        )
 
     messages.success(request, f"Cycle #{cycle.cycle_number} created.")
     return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
@@ -418,11 +482,12 @@ def adjuvant_form_view(request, mr_no, course_id=None):
             course.linked_brachy_course_id = request.POST.get('linked_brachy_course_id') or None
 
             # Validate all existing cycles against newly linked prior treatment boundaries
-            for cyc in course.cycles.all():
-                is_valid, err_msg = validate_adjuvant_cycle_date(course, cyc.cycle_date)
-                if not is_valid:
-                    messages.error(request, err_msg)
-                    return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
+            if course.adjuvant_course_id:
+                for cyc in course.cycles.all():
+                    is_valid, err_msg = validate_adjuvant_cycle_date(course, cyc.cycle_date)
+                    if not is_valid:
+                        messages.error(request, err_msg)
+                        return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id)
         else:
             course.received_cycles = 0
             course.linked_ebrt_course = None
