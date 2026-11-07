@@ -54,6 +54,20 @@ def resequence_adjuvant_cycles(course):
             cyc.save(update_fields=['cycle_number'])
 
 
+def resequence_concurrent_cycles(course):
+    """
+    Re-sequences Concurrent Chemotherapy cycles strictly in chronological order by cycle_date (oldest first).
+    Updates cycle_number so Cycle #1 is the earliest date.
+    """
+    if not course or not course.conc_chemo_course_id:
+        return
+    cycles = list(course.cycles.all().order_by('cycle_date', 'conc_chemo_cycle_id'))
+    for idx, cyc in enumerate(cycles, start=1):
+        if cyc.cycle_number != idx:
+            cyc.cycle_number = idx
+            cyc.save(update_fields=['cycle_number'])
+
+
 def validate_nact_cycle_date(course, cycle_date):
     """
     Validation Rules for NACT cycle date:
@@ -891,7 +905,9 @@ def concurrent_form_view(request, mr_no, course_id=None):
         messages.success(request, f"Concurrent chemotherapy course for {patient.pt_name} saved.")
         return redirect('systemic_hub', mr_no=patient.mr_no)
 
-    cycles = course.cycles.all().prefetch_related('drugs__chemo_agent', 'drugs__dose_unit') if course else []
+    if course:
+        resequence_concurrent_cycles(course)
+    cycles = course.cycles.all().order_by('cycle_date', 'conc_chemo_cycle_id').prefetch_related('drugs__chemo_agent', 'drugs__dose_unit') if course else []
 
     return render(request, 'systemic/concurrent_form.html', {
         'patient': patient,
@@ -942,9 +958,10 @@ def concurrent_cycle_form_view(request, mr_no, course_id, cycle_id=None):
         drug.administered = request.POST.get('administered', '1') == '1'
         drug.save()
 
-        # Update received count
+        # Update received count and re-sequence in chronological order
         course.received_cycles = course.cycles.count()
         course.save()
+        resequence_concurrent_cycles(course)
 
         AuditLog.objects.create(
             username=request.user.username,

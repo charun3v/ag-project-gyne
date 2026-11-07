@@ -349,7 +349,12 @@ def ebrt_form_view(request, mr_no, course_id=None):
         return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
 
     current_site_ids = [s.ebrt_site_id for s in course.sites.all()] if course else []
-    concurrent_cycles = concurrent_course.cycles.all().prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if concurrent_course else []
+    if concurrent_course:
+        from systemic.views import resequence_concurrent_cycles
+        resequence_concurrent_cycles(concurrent_course)
+        concurrent_cycles = concurrent_course.cycles.all().order_by('cycle_date', 'conc_chemo_cycle_id').prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route')
+    else:
+        concurrent_cycles = []
 
     from core.lookup_defaults import get_default_lookup_id
     default_intent_id = get_default_lookup_id('intent')
@@ -503,7 +508,11 @@ def ebrt_concurrent_cycle_save_view(request, mr_no, course_id, cycle_id=None):
         conc_course.received_cycles = conc_course.cycles.count()
     conc_course.save()
 
-    msg = f"Concurrent chemotherapy cycle #{cycle.cycle_number} updated." if cycle_id else f"Concurrent chemotherapy cycle #{cycle.cycle_number} recorded."
+    from systemic.views import resequence_concurrent_cycles
+    resequence_concurrent_cycles(conc_course)
+    cycle.refresh_from_db()
+
+    msg = f"Concurrent chemotherapy cycle #{cycle.cycle_number} updated (chronologically sorted)." if cycle_id else f"Concurrent chemotherapy cycle #{cycle.cycle_number} recorded (chronologically sorted)."
     messages.success(request, msg)
     return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
 
@@ -528,6 +537,8 @@ def ebrt_concurrent_cycle_delete_view(request, mr_no, course_id, cycle_id):
     if conc_course:
         cycle = get_object_or_404(ConcurrentChemoCycle, conc_chemo_cycle_id=cycle_id, course=conc_course)
         cycle.delete()
+        from systemic.views import resequence_concurrent_cycles
+        resequence_concurrent_cycles(conc_course)
         conc_course.save()
         messages.success(request, "Concurrent chemotherapy cycle removed.")
 
