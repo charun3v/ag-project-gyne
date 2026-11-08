@@ -315,7 +315,7 @@ def diagnosis_detail_view(request, mr_no, diagnosis_id=None):
 
         messages.success(request, f"Diagnosis for {patient.pt_name} saved successfully.")
         if 'save_patient_dashboard' in request.POST:
-            return redirect('patient_summary', mr_no=patient.mr_no)
+            return redirect('patient_dashboard', mr_no=patient.mr_no)
         if 'save_next' in request.POST:
             return redirect('nact_router', mr_no=patient.mr_no)
         return redirect('diagnosis_detail', mr_no=patient.mr_no)
@@ -462,10 +462,10 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
         if 'open_diagram' in request.POST:
             return redirect('ibs_diagram', encounter_id=encounter.clinical_id)
         if 'save_patient_dashboard' in request.POST:
-            return redirect('patient_summary', mr_no=patient.mr_no)
+            return redirect('patient_dashboard', mr_no=patient.mr_no)
         if 'save_next' in request.POST:
             if 'brachy' in enc_type_lower or (encounter_type_obj and 'brachy' in encounter_type_obj.encounter_type_name.lower()):
-                return redirect('patient_summary', mr_no=patient.mr_no)
+                return redirect('patient_dashboard', mr_no=patient.mr_no)
             return redirect('investigations_hub', mr_no=patient.mr_no)
         if 'save_stay' in request.POST:
             if 'post-nact' in enc_type_lower or (encounter_type_obj and 'nact' in encounter_type_obj.encounter_type_name.lower()):

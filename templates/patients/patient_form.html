@@ -159,6 +159,9 @@
                     ➡️ Save & Proceed to Clinical History
                 </button>
                 {% if not is_new %}
+                    <a href="{% url 'patient_dashboard' patient.mr_no %}" class="btn-access" style="font-weight: bold; color: #003366;">
+                        🎯 Patient Dashboard
+                    </a>
                     <a href="{% url 'patient_summary' patient.mr_no %}" class="btn-access">
                         📄 Full Patient Summary
                     </a>

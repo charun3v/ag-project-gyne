@@ -227,3 +227,9 @@ def patient_delete_view(request, mr_no):
     return render(request, 'patients/patient_confirm_delete.html', {
         'patient': patient
     })
+
+
+@login_required
+def patient_dashboard_view(request, mr_no):
+    from core.views import dashboard_view
+    return dashboard_view(request, mr_no=mr_no)

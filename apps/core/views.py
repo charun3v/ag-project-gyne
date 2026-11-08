@@ -37,11 +37,15 @@ def logout_view(request):
     return redirect('login')
 
 @login_required
-def dashboard_view(request):
+def dashboard_view(request, mr_no=None):
     """
     Central clinical dashboard replicating frmDashboard and continuous frmDashboardPatientRow.
     Computes status badges for each of the 11 workflow tiles per patient.
+    If mr_no is specified, serves the Patient-Specific Dashboard for that single patient.
     """
+    if not mr_no:
+        mr_no = request.GET.get('mr_no')
+
     patients_qs = Patient.objects.filter(soft_deleted=False).prefetch_related(
         'diagnoses__primary_site', 'encounters__encounter_type', 'histories',
         'ebrt_courses__course_status', 'brachy_courses__course_status',
@@ -49,6 +53,13 @@ def dashboard_view(request):
         'follow_up_records__disease_status', 'documents',
         'blood_tests', 'imaging_studies', 'pathology_reports', 'molecular_tests'
     )
+
+    single_patient = None
+    is_single_patient = False
+    if mr_no:
+        single_patient = get_object_or_404(Patient, mr_no=mr_no, soft_deleted=False)
+        patients_qs = patients_qs.filter(mr_no=mr_no)
+        is_single_patient = True
 
     patients_data = []
     for pt in patients_qs:
@@ -241,7 +252,17 @@ def dashboard_view(request):
             'followup_status_text': followup_status_text,
         })
 
-    return render(request, 'core/dashboard.html', {'patients': patients_data})
+    return render(request, 'core/dashboard.html', {
+        'patients': patients_data,
+        'single_patient': single_patient,
+        'is_single_patient': is_single_patient,
+    })
+
+
+@login_required
+def patient_dashboard_view(request, mr_no):
+    """Serves the Patient-Specific Dashboard for a single patient."""
+    return dashboard_view(request, mr_no=mr_no)
 
 @login_required
 def export_data_view(request):

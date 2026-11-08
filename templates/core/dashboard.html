@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Patient Dashboard - {{ APP_TITLE }}{% endblock %}
+{% block title %}{% if is_single_patient %}{{ single_patient.pt_name }} ({{ single_patient.mr_no }}) - Patient Dashboard{% else %}Patient Dashboard - {{ APP_TITLE }}{% endif %}{% endblock %}
 
 {% block content %}
 <div class="access-form-box">
@@ -9,17 +9,52 @@
         <div style="display: flex; flex-direction: column; line-height: 1.25;">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 15px; font-weight: bold; letter-spacing: 0.3px;">Radiation Oncology</span>
-                <span style="font-size: 11px; opacity: 0.9; font-weight: normal;">— Patient Worklist Dashboard</span>
+                <span style="font-size: 11px; opacity: 0.9; font-weight: normal;">— {% if is_single_patient %}Patient Specific Dashboard{% else %}Patient Worklist Dashboard{% endif %}</span>
             </div>
-            <span style="font-size: 11px; font-weight: 500; color: #eef5ff; opacity: 0.95;">Kidwai Memorial Institute of Oncology</span>
+            <span style="font-size: 11px; font-weight: 500; color: #003366; opacity: 0.85;">Kidwai Memorial Institute of Oncology</span>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="patientFilter" placeholder="Type to filter MR No. or Name..." 
-                   style="font-size: 11px; padding: 3px 8px; width: 240px; border: 1px solid #707070;"
-                   onkeyup="filterPatientRows()">
-            <span style="font-size: 11px; color: #444444;">Total Patients: <strong>{{ patients|length }}</strong></span>
+            {% if is_single_patient %}
+                <a href="{% url 'dashboard' %}" class="btn-access" style="background: #003366; color: #fff; font-weight: bold; font-size: 11px; padding: 3px 10px; border-radius: 2px; text-decoration: none;">
+                    👥 All Patients Worklist
+                </a>
+                <a href="{% url 'patient_summary' single_patient.mr_no %}" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; font-size: 11px; padding: 3px 10px; border-radius: 2px; text-decoration: none; border-color: #70a0d0;">
+                    📄 Patient Summary
+                </a>
+                <span style="font-size: 11px; color: #003366; background: #e8f0fe; border: 1px solid #c2d7f2; padding: 2px 8px; border-radius: 3px;">
+                    Patient: <strong>{{ single_patient.mr_no }}</strong>
+                </span>
+            {% else %}
+                <input type="text" id="patientFilter" placeholder="Type to filter MR No. or Name..." 
+                       style="font-size: 11px; padding: 3px 8px; width: 240px; border: 1px solid #707070;"
+                       onkeyup="filterPatientRows()">
+                <span style="font-size: 11px; color: #444444;">Total Patients: <strong>{{ patients|length }}</strong></span>
+            {% endif %}
         </div>
     </div>
+
+    {% if is_single_patient %}
+    <!-- Patient Context Banner -->
+    <div style="background: #f4f8fb; border-bottom: 2px solid #b8cddf; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 12px; color: #003366;">
+            <span style="font-size: 14px; font-weight: bold;">{{ single_patient.pt_name }}</span>
+            <span style="color: #555; margin-left: 8px;">(MR No: <strong>{{ single_patient.mr_no }}</strong> | {{ single_patient.age|default:'—' }} yrs / {{ single_patient.sex|default:'Female' }})</span>
+            <span style="margin-left: 10px; background: #e0ecf8; color: #003366; border: 1px solid #b0cce8; padding: 2px 8px; border-radius: 2px; font-weight: bold; font-size: 11px;">
+                {{ patients.0.site_badge|default:'Gynae Oncology' }}
+            </span>
+            {% if patients.0.curr_diag and patients.0.curr_diag.stage_text %}
+            <span style="margin-left: 6px; background: #eef2f7; color: #333; border: 1px solid #c8d4e2; padding: 2px 6px; border-radius: 2px; font-size: 11px;">
+                Stage {{ patients.0.curr_diag.stage_text }}
+            </span>
+            {% endif %}
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+            <span style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; font-weight: bold; font-size: 11px; padding: 2px 8px; border-radius: 3px;">
+                ✓ Patient Specific Dashboard
+            </span>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Column Headers matching MS Access frmDashboard -->
     <div style="background-color: #e4e2d5; border-bottom: 2px solid #b0b0b0; padding: 6px 10px; font-weight: bold; font-size: 11px; color: #003366;">
