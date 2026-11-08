@@ -266,7 +266,7 @@
                             </strong>
                         </div>
                         <div>Timeline: Simulation {{ eb.simulation_date|date:'d-M-Y'|default:'-' }} &rarr; Start {{ eb.ebrt_start_date|date:'d-M-Y'|default:'-' }} to End {{ eb.ebrt_end_date|date:'d-M-Y'|default:'-' }}</div>
-                        <div>Status: <strong>{{ eb.course_status.status_name|default:'In Progress' }}</strong> {% if eb.treatment_interrupted %}<span style="color: #b00000;">(Gap: {{ eb.interruption_days }} days lost)</span>{% endif %}</div>
+                        <div>Status: <strong>{{ eb.get_treatment_status_display|default:'Planned' }}</strong>{% if eb.compliance_reason %} <span style="color: #b71c1c; font-size: 11px;">(Reason: {{ eb.compliance_reason.reason_name }}{% if eb.compliance_reason_other %} &mdash; {{ eb.compliance_reason_other }}{% endif %})</span>{% endif %} {% if eb.treatment_interrupted %}<span style="color: #b00000;">(Gap: {{ eb.interruption_days }} days lost)</span>{% endif %}</div>
                         <div>Approval: {% if eb.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ eb.approved_by }} ({{ eb.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
 
                         <!-- Indented Concurrent Chemotherapy directly beneath EBRT course -->
@@ -305,7 +305,7 @@
                         <div>Dosing / Source: <strong>{{ br.brachy_dosing.dosing_point|default:'Point A' }}</strong> ({{ br.brachy_source.source_name|default:'HDR Ir-192' }})</div>
                         <div>Delivered Fractions: <strong>{{ br.total_fractions_delivered }} / {{ br.total_fractions_planned }}</strong> planned (Prescription: {{ br.prescription_dose_gy|default:0 }} Gy)</div>
                         <div>Dates: {{ br.brachy_start_date|date:'d-M-Y'|default:'-' }} to {{ br.brachy_end_date|date:'d-M-Y'|default:'-' }}</div>
-                        <div>Applications Logged: {{ br.sessions.count }} | Status: {{ br.completion_status|default:'Active' }}</div>
+                        <div>Applications Logged: {{ br.sessions.count }} | Status: <strong>{{ br.get_treatment_status_display|default:'Planned' }}</strong>{% if br.compliance_reason %} <span style="color: #b71c1c; font-size: 11px;">(Reason: {{ br.compliance_reason.reason_name }}{% if br.compliance_reason_other %} &mdash; {{ br.compliance_reason_other }}{% endif %})</span>{% endif %}</div>
                         <div>Approval: {% if br.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ br.approved_by }} ({{ br.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
                     </div>
                 {% empty %}
@@ -330,7 +330,7 @@
                 {% for nc in nact_courses %}
                     <div style="margin-top: 6px; padding-bottom: 8px; border-bottom: 1px dashed #d0d0d0; line-height: 1.5;">
                         <div>Regimen: <strong>{{ nc.chemo_regimen.regimen_code|default:'Regimen' }}</strong> ({{ nc.chemo_regimen.regimen_description|default:'' }})</div>
-                        <div>Cycles: <strong>{{ nc.cycles.count }}</strong> given / {{ nc.planned_cycles }} planned | Status: {{ nc.nact_status.status_name|default:'In Progress' }}</div>
+                        <div>Cycles: <strong>{{ nc.cycles.count }}</strong> given / {{ nc.planned_cycles }} planned | Status: <strong>{{ nc.get_treatment_status_display|default:'Planned' }}</strong>{% if nc.compliance_reason %} <span style="color: #b71c1c; font-size: 11px;">(Reason: {{ nc.compliance_reason.reason_name }}{% if nc.compliance_reason_other %} &mdash; {{ nc.compliance_reason_other }}{% endif %})</span>{% endif %}</div>
                         <div>Tumor Response: <strong>{{ nc.response_to_nact.response_code|default:'Pending' }}</strong></div>
                         <div>Post NACT staging: <strong>{{ nc.post_nact_stage|default:'—' }}</strong></div>
                         <div>Approval: {% if nc.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ nc.approved_by }} ({{ nc.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
@@ -363,7 +363,7 @@
                 <strong style="color: #003366;">Post-Definitive Adjuvant Chemotherapy:</strong>
                 {% for ac in adjuvant_courses %}
                     <div style="margin-top: 6px; padding-bottom: 8px; border-bottom: 1px dashed #d0d0d0; line-height: 1.5;">
-                        <div>Cycles: <strong>{{ ac.cycles.count }}</strong> given / {{ ac.planned_cycles }} planned | Status: {{ ac.chemo_status.status_name|default:'In Progress' }}</div>
+                        <div>Cycles: <strong>{{ ac.cycles.count }}</strong> given / {{ ac.planned_cycles }} planned | Status: <strong>{{ ac.get_treatment_status_display|default:'Planned' }}</strong>{% if ac.compliance_reason %} <span style="color: #b71c1c; font-size: 11px;">(Reason: {{ ac.compliance_reason.reason_name }}{% if ac.compliance_reason_other %} &mdash; {{ ac.compliance_reason_other }}{% endif %})</span>{% endif %}</div>
                         <div>Approval: {% if ac.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ ac.approved_by }} ({{ ac.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
 
                         <!-- Cycles grouped: cycle date shown once, drugs listed beneath -->

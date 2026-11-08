@@ -384,44 +384,8 @@
                 </div>
             </fieldset>
 
-            <!-- Section 5: Course Status & Completion Evaluation -->
-            <fieldset style="border: 1px solid #b0c4de; padding: 12px; margin-bottom: 14px; background: #fafafa; border-radius: 3px;">
-                <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
-                    5. Course Status & Clinical Completion
-                </legend>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px;">
-                    <div>
-                        <label class="access-label" style="font-weight: bold; color: #003366;">EBRT Course Status</label>
-                        <select name="course_status_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
-                            <option value="">-- Select Status --</option>
-                            {% for st in statuses %}
-                                <option value="{{ st.course_status_id }}" {% if course and course.course_status_id == st.course_status_id %}selected{% endif %}>
-                                    {{ st.status_name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        <span style="font-size: 9px; color: #888; display: block; margin-top: 2px;">
-                            Cannot be marked 'Completed' if declared concurrent chemo cycles are incomplete.
-                        </span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 14px;">
-                        <input type="checkbox" name="treatment_completed" value="1" 
-                               {% if course and course.treatment_completed %}checked{% endif %}
-                               {% if course and course.approval_locked %}disabled{% endif %}>
-                        <label class="access-label" style="margin: 0; font-weight: bold; color: #2e7d32;">
-                            Mark Full Prescribed RT Course Completed
-                        </label>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="access-label">Completion Remarks / Overall Radiation Tolerance</label>
-                    <textarea name="completion_notes" class="access-textarea" rows="2" 
-                              {% if course and course.approval_locked %}disabled{% endif %}
-                              placeholder="Overall acute tolerance, toxicity grading (dermatitis, cystitis, proctitis), treatment compliance...">{% if course %}{{ course.completion_notes|default:'' }}{% endif %}</textarea>
-                </div>
-            </fieldset>
+            <!-- Section 5: Treatment Completion & Compliance -->
+            {% include 'includes/treatment_compliance_section.html' with course=course compliance_reasons=compliance_reasons %}
 
             <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
                 {% if not course or not course.approval_locked %}

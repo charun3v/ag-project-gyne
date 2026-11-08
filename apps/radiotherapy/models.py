@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 from datetime import date
 from patients.models import Patient
-from core.models import Consultant
+from core.models import Consultant, ComplianceReason, TREATMENT_STATUS_CHOICES
 
 # --- Lookup / Reference Tables for Radiotherapy ---
 
@@ -393,6 +393,12 @@ class EBRTCourse(models.Model):
     treatment_completed = models.BooleanField(default=False, db_column='Treatment_Completed')
     completion_notes = models.TextField(blank=True, null=True, db_column='Completion_Notes')
 
+    # Treatment Completion & Compliance
+    treatment_status = models.CharField(max_length=20, default='PLANNED', choices=TREATMENT_STATUS_CHOICES, db_column='Treatment_Status')
+    compliance_reason = models.ForeignKey(ComplianceReason, on_delete=models.SET_NULL, null=True, blank=True, db_column='ComplianceReasonID')
+    compliance_reason_other = models.CharField(max_length=255, blank=True, null=True, db_column='Compliance_Reason_Other')
+    compliance_remarks = models.TextField(blank=True, null=True, db_column='Compliance_Remarks')
+
     # Approval and locking
     is_approved = models.BooleanField(default=False, db_column='Is_Approved')
     approved_by = models.CharField(max_length=100, blank=True, null=True, db_column='Approved_By')
@@ -476,6 +482,12 @@ class BrachyCourse(models.Model):
     
     completion_status = models.CharField(max_length=50, blank=True, null=True, db_column='Completion_Status')
     completion_notes = models.TextField(blank=True, null=True, db_column='Completion_Notes')
+
+    # Treatment Completion & Compliance
+    treatment_status = models.CharField(max_length=20, default='PLANNED', choices=TREATMENT_STATUS_CHOICES, db_column='Treatment_Status')
+    compliance_reason = models.ForeignKey(ComplianceReason, on_delete=models.SET_NULL, null=True, blank=True, db_column='ComplianceReasonID')
+    compliance_reason_other = models.CharField(max_length=255, blank=True, null=True, db_column='Compliance_Reason_Other')
+    compliance_remarks = models.TextField(blank=True, null=True, db_column='Compliance_Remarks')
 
     # Approval and locking
     is_approved = models.BooleanField(default=False, db_column='Is_Approved')

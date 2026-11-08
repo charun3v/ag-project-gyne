@@ -1,0 +1,292 @@
+<!-- Reusable Treatment Completion and Compliance Section -->
+<fieldset style="border: 1px solid #b0c4de; padding: 12px; margin-bottom: 14px; background: #fafafa; border-radius: 3px;">
+    <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+        🎯 Treatment Completion & Compliance
+    </legend>
+
+    <div style="font-size: 11px; color: #475569; margin-bottom: 10px;">
+        Record whether this treatment course is planned, ongoing, on hold, completed, not started, or discontinued.
+        If treatment was not started, temporarily interrupted, or permanently discontinued, a reason is mandatory.
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; align-items: start; margin-bottom: 8px;">
+        <!-- Mandatory Treatment Status Dropdown -->
+        <div>
+            <label class="access-label" style="font-weight: bold; color: #003366;">
+                Treatment Status *
+            </label>
+            <select name="treatment_status" id="treatment_status" class="access-select" required
+                    {% if course and course.approval_locked %}disabled{% endif %}>
+                <option value="PLANNED" {% if course and course.treatment_status == 'PLANNED' or not course or not course.treatment_status %}selected{% endif %}>
+                    Planned &mdash; Treatment planned but not yet initiated
+                </option>
+                <option value="ONGOING" {% if course and course.treatment_status == 'ONGOING' %}selected{% endif %}>
+                    Ongoing &mdash; Treatment started and currently continuing
+                </option>
+                <option value="ON_HOLD" {% if course and course.treatment_status == 'ON_HOLD' %}selected{% endif %}>
+                    On Hold &mdash; Treatment temporarily interrupted, with possible resumption
+                </option>
+                <option value="COMPLETED" {% if course and course.treatment_status == 'COMPLETED' %}selected{% endif %}>
+                    Completed &mdash; Prescribed treatment course completed
+                </option>
+                <option value="NOT_STARTED" {% if course and course.treatment_status == 'NOT_STARTED' %}selected{% endif %}>
+                    Not Started &mdash; Planned treatment definitively not initiated
+                </option>
+                <option value="DISCONTINUED" {% if course and course.treatment_status == 'DISCONTINUED' %}selected{% endif %}>
+                    Discontinued &mdash; Treatment initiated but permanently stopped before completion
+                </option>
+            </select>
+            <span style="font-size: 9.5px; color: #64748b; display: block; margin-top: 3px;">
+                <strong>Clinical Rule:</strong> A patient scheduled for a future date must remain <em>Planned</em>, not <em>Not Started</em>.
+            </span>
+        </div>
+
+        <!-- Live Definition Box -->
+        <div id="status_definition_card" style="background: #f1f5f9; border-left: 3px solid #003366; padding: 8px 12px; border-radius: 2px;">
+            <div style="font-size: 10px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 2px;">Status Definition:</div>
+            <div id="status_definition_text" style="font-size: 11px; color: #0f172a; font-weight: 500;">
+                Treatment planned but not yet initiated
+            </div>
+        </div>
+    </div>
+
+    <!-- Conditional Reason Container (Shown only when NOT_STARTED, ON_HOLD, or DISCONTINUED) -->
+    <div id="compliance_reason_container" style="display: none; margin-top: 10px; padding: 10px; background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #d97706; border-radius: 3px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+            <div>
+                <label class="access-label" style="font-weight: bold; color: #b45309;">
+                    Reason for Non-Initiation / Interruption / Discontinuation *
+                </label>
+                <select name="compliance_reason_id" id="compliance_reason_id" class="access-select"
+                        {% if course and course.approval_locked %}disabled{% endif %}>
+                    <option value="">-- Select Reason * --</option>
+                    {% for r in compliance_reasons %}
+                        <option value="{{ r.reason_id }}"
+                                data-code="{{ r.reason_code }}"
+                                data-name="{{ r.reason_name }}"
+                                data-not-started="{{ r.applicable_to_not_started|yesno:'1,0' }}"
+                                data-on-hold="{{ r.applicable_to_on_hold|yesno:'1,0' }}"
+                                data-discontinued="{{ r.applicable_to_discontinued|yesno:'1,0' }}"
+                                {% if course and course.compliance_reason_id == r.reason_id %}selected{% endif %}>
+                            {{ r.reason_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <span style="font-size: 9.5px; color: #92400e; display: block; margin-top: 2px;">
+                    Reasons are configured by administrator for applicability to the selected status.
+                </span>
+            </div>
+
+            <!-- Mandatory specify reason text field when Other is selected -->
+            <div id="specify_reason_wrapper" style="display: none;">
+                <label class="access-label" style="font-weight: bold; color: #b45309;">
+                    Specify Reason *
+                </label>
+                <input type="text" name="compliance_reason_other" id="compliance_reason_other" class="access-input"
+                       value="{% if course and course.compliance_reason_other %}{{ course.compliance_reason_other }}{% endif %}"
+                       placeholder="Please specify clinical or non-clinical reason details..."
+                       {% if course and course.approval_locked %}disabled{% endif %}>
+                <span style="font-size: 9.5px; color: #92400e; display: block; margin-top: 2px;">
+                    Mandatory when 'Other' reason is selected.
+                </span>
+            </div>
+        </div>
+
+        <div>
+            <label class="access-label" style="font-weight: bold; color: #475569;">
+                Compliance Remarks (Optional)
+            </label>
+            <textarea name="compliance_remarks" id="compliance_remarks" class="access-textarea" rows="2"
+                      placeholder="Optional notes regarding clinical condition, toxicity grading, patient willingness, transfer hospital, resumption plans..."
+                      {% if course and course.approval_locked %}disabled{% endif %}>{% if course and course.compliance_remarks %}{{ course.compliance_remarks }}{% endif %}</textarea>
+        </div>
+    </div>
+</fieldset>
+
+<script>
+(function() {
+    var statusSelect = document.getElementById('treatment_status');
+    var reasonContainer = document.getElementById('compliance_reason_container');
+    var reasonSelect = document.getElementById('compliance_reason_id');
+    var specifyWrapper = document.getElementById('specify_reason_wrapper');
+    var specifyInput = document.getElementById('compliance_reason_other');
+    var defText = document.getElementById('status_definition_text');
+
+    if (!statusSelect) return;
+
+    var definitions = {
+        'PLANNED': 'Treatment planned but not yet initiated (Default)',
+        'ONGOING': 'Treatment started and currently continuing',
+        'ON_HOLD': 'Treatment temporarily interrupted, with possible resumption',
+        'COMPLETED': 'Prescribed treatment course completed',
+        'NOT_STARTED': 'Planned treatment definitively not initiated',
+        'DISCONTINUED': 'Treatment initiated but permanently stopped before completion'
+    };
+
+    var requiringReason = ['NOT_STARTED', 'ON_HOLD', 'DISCONTINUED'];
+
+    // Backup all options for filtering
+    var allReasonOptions = [];
+    if (reasonSelect) {
+        for (var i = 0; i < reasonSelect.options.length; i++) {
+            var opt = reasonSelect.options[i];
+            allReasonOptions.push({
+                value: opt.value,
+                text: opt.text,
+                code: opt.getAttribute('data-code') || '',
+                name: opt.getAttribute('data-name') || opt.text,
+                notStarted: opt.getAttribute('data-not-started') === '1',
+                onHold: opt.getAttribute('data-on-hold') === '1',
+                discontinued: opt.getAttribute('data-discontinued') === '1'
+            });
+        }
+    }
+
+    function getScheduledStartDate() {
+        var startInput = document.querySelector('input[name="ebrt_start_date"]') ||
+                         document.querySelector('input[name="brachy_start_date"]') ||
+                         document.querySelector('input[name="nact_start_date"]') ||
+                         document.querySelector('input[name="adjuvant_start_date"]');
+        if (startInput && startInput.value) {
+            return new Date(startInput.value);
+        }
+        return null;
+    }
+
+    function filterReasonOptions(status, preservedValue) {
+        if (!reasonSelect) return;
+        var curVal = preservedValue !== undefined ? preservedValue : reasonSelect.value;
+        reasonSelect.innerHTML = '';
+
+        var defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.text = '-- Select Reason * --';
+        reasonSelect.appendChild(defaultOpt);
+
+        var valueStillValid = false;
+        for (var j = 1; j < allReasonOptions.length; j++) {
+            var r = allReasonOptions[j];
+            var isApplicable = false;
+            if (status === 'NOT_STARTED') isApplicable = r.notStarted;
+            else if (status === 'ON_HOLD') isApplicable = r.onHold;
+            else if (status === 'DISCONTINUED') isApplicable = r.discontinued;
+
+            if (isApplicable) {
+                var o = document.createElement('option');
+                o.value = r.value;
+                o.text = r.text;
+                o.setAttribute('data-code', r.code);
+                o.setAttribute('data-name', r.name);
+                o.setAttribute('data-not-started', r.notStarted ? '1' : '0');
+                o.setAttribute('data-on-hold', r.onHold ? '1' : '0');
+                o.setAttribute('data-discontinued', r.discontinued ? '1' : '0');
+                if (String(r.value) === String(curVal)) {
+                    o.selected = true;
+                    valueStillValid = true;
+                }
+                reasonSelect.appendChild(o);
+            }
+        }
+
+        if (!valueStillValid && curVal) {
+            reasonSelect.value = '';
+        }
+        updateSpecifyReasonVisibility();
+    }
+
+    function updateSpecifyReasonVisibility() {
+        if (!reasonSelect || !specifyWrapper || !specifyInput) return;
+        var selectedOpt = reasonSelect.options[reasonSelect.selectedIndex];
+        var code = selectedOpt ? selectedOpt.getAttribute('data-code') : '';
+        if (code === 'OTHER') {
+            specifyWrapper.style.display = 'block';
+            specifyInput.required = true;
+        } else {
+            specifyWrapper.style.display = 'none';
+            specifyInput.required = false;
+        }
+    }
+
+    function onStatusChange(preservedReasonVal) {
+        var status = statusSelect.value;
+        if (defText) {
+            defText.textContent = definitions[status] || definitions['PLANNED'];
+        }
+
+        // Check future scheduled date rule:
+        // A patient scheduled for a future date must remain PLANNED, not NOT_STARTED.
+        if (status === 'NOT_STARTED') {
+            var sDate = getScheduledStartDate();
+            if (sDate) {
+                var today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (sDate > today) {
+                    alert("Validation Notice: A patient whose treatment is scheduled for a future date must remain 'Planned', not 'Not Started'. Status has been reset to 'Planned'.");
+                    statusSelect.value = 'PLANNED';
+                    status = 'PLANNED';
+                    if (defText) {
+                        defText.textContent = definitions['PLANNED'];
+                    }
+                }
+            }
+        }
+
+        if (requiringReason.indexOf(status) !== -1) {
+            reasonContainer.style.display = 'block';
+            if (reasonSelect) {
+                reasonSelect.required = true;
+                filterReasonOptions(status, preservedReasonVal);
+            }
+        } else {
+            reasonContainer.style.display = 'none';
+            if (reasonSelect) {
+                reasonSelect.required = false;
+                reasonSelect.value = '';
+            }
+            if (specifyWrapper && specifyInput) {
+                specifyWrapper.style.display = 'none';
+                specifyInput.required = false;
+                specifyInput.value = '';
+            }
+        }
+    }
+
+    statusSelect.addEventListener('change', function() {
+        onStatusChange();
+    });
+
+    if (reasonSelect) {
+        reasonSelect.addEventListener('change', function() {
+            updateSpecifyReasonVisibility();
+        });
+    }
+
+    // Initialize on page load with existing values
+    var initialReasonVal = reasonSelect ? reasonSelect.value : '';
+    onStatusChange(initialReasonVal);
+
+    // Form submit validation safeguard
+    var form = statusSelect.closest('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            var currentStatus = statusSelect.value;
+            if (requiringReason.indexOf(currentStatus) !== -1) {
+                if (reasonSelect && !reasonSelect.value) {
+                    e.preventDefault();
+                    alert("Reason is mandatory when Treatment Status is '" + (statusSelect.options[statusSelect.selectedIndex].text.split('—')[0].trim()) + "'.");
+                    reasonSelect.focus();
+                    return false;
+                }
+                var selectedOpt = reasonSelect.options[reasonSelect.selectedIndex];
+                var code = selectedOpt ? selectedOpt.getAttribute('data-code') : '';
+                if (code === 'OTHER' && specifyInput && !specifyInput.value.trim()) {
+                    e.preventDefault();
+                    alert("Please specify the reason in 'Specify Reason'.");
+                    specifyInput.focus();
+                    return false;
+                }
+            }
+        });
+    }
+})();
+</script>

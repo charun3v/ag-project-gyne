@@ -82,19 +82,11 @@
                                    value="{% if course and course.adjuvant_end_date %}{{ course.adjuvant_end_date|date:'Y-m-d' }}{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                         </div>
-                        <div>
-                            <label class="access-label">Chemotherapy Status</label>
-                            <select name="chemo_status_id" class="access-select" {% if course and course.approval_locked %}disabled{% endif %}>
-                                <option value="">-- Select Status --</option>
-                                {% for st in statuses %}
-                                    <option value="{{ st.status_id }}" {% if course and course.chemo_status_id == st.status_id %}selected{% endif %}>
-                                        {{ st.status_name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
                     </div>
                 </fieldset>
+
+                <!-- Treatment Completion & Compliance -->
+                {% include 'includes/treatment_compliance_section.html' with course=course compliance_reasons=compliance_reasons %}
 
                 <!-- Backward Link to Prior Definitive Treatment -->
                 <fieldset style="border: 1px solid #b0c4de; padding: 12px; margin-bottom: 14px; background: #fdfefe; border-radius: 3px;">

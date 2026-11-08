@@ -257,10 +257,19 @@ def ebrt_form_view(request, mr_no, course_id=None):
                     )
                     return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
 
+        # Save EBRT Course
+        if not course:
+            course = EBRTCourse(patient=patient, entered_by=request.user.username)
+
+        # Treatment Completion & Compliance Validation
+        from core.compliance import validate_and_apply_compliance, get_compliance_context
+        is_comp_valid, comp_err = validate_and_apply_compliance(request, course, scheduled_start_date=ebrt_start_date)
+        if not is_comp_valid:
+            messages.error(request, f"Validation Failed: {comp_err}")
+            return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id) if course.ebrt_course_id else redirect('ebrt_add', mr_no=patient.mr_no)
+
         # Validation Matrix Rule: Declared concurrent cycles are incomplete -> Do not permit completion
-        new_status_id = request.POST.get('course_status_id') or None
-        status_obj = TreatmentCourseStatus.objects.filter(course_status_id=new_status_id).first() if new_status_id else None
-        is_marking_completed = bool(request.POST.get('treatment_completed')) or (status_obj and 'complet' in status_obj.status_name.lower())
+        is_marking_completed = (course.treatment_status == 'COMPLETED')
 
         if is_marking_completed and concurrent_received:
             # Check declared concurrent cycles completion
@@ -275,17 +284,30 @@ def ebrt_form_view(request, mr_no, course_id=None):
                     f"Validation Failed: Cannot mark EBRT course as Completed because declared concurrent chemotherapy cycles "
                     f"({completed_cycles} completed of {total_declared} declared) are incomplete."
                 )
-                return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id) if course else redirect('ebrt_add', mr_no=patient.mr_no)
-
-        # Save EBRT Course
-        if not course:
-            course = EBRTCourse(patient=patient, entered_by=request.user.username)
+                return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id) if course.ebrt_course_id else redirect('ebrt_add', mr_no=patient.mr_no)
 
         course.ebrt_intent_id = request.POST.get('ebrt_intent_id') or None
         course.ebrt_technique_id = request.POST.get('ebrt_technique_id') or None
         course.treatment_centre_id = request.POST.get('treatment_centre_id') or 1
         course.initial_rt_machine_id = request.POST.get('initial_rt_machine_id') or None
-        course.course_status_id = new_status_id
+
+        course.treatment_completed = (course.treatment_status == 'COMPLETED')
+        if course.treatment_status == 'COMPLETED':
+            c_stat = TreatmentCourseStatus.objects.filter(status_name__icontains='Completed', is_active=True).first()
+            if c_stat:
+                course.course_status = c_stat
+        elif course.treatment_status == 'PLANNED':
+            p_stat = TreatmentCourseStatus.objects.filter(status_name__icontains='Planned', is_active=True).first()
+            if p_stat:
+                course.course_status = p_stat
+        elif course.treatment_status == 'ONGOING':
+            p_stat = TreatmentCourseStatus.objects.filter(status_name__icontains='Progress', is_active=True).first()
+            if p_stat:
+                course.course_status = p_stat
+        elif course.treatment_status == 'DISCONTINUED':
+            p_stat = TreatmentCourseStatus.objects.filter(status_name__icontains='Discontinued', is_active=True).first()
+            if p_stat:
+                course.course_status = p_stat
 
         course.total_dose_gy = float(request.POST.get('total_dose_gy')) if request.POST.get('total_dose_gy') else None
         course.total_fractions = int(request.POST.get('total_fractions')) if request.POST.get('total_fractions') else None
@@ -301,8 +323,6 @@ def ebrt_form_view(request, mr_no, course_id=None):
         course.interruption_days = int(request.POST.get('interruption_days') or 0)
         course.long_gap_notes = request.POST.get('long_gap_notes', '')
 
-        course.treatment_completed = bool(request.POST.get('treatment_completed'))
-        course.completion_notes = request.POST.get('completion_notes', '')
         course.last_modified_by = request.user.username
         course.save()
 
@@ -367,7 +387,9 @@ def ebrt_form_view(request, mr_no, course_id=None):
     default_machine_id = get_default_lookup_id('machine')
     default_centre_id = get_default_lookup_id('centre')
 
-    return render(request, 'radiotherapy/ebrt_form.html', {
+    from core.compliance import get_compliance_context
+
+    ctx = {
         'patient': patient,
         'course': course,
         'intents': intents,
@@ -388,7 +410,9 @@ def ebrt_form_view(request, mr_no, course_id=None):
         'default_technique_id': default_technique_id,
         'default_machine_id': default_machine_id,
         'default_centre_id': default_centre_id,
-    })
+    }
+    ctx.update(get_compliance_context(course))
+    return render(request, 'radiotherapy/ebrt_form.html', ctx)
 
 
 @login_required
@@ -606,7 +630,14 @@ def brachy_form_view(request, mr_no, course_id=None):
         course.alpha_beta_rectum = float(request.POST.get('alpha_beta_rectum') or 3.0)
         course.alpha_beta_sigmoid = float(request.POST.get('alpha_beta_sigmoid') or 3.0)
 
-        is_completed = bool(request.POST.get('is_course_completed'))
+        # Treatment Completion & Compliance Validation
+        from core.compliance import validate_and_apply_compliance, get_compliance_context
+        is_comp_valid, comp_err = validate_and_apply_compliance(request, course, scheduled_start_date=start_d)
+        if not is_comp_valid:
+            messages.error(request, f"Validation Failed: {comp_err}")
+            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course.brachy_course_id else redirect('brachy_add', mr_no=patient.mr_no)
+
+        is_completed = (course.treatment_status == 'COMPLETED') or bool(request.POST.get('is_course_completed'))
         if is_completed:
             missing_errors = []
             for sess in course.sessions.all():
@@ -622,18 +653,27 @@ def brachy_form_view(request, mr_no, course_id=None):
                     missing_errors.append(f"Session #{sess.session_number} ({sess.applicator.name}): {'; '.join(errs.values())}")
             if missing_errors:
                 messages.error(request, f"Cannot mark Brachy Course Completed: {'; '.join(missing_errors)}")
-                is_completed = False
+                return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course.brachy_course_id else redirect('brachy_add', mr_no=patient.mr_no)
 
-        if is_completed:
             course.completion_status = 'Completed'
             completed_status = TreatmentCourseStatus.objects.filter(status_name__icontains='Completed', is_active=True).first()
             if completed_status:
                 course.course_status = completed_status
         else:
-            course.completion_status = request.POST.get('completion_status', 'In Progress')
-            course.course_status_id = request.POST.get('course_status_id') or None
+            course.completion_status = course.get_treatment_status_display()
+            if course.treatment_status == 'PLANNED':
+                p_stat = TreatmentCourseStatus.objects.filter(status_name__icontains='Planned', is_active=True).first()
+                if p_stat:
+                    course.course_status = p_stat
+            elif course.treatment_status == 'ONGOING':
+                p_stat = TreatmentCourseStatus.objects.filter(status_name__icontains='Progress', is_active=True).first()
+                if p_stat:
+                    course.course_status = p_stat
+            elif course.treatment_status == 'DISCONTINUED':
+                p_stat = TreatmentCourseStatus.objects.filter(status_name__icontains='Discontinued', is_active=True).first()
+                if p_stat:
+                    course.course_status = p_stat
 
-        course.completion_notes = request.POST.get('completion_notes', '')
         course.save()
 
         AuditLog.objects.create(
@@ -725,7 +765,9 @@ def brachy_form_view(request, mr_no, course_id=None):
     from core.lookup_defaults import get_default_lookup_id
     default_centre_id = get_default_lookup_id('centre')
 
-    return render(request, 'radiotherapy/brachy_form.html', {
+    from core.compliance import get_compliance_context
+
+    ctx = {
         'patient': patient,
         'course': course,
         'sources': sources,
@@ -752,7 +794,9 @@ def brachy_form_view(request, mr_no, course_id=None):
         'cumulative_rectum_eqd2': cumulative_rectum_eqd2,
         'cumulative_sigmoid_eqd2': cumulative_sigmoid_eqd2,
         'default_centre_id': default_centre_id,
-    })
+    }
+    ctx.update(get_compliance_context(course))
+    return render(request, 'radiotherapy/brachy_form.html', ctx)
 
 
 @login_required

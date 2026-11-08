@@ -3,6 +3,7 @@ from django.utils import timezone
 from datetime import date
 from patients.models import Patient
 from radiotherapy.models import EBRTCourse, BrachyCourse
+from core.models import ComplianceReason, TREATMENT_STATUS_CHOICES
 
 # --- Lookup / Reference Tables for Systemic Chemotherapy ---
 
@@ -199,6 +200,12 @@ class NACTCourse(models.Model):
     response_to_nact = models.ForeignKey(ResponseStatus, on_delete=models.SET_NULL, null=True, blank=True, db_column='ResponseID')
     nact_status = models.ForeignKey(NACTStatus, on_delete=models.SET_NULL, null=True, blank=True, db_column='NACTStatusID')
 
+    # Treatment Completion & Compliance
+    treatment_status = models.CharField(max_length=20, default='PLANNED', choices=TREATMENT_STATUS_CHOICES, db_column='Treatment_Status')
+    compliance_reason = models.ForeignKey(ComplianceReason, on_delete=models.SET_NULL, null=True, blank=True, db_column='ComplianceReasonID')
+    compliance_reason_other = models.CharField(max_length=255, blank=True, null=True, db_column='Compliance_Reason_Other')
+    compliance_remarks = models.TextField(blank=True, null=True, db_column='Compliance_Remarks')
+
     # Forward links to subsequent definitive treatment
     linked_ebrt_course = models.ForeignKey(EBRTCourse, on_delete=models.SET_NULL, null=True, blank=True, related_name='nact_courses', db_column='Linked_EBRTCourseID')
     linked_brachy_course = models.ForeignKey(BrachyCourse, on_delete=models.SET_NULL, null=True, blank=True, related_name='nact_courses', db_column='Linked_BrachyCourseID')
@@ -275,6 +282,12 @@ class AdjuvantChemoCourse(models.Model):
     adjuvant_start_date = models.DateField(null=True, blank=True, db_column='Adjuvant_Start_Date')
     adjuvant_end_date = models.DateField(null=True, blank=True, db_column='Adjuvant_End_Date')
     chemo_status = models.ForeignKey(NACTStatus, on_delete=models.SET_NULL, null=True, blank=True, db_column='ChemoStatusID')
+
+    # Treatment Completion & Compliance
+    treatment_status = models.CharField(max_length=20, default='PLANNED', choices=TREATMENT_STATUS_CHOICES, db_column='Treatment_Status')
+    compliance_reason = models.ForeignKey(ComplianceReason, on_delete=models.SET_NULL, null=True, blank=True, db_column='ComplianceReasonID')
+    compliance_reason_other = models.CharField(max_length=255, blank=True, null=True, db_column='Compliance_Reason_Other')
+    compliance_remarks = models.TextField(blank=True, null=True, db_column='Compliance_Remarks')
     
     # Backward links to prior definitive treatment
     linked_ebrt_course = models.ForeignKey(EBRTCourse, on_delete=models.SET_NULL, null=True, blank=True, related_name='adjuvant_courses', db_column='Linked_EBRTCourseID')

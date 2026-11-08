@@ -132,6 +132,21 @@
                                 </button>
                             </div>
                         </div>
+
+                        {% if cfg.custom_applicability %}
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #c0c8d0; display: flex; gap: 16px; align-items: center; font-size: 11px;">
+                            <strong style="color: #003366;">Valid for Statuses:</strong>
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <input type="checkbox" name="applicable_to_not_started" value="1" checked> Not Started
+                            </label>
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <input type="checkbox" name="applicable_to_on_hold" value="1" checked> On Hold
+                            </label>
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <input type="checkbox" name="applicable_to_discontinued" value="1" checked> Discontinued
+                            </label>
+                        </div>
+                        {% endif %}
                     </form>
                 </fieldset>
 
@@ -153,6 +168,9 @@
                             {% if cfg.secondary_field %}
                                 <th>{{ cfg.secondary_label }}</th>
                             {% endif %}
+                            {% if cfg.custom_applicability %}
+                                <th style="width: 220px; text-align: center;">Applicable Statuses</th>
+                            {% endif %}
                             <th style="width: 80px; text-align: center;">Status</th>
                             <th style="width: 95px; text-align: center;">Default</th>
                             <th style="width: 140px; text-align: center;">Actions</th>
@@ -168,6 +186,14 @@
 
                                 {% if cfg.secondary_field %}
                                     <td>{{ item.secondary|default:'-' }}</td>
+                                {% endif %}
+
+                                {% if cfg.custom_applicability %}
+                                    <td style="text-align: center; font-size: 10px;">
+                                        <span style="display: inline-block; padding: 1px 5px; border-radius: 2px; margin: 1px; {% if item.applicable_to_not_started %}background: #e8f5e9; color: #1b5e20; font-weight: bold; border: 1px solid #c8e6c9;{% else %}background: #f5f5f5; color: #aaa; text-decoration: line-through; border: 1px solid #e0e0e0;{% endif %}">Not Started</span>
+                                        <span style="display: inline-block; padding: 1px 5px; border-radius: 2px; margin: 1px; {% if item.applicable_to_on_hold %}background: #fff8e1; color: #b78103; font-weight: bold; border: 1px solid #ffe082;{% else %}background: #f5f5f5; color: #aaa; text-decoration: line-through; border: 1px solid #e0e0e0;{% endif %}">On Hold</span>
+                                        <span style="display: inline-block; padding: 1px 5px; border-radius: 2px; margin: 1px; {% if item.applicable_to_discontinued %}background: #ffebee; color: #b71c1c; font-weight: bold; border: 1px solid #ffcdd2;{% else %}background: #f5f5f5; color: #aaa; text-decoration: line-through; border: 1px solid #e0e0e0;{% endif %}">Discontinued</span>
+                                    </td>
                                 {% endif %}
 
                                 <td style="text-align: center;">
@@ -200,7 +226,10 @@
                                                 '{{ item.secondary|default:''|escapejs }}',
                                                 '{{ item.display_order }}',
                                                 {{ item.is_active|yesno:'true,false' }},
-                                                {{ item.is_default|yesno:'true,false' }}
+                                                {{ item.is_default|yesno:'true,false' }},
+                                                {{ item.applicable_to_not_started|yesno:'true,false' }},
+                                                {{ item.applicable_to_on_hold|yesno:'true,false' }},
+                                                {{ item.applicable_to_discontinued|yesno:'true,false' }}
                                             )">
                                         ✏️ Edit
                                     </button>
@@ -213,7 +242,7 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="{% if cfg.secondary_field %}6{% else %}5{% endif %}" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
+                                <td colspan="{% if cfg.secondary_field %}{% if cfg.custom_applicability %}7{% else %}6{% endif %}{% else %}{% if cfg.custom_applicability %}6{% else %}5{% endif %}{% endif %}" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
                                     No options found in this lookup table. Use the form above to add an option.
                                 </td>
                             </tr>
@@ -267,6 +296,26 @@
                         </label>
                     </div>
                 </div>
+
+                {% if cfg.custom_applicability %}
+                <div style="margin-top: 8px; padding: 8px; background: #f0f4f8; border: 1px solid #d0dbe5; border-radius: 3px;">
+                    <label class="access-label" style="font-weight: bold; margin-bottom: 4px; color: #003366;">Valid for Treatment Statuses:</label>
+                    <div style="display: flex; gap: 14px; font-size: 11px;">
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" id="editNotStarted" name="applicable_to_not_started" value="1">
+                            Not Started
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" id="editOnHold" name="applicable_to_on_hold" value="1">
+                            On Hold
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" id="editDiscontinued" name="applicable_to_discontinued" value="1">
+                            Discontinued
+                        </label>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <div style="background: #e0e6ed; padding: 8px 12px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #b8c4d2;">
@@ -282,7 +331,7 @@
 </div>
 
 <script>
-function openEditModal(id, name, sec, order, isActive, isDefault) {
+function openEditModal(id, name, sec, order, isActive, isDefault, appNotStarted, appOnHold, appDiscontinued) {
     document.getElementById('editItemId').value = id || '';
     document.getElementById('editForm').action = '/admin-panel/lookups/{{ category }}/' + (id ? id + '/' : '') + 'edit/';
     document.getElementById('editName').value = name;
@@ -293,6 +342,15 @@ function openEditModal(id, name, sec, order, isActive, isDefault) {
     document.getElementById('editActive').checked = isActive;
     if (document.getElementById('editDefault')) {
         document.getElementById('editDefault').checked = !!isDefault;
+    }
+    if (document.getElementById('editNotStarted')) {
+        document.getElementById('editNotStarted').checked = appNotStarted !== false;
+    }
+    if (document.getElementById('editOnHold')) {
+        document.getElementById('editOnHold').checked = appOnHold !== false;
+    }
+    if (document.getElementById('editDiscontinued')) {
+        document.getElementById('editDiscontinued').checked = appDiscontinued !== false;
     }
     document.getElementById('editModal').style.display = 'flex';
 }

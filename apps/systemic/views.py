@@ -203,7 +203,6 @@ def nact_form_view(request, mr_no, course_id=None):
             course.nact_end_date = parse_date_str(request.POST.get('nact_end_date'))
             course.post_nact_stage = request.POST.get('post_nact_stage', '').strip() or None
             course.response_to_nact_id = request.POST.get('response_id') or None
-            course.nact_status_id = request.POST.get('nact_status_id') or None
             course.linked_ebrt_course_id = request.POST.get('linked_ebrt_course_id') or None
             course.linked_brachy_course_id = request.POST.get('linked_brachy_course_id') or None
             course.post_nact_assessment_done = bool(request.POST.get('post_nact_assessment_done'))
@@ -235,6 +234,22 @@ def nact_form_view(request, mr_no, course_id=None):
             course.received_cycles = 0
             course.linked_ebrt_course = None
             course.linked_brachy_course = None
+
+        # Treatment Completion & Compliance Validation
+        from core.compliance import validate_and_apply_compliance, get_compliance_context
+        is_comp_valid, comp_err = validate_and_apply_compliance(request, course, scheduled_start_date=course.nact_start_date)
+        if not is_comp_valid:
+            messages.error(request, f"Validation Failed: {comp_err}")
+            return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id) if course.nact_course_id else redirect('nact_add', mr_no=patient.mr_no)
+
+        if course.treatment_status == 'COMPLETED':
+            c_stat = NACTStatus.objects.filter(status_name__icontains='Complete', is_active=True).first()
+            if c_stat:
+                course.nact_status = c_stat
+        elif course.treatment_status == 'DISCONTINUED':
+            d_stat = NACTStatus.objects.filter(status_name__icontains='Discontinued', is_active=True).first()
+            if d_stat:
+                course.nact_status = d_stat
 
         course.notes = request.POST.get('notes', '')
         course.save()
@@ -298,7 +313,9 @@ def nact_form_view(request, mr_no, course_id=None):
         resequence_nact_cycles(course)
     cycles = course.cycles.all().order_by('cycle_date', 'nact_cycle_id').prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if course else []
 
-    return render(request, 'systemic/nact_form.html', {
+    from core.compliance import get_compliance_context
+
+    ctx = {
         'patient': patient,
         'course': course,
         'regimens': regimens,
@@ -310,7 +327,9 @@ def nact_form_view(request, mr_no, course_id=None):
         'agents': agents,
         'dose_units': dose_units,
         'routes': routes,
-    })
+    }
+    ctx.update(get_compliance_context(course))
+    return render(request, 'systemic/nact_form.html', ctx)
 
 
 @login_required
@@ -597,7 +616,6 @@ def adjuvant_form_view(request, mr_no, course_id=None):
             course.received_cycles = int(request.POST.get('received_cycles') or 0)
             course.adjuvant_start_date = parse_date_str(request.POST.get('adjuvant_start_date'))
             course.adjuvant_end_date = parse_date_str(request.POST.get('adjuvant_end_date'))
-            course.chemo_status_id = request.POST.get('chemo_status_id') or None
             course.linked_ebrt_course_id = request.POST.get('linked_ebrt_course_id') or None
             course.linked_brachy_course_id = request.POST.get('linked_brachy_course_id') or None
 
@@ -620,6 +638,22 @@ def adjuvant_form_view(request, mr_no, course_id=None):
             course.linked_ebrt_course = None
             course.linked_brachy_course = None
 
+        # Treatment Completion & Compliance Validation
+        from core.compliance import validate_and_apply_compliance, get_compliance_context
+        is_comp_valid, comp_err = validate_and_apply_compliance(request, course, scheduled_start_date=course.adjuvant_start_date)
+        if not is_comp_valid:
+            messages.error(request, f"Validation Failed: {comp_err}")
+            return redirect('adjuvant_edit', mr_no=patient.mr_no, course_id=course.adjuvant_course_id) if course.adjuvant_course_id else redirect('adjuvant_add', mr_no=patient.mr_no)
+
+        if course.treatment_status == 'COMPLETED':
+            c_stat = NACTStatus.objects.filter(status_name__icontains='Complete', is_active=True).first()
+            if c_stat:
+                course.chemo_status = c_stat
+        elif course.treatment_status == 'DISCONTINUED':
+            d_stat = NACTStatus.objects.filter(status_name__icontains='Discontinued', is_active=True).first()
+            if d_stat:
+                course.chemo_status = d_stat
+
         course.notes = request.POST.get('notes', '')
         course.save()
 
@@ -641,7 +675,9 @@ def adjuvant_form_view(request, mr_no, course_id=None):
         resequence_adjuvant_cycles(course)
     cycles = course.cycles.all().order_by('cycle_date', 'adjuvant_cycle_id').prefetch_related('drugs__chemo_agent', 'drugs__dose_unit', 'drugs__chemo_route') if course else []
 
-    return render(request, 'systemic/adjuvant_form.html', {
+    from core.compliance import get_compliance_context
+
+    ctx = {
         'patient': patient,
         'course': course,
         'statuses': statuses,
@@ -651,7 +687,9 @@ def adjuvant_form_view(request, mr_no, course_id=None):
         'agents': agents,
         'dose_units': dose_units,
         'routes': routes,
-    })
+    }
+    ctx.update(get_compliance_context(course))
+    return render(request, 'systemic/adjuvant_form.html', ctx)
 
 
 @login_required

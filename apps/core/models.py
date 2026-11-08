@@ -146,3 +146,34 @@ class AppSetting(models.Model):
 
     def __str__(self):
         return f"{self.setting_key} = {self.setting_value}"
+
+
+TREATMENT_STATUS_CHOICES = [
+    ('PLANNED', 'Planned'),
+    ('ONGOING', 'Ongoing'),
+    ('ON_HOLD', 'On Hold'),
+    ('COMPLETED', 'Completed'),
+    ('NOT_STARTED', 'Not Started'),
+    ('DISCONTINUED', 'Discontinued'),
+]
+
+
+class ComplianceReason(models.Model):
+    """sbtblComplianceReason - Reasons for non-initiation, interruption, or discontinuation of treatment."""
+    reason_id = models.AutoField(primary_key=True, db_column='ReasonID')
+    reason_code = models.CharField(max_length=50, unique=True, db_column='Reason_Code')
+    reason_name = models.CharField(max_length=150, db_column='Reason_Name')
+    applicable_to_not_started = models.BooleanField(default=True, db_column='Applicable_Not_Started')
+    applicable_to_on_hold = models.BooleanField(default=True, db_column='Applicable_On_Hold')
+    applicable_to_discontinued = models.BooleanField(default=True, db_column='Applicable_Discontinued')
+    display_order = models.IntegerField(default=1, db_column='Display_Order')
+    is_active = models.BooleanField(default=True, db_column='IsActive')
+
+    class Meta:
+        db_table = 'sbtblComplianceReason'
+        ordering = ['display_order', 'reason_name']
+
+    def __str__(self):
+        return self.reason_name
+
+

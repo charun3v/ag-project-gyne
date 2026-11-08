@@ -108,9 +108,12 @@
                         <td>{{ eb.dose_per_fraction_gy|default:'-' }} Gy</td>
                         <td>{{ eb.ebrt_start_date|date:'d-M-Y'|default:'-' }} to {{ eb.ebrt_end_date|date:'d-M-Y'|default:'-' }}</td>
                         <td>
-                            <span style="font-weight: bold; color: {% if eb.treatment_completed %}#2e7d32{% else %}#003366{% endif %};">
-                                {{ eb.course_status.status_name|default:'In Progress' }}
+                            <span style="font-weight: bold; color: {% if eb.treatment_status == 'COMPLETED' or eb.treatment_completed %}#2e7d32{% elif eb.treatment_status == 'DISCONTINUED' %}#b71c1c{% elif eb.treatment_status == 'ON_HOLD' %}#b45309{% else %}#003366{% endif %};">
+                                {{ eb.get_treatment_status_display|default:'Planned' }}
                             </span>
+                            {% if eb.compliance_reason %}
+                                <div style="font-size: 9.5px; color: #b71c1c;">({{ eb.compliance_reason.reason_name }})</div>
+                            {% endif %}
                         </td>
                         <td>
                             {% if eb.treatment_interrupted %}
@@ -191,9 +194,12 @@
                             </span>
                         </td>
                         <td>
-                            <span style="font-weight: bold; color: {% if br.completion_status == 'Completed' %}#2e7d32{% else %}#003366{% endif %};">
-                                {{ br.course_status.status_name|default:'In Progress' }}
+                            <span style="font-weight: bold; color: {% if br.treatment_status == 'COMPLETED' or br.completion_status == 'Completed' %}#2e7d32{% elif br.treatment_status == 'DISCONTINUED' %}#b71c1c{% elif br.treatment_status == 'ON_HOLD' %}#b45309{% else %}#003366{% endif %};">
+                                {{ br.get_treatment_status_display|default:'Planned' }}
                             </span>
+                            {% if br.compliance_reason %}
+                                <div style="font-size: 9.5px; color: #b71c1c;">({{ br.compliance_reason.reason_name }})</div>
+                            {% endif %}
                         </td>
                         <td style="text-align: center; white-space: nowrap;">
                             <button type="button" class="btn-access" style="font-size: 10px; padding: 2px 6px; color: #003366; background: #e0f2fe; border-color: #bae6fd; font-weight: bold;" onclick="toggleCourseSummary('summaryRow_{{ br.brachy_course_id }}', this)">
@@ -237,7 +243,7 @@
                                 <div style="font-size: 11px; color: #475569; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                     <span>Applications Logged: <strong style="color: #003366;">{{ br.sessions.count }}</strong> / {{ br.total_applications_planned|default:br.sessions.count }} planned</span>
                                     <span>Fractions Delivered: <strong style="color: #166534;">{{ br.summary_fx_count }}</strong> / {{ br.total_fractions_planned }} planned</span>
-                                    <span>Status: <strong style="color: {% if br.completion_status == 'Completed' %}#166534{% else %}#003366{% endif %};">{{ br.course_status.status_name|default:br.completion_status|default:'In Progress' }}</strong></span>
+                                    <span>Status: <strong style="color: {% if br.treatment_status == 'COMPLETED' or br.completion_status == 'Completed' %}#166534{% elif br.treatment_status == 'DISCONTINUED' %}#b71c1c{% elif br.treatment_status == 'ON_HOLD' %}#b45309{% else %}#003366{% endif %};">{{ br.get_treatment_status_display|default:'Planned' }}{% if br.compliance_reason %} ({{ br.compliance_reason.reason_name }}){% endif %}</strong></span>
                                 </div>
                             </div>
 

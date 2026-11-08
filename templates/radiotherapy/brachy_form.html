@@ -149,16 +149,11 @@
                                     </span>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Course Completion Checkbox -->
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <label style="font-weight: bold; color: #155724; display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-size: 12px;">
-                                    <input type="checkbox" name="is_course_completed" value="1" 
-                                           {% if course and course.completion_status == 'Completed' %}checked{% endif %}
-                                           style="width: 16px; height: 16px;">
-                                    ✅ Mark Brachy Course Completed
-                                </label>
-                            </div>
+                        <!-- Treatment Completion & Compliance -->
+                        <div style="margin-top: 14px;">
+                            {% include 'includes/treatment_compliance_section.html' with course=course compliance_reasons=compliance_reasons %}
                         </div>
 
                         <!-- Action Ribbon: Add Application details button & Saves -->

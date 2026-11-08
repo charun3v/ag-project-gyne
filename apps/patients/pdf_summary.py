@@ -580,7 +580,7 @@ def build_patient_summary_pdf(patient):
 
     # A. NACT (Neoadjuvant Chemotherapy) - Plain Text Readable Summary
     nact_course = patient.nact_courses.filter(soft_deleted=False).first()
-    nact_given = bool(nact_course and nact_course.nact_received)
+    nact_given = bool(nact_course and (nact_course.nact_received or nact_course.treatment_status != 'PLANNED'))
     
     if nact_given:
         # Determine start and end date
@@ -599,10 +599,16 @@ def build_patient_summary_pdf(patient):
         freq_str = f"Every {nact_course.cycle_frequency_days} days" if nact_course.cycle_frequency_days else "—"
         resp_name = str(nact_course.response_to_nact) if nact_course.response_to_nact else "Evaluated"
         post_nact_stage_val = nact_course.post_nact_stage or "—"
+        nact_st = nact_course.get_treatment_status_display()
+        if nact_course.compliance_reason:
+            nact_st += f" (Reason: {nact_course.compliance_reason.reason_name}{f' - {nact_course.compliance_reason_other}' if nact_course.compliance_reason_other else ''})"
 
+        header_color = '#2e7d32' if nact_course.treatment_status == 'COMPLETED' else ('#b71c1c' if nact_course.treatment_status in ['DISCONTINUED', 'NOT_STARTED'] else '#003366')
+        header_text = 'YES — Administered' if nact_course.nact_received else f"{nact_course.get_treatment_status_display()}"
         nact_lines = [
-            f"<b>A. Neoadjuvant Chemotherapy (NACT):</b> <font color='#2e7d32'><b>YES — Administered</b></font><br/>"
-            f"&nbsp;&nbsp;&nbsp;&nbsp;<b>Regimen:</b> {reg_name} &nbsp;|&nbsp; "
+            f"<b>A. Neoadjuvant Chemotherapy (NACT):</b> <font color='{header_color}'><b>{header_text}</b></font><br/>"
+            f"&nbsp;&nbsp;&nbsp;&nbsp;<b>Status:</b> <b>{nact_st}</b> &nbsp;|&nbsp; "
+            f"<b>Regimen:</b> {reg_name} &nbsp;|&nbsp; "
             f"<b>Frequency:</b> {freq_str} &nbsp;|&nbsp; "
             f"<b>Cycles:</b> {nact_course.received_cycles} administered / {nact_course.planned_cycles} planned &nbsp;|&nbsp; "
             f"<b>Dates:</b> {start_d} to {end_d} &nbsp;|&nbsp; "
@@ -680,6 +686,10 @@ def build_patient_summary_pdf(patient):
             intent_str = str(eb.ebrt_intent) if eb.ebrt_intent else 'Radical'
             sites_str = ", ".join([s.ebrt_site.site_name for s in eb.sites.all()]) if eb.sites.exists() else "Whole Pelvis"
 
+            eb_st = eb.get_treatment_status_display()
+            if eb.compliance_reason:
+                eb_st += f" ({eb.compliance_reason.reason_name})"
+
             ebrt_rows = [
                 [
                     Paragraph(f"<strong>B. EBRT Course #{eb.course_sequence}:</strong>", table_cell_bold),
@@ -691,7 +701,7 @@ def build_patient_summary_pdf(patient):
                 ],
                 [
                     Paragraph("<strong>Planning & Chemo:</strong>", table_cell_bold),
-                    Paragraph(f"Sim: {sim_str} | Sites: {sites_str} | Concurrent Chemo: {conc_info}", table_cell_style),
+                    Paragraph(f"Sim: {sim_str} | Sites: {sites_str} | Chemo: {conc_info} | Status: <b>{eb_st}</b>", table_cell_style),
                     Paragraph("<strong>EBRT OTT:</strong>", table_cell_bold),
                     Paragraph(eb_ott_str, table_cell_style),
                     "", ""
@@ -795,6 +805,10 @@ def build_patient_summary_pdf(patient):
             planned_apps = bc.total_applications_planned or num_apps
             planned_fx = bc.total_fractions_planned or len(all_fractions)
 
+            bc_st = bc.get_treatment_status_display()
+            if bc.compliance_reason:
+                bc_st += f" ({bc.compliance_reason.reason_name})"
+
             brachy_rows = [
                 [
                     Paragraph(f"<strong>C. Brachytherapy Course #{bc.course_sequence}:</strong>", table_cell_bold),
@@ -806,7 +820,7 @@ def build_patient_summary_pdf(patient):
                 ],
                 [
                     Paragraph("<strong>Applications & Fractions:</strong>", table_cell_bold),
-                    Paragraph(f"Applications: <b>{num_apps}/{planned_apps} planned</b> | Fractions: <b>{len(all_fractions)}/{planned_fx} planned</b>", table_cell_style),
+                    Paragraph(f"Apps: <b>{num_apps}/{planned_apps} planned</b> | Fx: <b>{len(all_fractions)}/{planned_fx} planned</b> | Status: <b>{bc_st}</b>", table_cell_style),
                     Paragraph("<strong>Brachy OTT:</strong>", table_cell_bold),
                     Paragraph(bc_ott_str, table_cell_style),
                     "", ""
@@ -936,7 +950,7 @@ def build_patient_summary_pdf(patient):
 
     # E. Adjuvant Chemotherapy
     adj_course = patient.adjuvant_courses.filter(soft_deleted=False).first()
-    adj_given = bool(adj_course and adj_course.adjuvant_received)
+    adj_given = bool(adj_course and (adj_course.adjuvant_received or adj_course.treatment_status != 'PLANNED'))
     if adj_given:
         adj_start_val = None
         adj_end_val = None
@@ -954,6 +968,10 @@ def build_patient_summary_pdf(patient):
                     adj_drugs.append(d_str)
         adj_drugs_str = ", ".join(adj_drugs) if adj_drugs else "Regimen drugs logged in cycles"
 
+        adj_st = adj_course.get_treatment_status_display()
+        if adj_course.compliance_reason:
+            adj_st += f" ({adj_course.compliance_reason.reason_name})"
+
         adj_rows = [
             [
                 Paragraph("<strong>E. Adjuvant Chemo:</strong>", table_cell_bold),
@@ -965,7 +983,7 @@ def build_patient_summary_pdf(patient):
             ],
             [
                 Paragraph("<strong>Regimen & Drugs:</strong>", table_cell_bold),
-                Paragraph(f"Adjuvant: {adj_drugs_str}", table_cell_style),
+                Paragraph(f"Adjuvant: {adj_drugs_str} | Status: <b>{adj_st}</b>", table_cell_style),
                 "", "", "", ""
             ]
         ]

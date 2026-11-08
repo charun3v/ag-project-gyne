@@ -153,12 +153,12 @@ def patient_summary_view(request, mr_no):
     brachy_courses = patient.brachy_courses.filter(soft_deleted=False).prefetch_related('sessions__fractions')
     
     # NACT grouped by course and cycle
-    nact_courses = patient.nact_courses.filter(soft_deleted=False, nact_received=True).prefetch_related(
+    nact_courses = patient.nact_courses.filter(soft_deleted=False).exclude(nact_received=False, treatment_status='PLANNED').prefetch_related(
         'cycles__drugs__chemo_agent', 'cycles__drugs__dose_unit', 'cycles__drugs__chemo_route'
     )
     
-    # Adjuvant: omitted if not given
-    adjuvant_courses = patient.adjuvant_courses.filter(soft_deleted=False, adjuvant_received=True).prefetch_related(
+    # Adjuvant: omitted if planned and not given
+    adjuvant_courses = patient.adjuvant_courses.filter(soft_deleted=False).exclude(adjuvant_received=False, treatment_status='PLANNED').prefetch_related(
         'cycles__drugs__chemo_agent', 'cycles__drugs__dose_unit', 'cycles__drugs__chemo_route'
     )
     

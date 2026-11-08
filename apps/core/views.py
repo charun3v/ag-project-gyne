@@ -147,14 +147,20 @@ def dashboard_view(request, mr_no=None):
 
         # Treatments
         # NACT
+        # NACT
         nact = pt.nact_courses.filter(soft_deleted=False).first()
-        if not nact or not nact.nact_received:
+        if not nact or (not nact.nact_received and nact.treatment_status == 'PLANNED'):
             nact_tile_class = ''
             nact_status_text = '—'
         else:
-            nact_completed = bool(nact.nact_status and nact.nact_status.status_name and nact.nact_status.status_name.lower() == 'complete')
+            nact_completed = bool(nact.treatment_status == 'COMPLETED' or (nact.nact_status and nact.nact_status.status_name and nact.nact_status.status_name.lower() == 'complete'))
             nact_tile_class = 'tile-done' if nact_completed else 'tile-partial'
-            nact_status_text = '✓ Complete' if nact_completed else ('Incomplete' if (nact.nact_status and 'incom' in nact.nact_status.status_name.lower()) else 'Active')
+            if nact_completed:
+                nact_status_text = '✓ Complete'
+            elif nact.treatment_status in ['DISCONTINUED', 'ON_HOLD', 'NOT_STARTED']:
+                nact_status_text = nact.get_treatment_status_display()
+            else:
+                nact_status_text = '✓ Complete' if nact_completed else ('Incomplete' if (nact.nact_status and 'incom' in nact.nact_status.status_name.lower()) else 'Active')
 
         # EBRT
         ebrt = pt.ebrt_courses.filter(soft_deleted=False).first()
@@ -162,29 +168,44 @@ def dashboard_view(request, mr_no=None):
             ebrt_tile_class = ''
             ebrt_status_text = '—'
         else:
-            ebrt_completed = bool(ebrt.treatment_completed or (ebrt.course_status and ebrt.course_status.status_name and ebrt.course_status.status_name.lower() == 'completed'))
+            ebrt_completed = bool(ebrt.treatment_status == 'COMPLETED' or ebrt.treatment_completed or (ebrt.course_status and ebrt.course_status.status_name and ebrt.course_status.status_name.lower() == 'completed'))
             ebrt_tile_class = 'tile-done' if ebrt_completed else 'tile-partial'
-            ebrt_status_text = f"✓ {ebrt.total_dose_gy or 0}Gy" if ebrt_completed else f"{ebrt.total_dose_gy or 0}Gy Incomplete"
+            if ebrt_completed:
+                ebrt_status_text = f"✓ {ebrt.total_dose_gy or 0}Gy"
+            elif ebrt.treatment_status in ['DISCONTINUED', 'ON_HOLD', 'NOT_STARTED']:
+                ebrt_status_text = ebrt.get_treatment_status_display()
+            else:
+                ebrt_status_text = f"{ebrt.total_dose_gy or 0}Gy Incomplete"
 
         # Brachytherapy
         brachy = pt.brachy_courses.filter(soft_deleted=False).first()
-        if not brachy or not brachy.brachy_received:
+        if not brachy or (not brachy.brachy_received and brachy.treatment_status == 'PLANNED'):
             brachy_tile_class = ''
             brachy_status_text = '—'
         else:
-            brachy_completed = bool((brachy.completion_status and brachy.completion_status.lower() == 'completed') or (brachy.course_status and brachy.course_status.status_name and brachy.course_status.status_name.lower() == 'completed'))
+            brachy_completed = bool(brachy.treatment_status == 'COMPLETED' or (brachy.completion_status and brachy.completion_status.lower() == 'completed') or (brachy.course_status and brachy.course_status.status_name and brachy.course_status.status_name.lower() == 'completed'))
             brachy_tile_class = 'tile-done' if brachy_completed else 'tile-partial'
-            brachy_status_text = f"✓ {brachy.total_fractions_delivered or 0} Fx" if brachy_completed else f"{brachy.total_fractions_delivered or 0} Fx Incomplete"
+            if brachy_completed:
+                brachy_status_text = f"✓ {brachy.total_fractions_delivered or 0} Fx"
+            elif brachy.treatment_status in ['DISCONTINUED', 'ON_HOLD', 'NOT_STARTED']:
+                brachy_status_text = brachy.get_treatment_status_display()
+            else:
+                brachy_status_text = f"{brachy.total_fractions_delivered or 0} Fx Incomplete"
 
         # Adjuvant Chemotherapy
         adjuvant = pt.adjuvant_courses.filter(soft_deleted=False).first() if hasattr(pt.adjuvant_courses, 'filter') else pt.adjuvant_courses.first()
-        if not adjuvant or not adjuvant.adjuvant_received:
+        if not adjuvant or (not adjuvant.adjuvant_received and adjuvant.treatment_status == 'PLANNED'):
             adjuvant_tile_class = ''
             adjuvant_status_text = '—'
         else:
-            adjuvant_completed = bool(adjuvant.chemo_status and adjuvant.chemo_status.status_name and adjuvant.chemo_status.status_name.lower() == 'complete')
+            adjuvant_completed = bool(adjuvant.treatment_status == 'COMPLETED' or (adjuvant.chemo_status and adjuvant.chemo_status.status_name and adjuvant.chemo_status.status_name.lower() == 'complete'))
             adjuvant_tile_class = 'tile-done' if adjuvant_completed else 'tile-partial'
-            adjuvant_status_text = '✓ Complete' if adjuvant_completed else ('Incomplete' if (adjuvant.chemo_status and 'incom' in adjuvant.chemo_status.status_name.lower()) else 'Active')
+            if adjuvant_completed:
+                adjuvant_status_text = '✓ Complete'
+            elif adjuvant.treatment_status in ['DISCONTINUED', 'ON_HOLD', 'NOT_STARTED']:
+                adjuvant_status_text = adjuvant.get_treatment_status_display()
+            else:
+                adjuvant_status_text = '✓ Complete' if adjuvant_completed else ('Incomplete' if (adjuvant.chemo_status and 'incom' in adjuvant.chemo_status.status_name.lower()) else 'Active')
 
         # Follow-Up (User rule: except follow-up, which becomes green if logged!)
         last_fu = pt.follow_up_records.filter(soft_deleted=False).first()
@@ -765,6 +786,18 @@ LOOKUP_CONFIG = {
         'secondary_field': None,
         'secondary_label': None,
     },
+    'compliance_reason': {
+        'title': 'Treatment Compliance Reasons',
+        'table_name': 'sbtblComplianceReason',
+        'app': 'core',
+        'model_name': 'ComplianceReason',
+        'pk': 'reason_id',
+        'name_field': 'reason_name',
+        'name_label': 'Reason Name (e.g. Treatment-related toxicity)',
+        'secondary_field': 'reason_code',
+        'secondary_label': 'Reason Code (e.g. TOXICITY)',
+        'custom_applicability': True,
+    },
 }
 
 def get_lookup_model(category):
@@ -801,6 +834,9 @@ def lookup_manager_view(request, category='source'):
             'secondary': getattr(it, cfg['secondary_field'], '') if cfg['secondary_field'] else '',
             'is_active': getattr(it, 'is_active', True),
             'is_default': is_def,
+            'applicable_to_not_started': getattr(it, 'applicable_to_not_started', True),
+            'applicable_to_on_hold': getattr(it, 'applicable_to_on_hold', True),
+            'applicable_to_discontinued': getattr(it, 'applicable_to_discontinued', True),
         }
         items.append(item_dict)
         if is_def:
@@ -859,6 +895,9 @@ def lookup_save_view(request, category, item_id=None):
             max_id = model.objects.aggregate(m=Max(pk_field))['m'] or 0
             new_pk = max_id + 1
 
+            if sec_field and not sec_val and category == 'compliance_reason':
+                sec_val = name_val.upper().replace(' ', '_').replace('/', '_')[:50]
+
             create_kwargs = {
                 pk_field: new_pk,
                 name_field: name_val,
@@ -867,6 +906,11 @@ def lookup_save_view(request, category, item_id=None):
             }
             if sec_field and sec_val:
                 create_kwargs[sec_field] = sec_val
+
+            if cfg.get('custom_applicability'):
+                create_kwargs['applicable_to_not_started'] = bool(request.POST.get('applicable_to_not_started'))
+                create_kwargs['applicable_to_on_hold'] = bool(request.POST.get('applicable_to_on_hold'))
+                create_kwargs['applicable_to_discontinued'] = bool(request.POST.get('applicable_to_discontinued'))
 
             item = model.objects.create(**create_kwargs)
 
@@ -889,6 +933,10 @@ def lookup_save_view(request, category, item_id=None):
                 setattr(item, sec_field, sec_val)
             item.display_order = order_val
             item.is_active = active_val
+            if cfg.get('custom_applicability'):
+                item.applicable_to_not_started = bool(request.POST.get('applicable_to_not_started'))
+                item.applicable_to_on_hold = bool(request.POST.get('applicable_to_on_hold'))
+                item.applicable_to_discontinued = bool(request.POST.get('applicable_to_discontinued'))
             item.save()
 
             AuditLog.objects.create(

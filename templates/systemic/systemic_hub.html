@@ -138,6 +138,7 @@
                         <th>Cycle Frequency</th>
                         <th>Cycles (Delivered / Planned)</th>
                         <th>Dates</th>
+                        <th>Status</th>
                         <th>Objective Response</th>
                         <th>Post-NACT Evaluation</th>
                         <th style="width: 80px; text-align: center;">Actions</th>
@@ -150,6 +151,14 @@
                             <td>Every {{ nc.cycle_frequency_days }} days</td>
                             <td><strong>{{ nc.received_cycles }}</strong> / {{ nc.planned_cycles }} cycles</td>
                             <td>{{ nc.nact_start_date|date:'d-M-Y'|default:'-' }} to {{ nc.nact_end_date|date:'d-M-Y'|default:'-' }}</td>
+                            <td>
+                                <strong style="color: {% if nc.treatment_status == 'COMPLETED' %}#166534{% elif nc.treatment_status == 'DISCONTINUED' %}#b71c1c{% elif nc.treatment_status == 'ON_HOLD' %}#b45309{% else %}#003366{% endif %};">
+                                    {{ nc.get_treatment_status_display|default:'Planned' }}
+                                </strong>
+                                {% if nc.compliance_reason %}
+                                    <div style="font-size: 9.5px; color: #b71c1c;">({{ nc.compliance_reason.reason_name }})</div>
+                                {% endif %}
+                            </td>
                             <td>
                                 <span style="background: #e8eef4; padding: 1px 6px; font-weight: bold; border-radius: 2px;">
                                     {{ nc.response_to_nact.response_code|default:'Pending Assessment' }}
@@ -167,7 +176,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                            <td colspan="8" style="text-align: center; padding: 15px; color: #666; font-style: italic;">
                                 No NACT course recorded. Click "Add NACT Course" above.
                             </td>
                         </tr>
@@ -201,7 +210,14 @@
                             <td><strong>#{{ ac.course_sequence }}</strong></td>
                             <td>{{ ac.planned_cycles }}</td>
                             <td>{{ ac.received_cycles }}</td>
-                            <td>{{ ac.chemo_status.status_name|default:'Completed' }}</td>
+                            <td>
+                                <strong style="color: {% if ac.treatment_status == 'COMPLETED' %}#166534{% elif ac.treatment_status == 'DISCONTINUED' %}#b71c1c{% elif ac.treatment_status == 'ON_HOLD' %}#b45309{% else %}#003366{% endif %};">
+                                    {{ ac.get_treatment_status_display|default:'Planned' }}
+                                </strong>
+                                {% if ac.compliance_reason %}
+                                    <div style="font-size: 9.5px; color: #b71c1c;">({{ ac.compliance_reason.reason_name }})</div>
+                                {% endif %}
+                            </td>
                             <td>{{ ac.notes|default:'-' }}</td>
                             <td style="text-align: center;">
                                 <a href="{% url 'adjuvant_edit' patient.mr_no ac.adjuvant_course_id %}" class="btn-access" style="font-size: 10px; padding: 2px 6px;">
