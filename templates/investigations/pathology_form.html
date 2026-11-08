@@ -23,6 +23,8 @@
     <div class="access-subform-body">
         <form method="post" action="">
             {% csrf_token %}
+            {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
+            {% if fu_id %}<input type="hidden" name="fu_id" value="{{ fu_id }}">{% endif %}
 
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
                 <div>
@@ -136,9 +138,15 @@
                 <button type="submit" name="save_return" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
                     ➡️ Save and return to Investigation page
                 </button>
+                {% if return_to == 'followup' %}
+                <a href="{% if fu_id %}{% url 'followup_edit' patient.mr_no fu_id %}{% else %}{% url 'followup_list' patient.mr_no %}{% endif %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back to Follow-Up
+                </a>
+                {% else %}
                 <a href="{% url 'investigations_hub' patient.mr_no %}?tab=pathology" class="btn-access" style="color: #666;">
                     ✖️ Cancel / Back
                 </a>
+                {% endif %}
             </div>
         </form>
     </div>

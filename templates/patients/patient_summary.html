@@ -408,7 +408,7 @@
                     </span> 
                     via {{ fu.contact_type.contact_type|default:'Clinic' }}
                     {% if fu.recurrence_detected %}
-                        <span style="color: #b00000; font-weight: bold;">[RECURRENCE DETECTED]</span>
+                        <span style="color: #b00000; font-weight: bold;">[RECURRENCE: {{ fu.recurrence_sites_display|default:fu.recurrence_site.site_name|default:'Confirmed' }}]</span>
                     {% endif %}
                 </div>
                 <div>

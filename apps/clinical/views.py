@@ -515,11 +515,16 @@ def ibs_diagram_view(request, encounter_id):
     else:
         enc_slug = 'baseline'
 
+    return_to = request.GET.get('return_to', '')
+    fu_id = request.GET.get('fu_id', '')
+
     return render(request, 'clinical/ibs_diagram.html', {
         'encounter': encounter,
         'patient': patient,
         'initial_marks': initial_marks,
         'enc_slug': enc_slug,
+        'return_to': return_to,
+        'fu_id': fu_id,
     })
 
 
@@ -571,6 +576,16 @@ def save_diagram_findings_view(request, encounter_id):
         )
 
         messages.success(request, f"Saved {len(marked_codes)} marked anatomical region(s) for {patient.pt_name}.")
+        return_to = request.GET.get('return_to') or request.POST.get('return_to')
+        fu_id = request.GET.get('fu_id') or request.POST.get('fu_id')
+        if return_to == 'followup':
+            if fu_id:
+                return redirect('followup_edit', mr_no=patient.mr_no, followup_id=fu_id)
+            fu = getattr(encounter, 'follow_up_records', None)
+            if fu and fu.filter(soft_deleted=False).exists():
+                return redirect('followup_edit', mr_no=patient.mr_no, followup_id=fu.filter(soft_deleted=False).first().follow_up_status_id)
+            return redirect('followup_list', mr_no=patient.mr_no)
+
         enc_type_name = encounter.encounter_type.encounter_type_name.lower() if encounter.encounter_type else ""
         if 'post-nact' in enc_type_name or 'nact' in enc_type_name:
             enc_slug = 'post-nact'
@@ -590,8 +605,16 @@ def auto_populate_svg_view(request, encounter_id):
     from clinical.svg_generator import auto_populate_svg_from_encounter
     codes = auto_populate_svg_from_encounter(encounter, user_username=request.user.username, force_overwrite=True)
     messages.success(request, f"Successfully auto-populated {len(codes)} anatomical pelvic zone(s) on the IBS diagram from examination findings.")
+    return_to = request.GET.get('return_to')
+    fu_id = request.GET.get('fu_id')
     if request.GET.get('redirect') == 'diagram':
-        return redirect('ibs_diagram', encounter_id=encounter.clinical_id)
+        query = f"?return_to={return_to}&fu_id={fu_id}" if return_to else ""
+        return redirect(f"/clinical/encounter/{encounter.clinical_id}/diagram/{query}")
+    if return_to == 'followup':
+        if fu_id:
+            return redirect('followup_edit', mr_no=encounter.patient.mr_no, followup_id=fu_id)
+        return redirect('followup_list', mr_no=encounter.patient.mr_no)
+
     enc_type_name = encounter.encounter_type.encounter_type_name.lower() if encounter.encounter_type else ""
     if 'post-nact' in enc_type_name or 'nact' in enc_type_name:
         enc_slug = 'post-nact'

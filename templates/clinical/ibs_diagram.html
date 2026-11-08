@@ -66,13 +66,17 @@
             <a href="{% url 'auto_populate_previous_diagram' encounter.clinical_id %}" class="btn-access" style="background: #eef2ff; color: #1e40af; border-color: #c7d2fe; font-weight: bold;" title="Auto-populate previously selected areas from Baseline or Post-NACT examination">
                 ⚡ Auto-populate Previous Examination Findings
             </a>
-            <a href="{% url 'auto_populate_svg' encounter.clinical_id %}?redirect=diagram" class="btn-access" style="background: #fff4e6; color: #b35900; border-color: #ffd8a8; font-weight: bold;" title="Auto-populate SVG anatomical zones from physical pelvic examination checklist">
+            <a href="{% url 'auto_populate_svg' encounter.clinical_id %}?redirect=diagram{% if return_to %}&return_to={{ return_to }}{% if fu_id %}&fu_id={{ fu_id }}{% endif %}{% endif %}" class="btn-access" style="background: #fff4e6; color: #b35900; border-color: #ffd8a8; font-weight: bold;" title="Auto-populate SVG anatomical zones from physical pelvic examination checklist">
                 ⚡ Auto-fill from Exam
             </a>
             <button type="button" class="btn-access" onclick="clearAllMarks()">Clear All Marks</button>
             <button type="button" class="btn-access btn-primary-action" onclick="document.getElementById('diagramForm').submit();">💾 Save Findings</button>
             <a href="{% url 'examination_pdf' patient.mr_no enc_slug %}" target="_blank" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; border-color: #70a0d0;">📄 PDF Report</a>
-            <a href="{% url 'examination_detail' patient.mr_no enc_slug %}" class="btn-access">Back to Examination</a>
+            {% if return_to == 'followup' %}
+                <a href="{% if fu_id %}{% url 'followup_edit' patient.mr_no fu_id %}{% else %}{% url 'followup_list' patient.mr_no %}{% endif %}" class="btn-access">Back to Follow-Up</a>
+            {% else %}
+                <a href="{% url 'examination_detail' patient.mr_no enc_slug %}" class="btn-access">Back to Examination</a>
+            {% endif %}
         </div>
     </div>
 
@@ -89,10 +93,12 @@
     </div>
 
     <!-- Hidden Form for Saving Marks -->
-    <form id="diagramForm" method="post" action="{% url 'save_diagram_findings' encounter.clinical_id %}">
+    <form id="diagramForm" method="post" action="{% url 'save_diagram_findings' encounter.clinical_id %}{% if return_to %}?return_to={{ return_to }}{% if fu_id %}&fu_id={{ fu_id }}{% endif %}{% endif %}">
         {% csrf_token %}
         <input type="hidden" id="markedRegionsInput" name="marked_regions" value="{{ initial_marks }}">
         <input type="hidden" id="initialMarks" value="{{ initial_marks }}">
+        {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
+        {% if fu_id %}<input type="hidden" name="fu_id" value="{{ fu_id }}">{% endif %}
     </form>
 
     <!-- Large SVG Canvas Frame -->

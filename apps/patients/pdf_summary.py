@@ -1024,7 +1024,7 @@ def build_patient_summary_pdf(patient):
             
             rec_info = []
             if fu.recurrence_detected:
-                rec_site = str(fu.recurrence_site) if fu.recurrence_site else "Recurrence"
+                rec_site = fu.recurrence_sites_display or (str(fu.recurrence_site) if fu.recurrence_site else "Recurrence")
                 rec_info.append(f"<strong>⚠️ RECURRENCE:</strong> {rec_site}")
                 if fu.recurrence_confirmed_by: rec_info.append(f"Confirmed by: {fu.recurrence_confirmed_by}")
                 if fu.recurrence_treatment_plan: rec_info.append(f"Plan: {fu.recurrence_treatment_plan}")

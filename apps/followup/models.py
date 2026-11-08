@@ -116,6 +116,7 @@ class FollowUpStatus(models.Model):
     distant_visceral = models.BooleanField(default=False, db_column='Distant_Visceral')
     
     recurrence_site = models.ForeignKey(RecurrenceSite, on_delete=models.SET_NULL, null=True, blank=True, db_column='RecurrenceSiteID')
+    recurrence_sites = models.ManyToManyField(RecurrenceSite, blank=True, related_name='followup_records', db_table='tblFollowUpRecurrenceSites')
     recurrence_treatment_plan = models.TextField(blank=True, null=True, db_column='Recurrence_Treatment_Plan')
     
     # Survival & Death Monitoring
@@ -140,6 +141,15 @@ class FollowUpStatus(models.Model):
     def __str__(self):
         status_str = self.disease_status.status_name if self.disease_status else "Status"
         return f"Follow-up ({self.follow_up_date}) - {self.patient.pt_name}: {status_str}"
+
+    @property
+    def recurrence_sites_display(self):
+        sites = list(self.recurrence_sites.all())
+        if sites:
+            return ", ".join([s.site_name for s in sites])
+        if self.recurrence_site:
+            return self.recurrence_site.site_name
+        return ""
 
 
 class FollowUpInvestigationLink(models.Model):

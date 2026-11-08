@@ -52,6 +52,20 @@
                             <strong style="color: {% if fu.disease_status.status_name == 'No Evidence of Disease' %}#2e7d32{% else %}#b00000{% endif %};">
                                 {{ fu.disease_status.status_name|default:'Logged' }}
                             </strong>
+                            {% if fu.encounter and fu.encounter.svg_findings.count > 0 %}
+                                <div style="margin-top: 2px;">
+                                    <span style="background: #e8f4fd; color: #003366; font-size: 10px; padding: 1px 4px; border-radius: 2px; font-weight: normal; border: 1px solid #c7dcf0;">
+                                        📍 {{ fu.encounter.svg_findings.count }} IBS Zone{{ fu.encounter.svg_findings.count|pluralize }}
+                                    </span>
+                                </div>
+                            {% endif %}
+                            {% if fu.investigation_links.count > 0 %}
+                                <div style="margin-top: 2px;">
+                                    <span style="background: #f0fdf4; color: #166534; font-size: 10px; padding: 1px 4px; border-radius: 2px; font-weight: normal; border: 1px solid #bbf7d0;">
+                                        📑 {{ fu.investigation_links.count }} Linked Inv{{ fu.investigation_links.count|pluralize }}
+                                    </span>
+                                </div>
+                            {% endif %}
                         </td>
                         <td>
                             {% if fu.recurrence_detected %}
@@ -65,7 +79,7 @@
                         <td>
                             {% if fu.recurrence_detected %}
                                 <div>
-                                    Site: <strong>{{ fu.recurrence_site.site_name|default:'Local / Pelvic' }}</strong>
+                                    Site(s): <strong>{{ fu.recurrence_sites_display|default:fu.recurrence_site.site_name|default:'Local / Pelvic' }}</strong>
                                     ({% if fu.recurrence_local %}Local{% endif %}{% if fu.recurrence_nodal %}, Nodal{% endif %}{% if fu.recurrence_distant %}, Distant{% endif %})
                                 </div>
                                 {% if fu.recurrence_treatment_plan %}

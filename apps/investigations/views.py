@@ -85,13 +85,34 @@ def blood_form_view(request, mr_no, blood_id=None):
         )
 
         messages.success(request, f"Blood test record ({blood.test_date}) saved.")
+        return_to = request.GET.get('return_to') or request.POST.get('return_to')
+        fu_id = request.GET.get('fu_id') or request.POST.get('fu_id')
+        if return_to == 'followup':
+            if fu_id:
+                try:
+                    from followup.models import FollowUpInvestigationLink
+                    FollowUpInvestigationLink.objects.get_or_create(
+                        follow_up_id=int(fu_id),
+                        investigation_type='Blood',
+                        investigation_id=blood.blood_id
+                    )
+                except Exception:
+                    pass
+                return redirect('followup_edit', mr_no=patient.mr_no, followup_id=fu_id)
+            return redirect('followup_list', mr_no=patient.mr_no)
+
         if 'save_next' in request.POST:
             return redirect('investigations_hub', mr_no=patient.mr_no)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=blood")
 
+    return_to = request.GET.get('return_to', '')
+    fu_id = request.GET.get('fu_id', '')
+
     return render(request, 'investigations/blood_form.html', {
         'patient': patient,
         'blood': blood,
+        'return_to': return_to,
+        'fu_id': fu_id,
     })
 
 
@@ -142,9 +163,28 @@ def pathology_form_view(request, mr_no, path_id=None):
         )
 
         messages.success(request, f"Pathology report ({path_report.path_date}) saved.")
+        return_to = request.GET.get('return_to') or request.POST.get('return_to')
+        fu_id = request.GET.get('fu_id') or request.POST.get('fu_id')
+        if return_to == 'followup':
+            if fu_id:
+                try:
+                    from followup.models import FollowUpInvestigationLink
+                    FollowUpInvestigationLink.objects.get_or_create(
+                        follow_up_id=int(fu_id),
+                        investigation_type='Pathology',
+                        investigation_id=path_report.path_id
+                    )
+                except Exception:
+                    pass
+                return redirect('followup_edit', mr_no=patient.mr_no, followup_id=fu_id)
+            return redirect('followup_list', mr_no=patient.mr_no)
+
         if 'save_stay' in request.POST:
             return redirect('pathology_edit', mr_no=patient.mr_no, path_id=path_report.path_id)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=pathology")
+
+    return_to = request.GET.get('return_to', '')
+    fu_id = request.GET.get('fu_id', '')
 
     return render(request, 'investigations/pathology_form.html', {
         'patient': patient,
@@ -155,6 +195,8 @@ def pathology_form_view(request, mr_no, path_id=None):
         'fnac_sites': fnac_sites,
         'histologies': histologies,
         'grades': grades,
+        'return_to': return_to,
+        'fu_id': fu_id,
     })
 
 
@@ -310,9 +352,28 @@ def imaging_form_view(request, mr_no, imaging_id=None):
         )
 
         messages.success(request, f"Imaging investigation ({imaging.imaging_type}) saved.")
+        return_to = request.GET.get('return_to') or request.POST.get('return_to')
+        fu_id = request.GET.get('fu_id') or request.POST.get('fu_id')
+        if return_to == 'followup':
+            if fu_id:
+                try:
+                    from followup.models import FollowUpInvestigationLink
+                    FollowUpInvestigationLink.objects.get_or_create(
+                        follow_up_id=int(fu_id),
+                        investigation_type='Imaging',
+                        investigation_id=imaging.imaging_id
+                    )
+                except Exception:
+                    pass
+                return redirect('followup_edit', mr_no=patient.mr_no, followup_id=fu_id)
+            return redirect('followup_list', mr_no=patient.mr_no)
+
         if 'save_stay' in request.POST:
             return redirect('imaging_edit', mr_no=patient.mr_no, imaging_id=imaging.imaging_id)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=imaging")
+
+    return_to = request.GET.get('return_to', '')
+    fu_id = request.GET.get('fu_id', '')
 
     return render(request, 'investigations/imaging_form.html', {
         'patient': patient,
@@ -323,6 +384,8 @@ def imaging_form_view(request, mr_no, imaging_id=None):
         'selected_site_ids': selected_site_ids,
         'organ_statuses': organ_statuses,
         'nodal_stations_lookup': nodal_stations_lookup,
+        'return_to': return_to,
+        'fu_id': fu_id,
     })
 
 
@@ -360,9 +423,28 @@ def molecular_form_view(request, mr_no, molecular_id=None):
         )
 
         messages.success(request, f"Molecular and cytogenetics investigation ({mol.test_date}) saved.")
+        return_to = request.GET.get('return_to') or request.POST.get('return_to')
+        fu_id = request.GET.get('fu_id') or request.POST.get('fu_id')
+        if return_to == 'followup':
+            if fu_id:
+                try:
+                    from followup.models import FollowUpInvestigationLink
+                    FollowUpInvestigationLink.objects.get_or_create(
+                        follow_up_id=int(fu_id),
+                        investigation_type='Molecular',
+                        investigation_id=mol.molecular_id
+                    )
+                except Exception:
+                    pass
+                return redirect('followup_edit', mr_no=patient.mr_no, followup_id=fu_id)
+            return redirect('followup_list', mr_no=patient.mr_no)
+
         if 'save_stay' in request.POST:
             return redirect('molecular_edit', mr_no=patient.mr_no, molecular_id=mol.molecular_id)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=molecular")
+
+    return_to = request.GET.get('return_to', '')
+    fu_id = request.GET.get('fu_id', '')
 
     return render(request, 'investigations/molecular_form.html', {
         'patient': patient,
@@ -370,6 +452,8 @@ def molecular_form_view(request, mr_no, molecular_id=None):
         'mol_types': mol_types,
         'specimens': specimens,
         'markers': markers,
+        'return_to': return_to,
+        'fu_id': fu_id,
     })
 
 

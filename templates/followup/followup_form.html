@@ -16,12 +16,14 @@
 <div class="access-subform">
     <div class="access-subform-header">
         <span>📅 frmFollowUpStatus: Surveillance Visit, Recurrence Assessment & Vital Status</span>
-        <div style="font-weight: normal; font-size: 11px;">
+        <div style="font-weight: normal; font-size: 11px; display: flex; gap: 8px; align-items: center;">
+            <a href="{% url 'patient_dashboard' patient.mr_no %}" style="color: #fff; text-decoration: underline;">Patient Dashboard</a>
+            <span style="color: #fff;">|</span>
             <a href="{% url 'followup_list' patient.mr_no %}" style="color: #fff; text-decoration: underline;">Back to Follow-Up List</a>
         </div>
     </div>
     <div class="access-subform-body">
-        <form method="post" action="">
+        <form method="post" action="" id="followupMainForm">
             {% csrf_token %}
 
             <!-- Section 1: Visit Meta & General Disease Status -->
@@ -31,16 +33,17 @@
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
                     <div>
                         <label class="access-label" style="font-weight: bold;">Visit Date *</label>
-                        <input type="date" name="follow_up_date" 
+                        <input type="date" name="follow_up_date" id="followUpDateInput"
                                value="{% if fu and fu.follow_up_date %}{{ fu.follow_up_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
                                class="access-input" required>
                     </div>
                     <div>
                         <label class="access-label" style="font-weight: bold;">Contact Type *</label>
-                        <select name="contact_type_id" class="access-select" required>
+                        <select name="contact_type_id" id="contactTypeSelect" class="access-select" required onchange="updateFollowUpUIState()">
                             <option value="">-- Select Contact Type --</option>
                             {% for ct in contact_types %}
-                                <option value="{{ ct.contact_type_id }}" {% if fu and fu.contact_type_id == ct.contact_type_id %}selected{% endif %}>
+                                <option value="{{ ct.contact_type_id }}" data-is-proxy="{{ ct.is_proxy|yesno:'true,false' }}"
+                                        {% if fu and fu.contact_type_id == ct.contact_type_id %}selected{% endif %}>
                                     {{ ct.contact_type }}
                                 </option>
                             {% endfor %}
@@ -48,7 +51,7 @@
                     </div>
                     <div>
                         <label class="access-label" style="font-weight: bold; color: #b00000;">Current Disease Status *</label>
-                        <select name="disease_status_id" class="access-select" required>
+                        <select name="disease_status_id" id="diseaseStatusSelect" class="access-select" required onchange="updateFollowUpUIState()">
                             <option value="">-- Select Disease Status --</option>
                             {% for ds in disease_statuses %}
                                 <option value="{{ ds.disease_status_id }}" {% if fu and fu.disease_status_id == ds.disease_status_id %}selected{% endif %}>
@@ -57,10 +60,10 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div>
-                        <label class="access-label">Proxy Status</label>
-                        <select name="proxy_status_id" class="access-select">
-                            <option value="">-- Direct Patient Encounter --</option>
+                    <div id="proxyStatusContainer">
+                        <label class="access-label" id="proxyStatusLabel">Proxy Status <span id="proxyRequiredIndicator" style="display:none; color: #b00000; font-weight: bold;">*</span></label>
+                        <select name="proxy_status_id" id="proxyStatusSelect" class="access-select">
+                            <option value="">-- Select Proxy Status --</option>
                             {% for ps in proxy_statuses %}
                                 <option value="{{ ps.proxy_status_id }}" {% if fu and fu.proxy_status_id == ps.proxy_status_id %}selected{% endif %}>
                                     {{ ps.status_name }}
@@ -84,8 +87,8 @@
                 
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <input type="checkbox" name="recurrence_detected" value="1" {% if fu and fu.recurrence_detected %}checked{% endif %}>
-                        <label class="access-label" style="margin: 0; font-weight: bold; color: #b00000;">Recurrence Detected at this Visit</label>
+                        <input type="checkbox" name="recurrence_detected" id="recurrenceDetectedChk" value="1" {% if fu and fu.recurrence_detected %}checked{% endif %}>
+                        <label class="access-label" for="recurrenceDetectedChk" style="margin: 0; font-weight: bold; color: #b00000; cursor: pointer;">Recurrence Detected at this Visit</label>
                     </div>
                     <div>
                         <label class="access-label">Date of Recurrence Confirmation</label>
@@ -103,66 +106,94 @@
 
                 <!-- Recurrence Patterns -->
                 <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 8px; margin-bottom: 8px;">
-                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #003366;">Recurrence Pattern & Sites:</div>
+                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #003366;">Recurrence Pattern & Anatomical Extent:</div>
                     <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
                             <input type="checkbox" name="recurrence_local" value="1" {% if fu and fu.recurrence_local %}checked{% endif %}>
                             Local / Vaginal Vault
                         </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
                             <input type="checkbox" name="recurrence_nodal" value="1" {% if fu and fu.recurrence_nodal %}checked{% endif %}>
                             Regional Nodal
                         </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
                             <input type="checkbox" name="recurrence_distant" value="1" {% if fu and fu.recurrence_distant %}checked{% endif %}>
                             Distant Visceral
                         </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
                             <input type="checkbox" name="second_primary" value="1" {% if fu and fu.second_primary %}checked{% endif %}>
                             Second Primary Malignancy
                         </label>
                     </div>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #e0e0e0; font-size: 10px;">
+                        <span style="font-weight: bold; color: #555;">Nodal Stations:</span>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" name="node_pelvic" value="1" {% if fu and fu.node_pelvic %}checked{% endif %}> Pelvic
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" name="node_para_aortic" value="1" {% if fu and fu.node_para_aortic %}checked{% endif %}> Para-aortic
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" name="node_inguinal" value="1" {% if fu and fu.node_inguinal %}checked{% endif %}> Inguinal
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" name="distant_nodal_other" value="1" {% if fu and fu.distant_nodal_other %}checked{% endif %}> Other Distant Nodal
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" name="distant_visceral" value="1" {% if fu and fu.distant_visceral %}checked{% endif %}> Visceral (Liver/Lung/Bone)
+                        </label>
+                    </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
-                    <div>
-                        <label class="access-label">Primary Recurrence Site</label>
-                        <select name="recurrence_site_id" class="access-select">
-                            <option value="">-- Select Recurrence Site --</option>
+                <!-- Primary Recurrence Site Multi-selection -->
+                <div style="margin-bottom: 8px;">
+                    <label class="access-label" style="font-weight: bold; color: #b00000;">
+                        Primary Recurrence Site(s) <span style="font-size: 10px; color: #666; font-weight: normal;">(Multi-selection: Select all applicable anatomical sites)</span>
+                    </label>
+                    <div style="background: #ffffff; border: 1px solid #c0c0c0; border-radius: 2px; padding: 6px 10px; max-height: 140px; overflow-y: auto;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px;">
                             {% for rs in recurrence_sites %}
-                                <option value="{{ rs.recurrence_site_id }}" {% if fu and fu.recurrence_site_id == rs.recurrence_site_id %}selected{% endif %}>
-                                    {{ rs.site_name }}
-                                </option>
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; padding: 3px 6px; border-radius: 2px; border: 1px solid #f0f0f0;"
+                                   onmouseover="this.style.background='#f0f4f8'; this.style.borderColor='#90b4d4';" 
+                                   onmouseout="this.style.background='transparent'; this.style.borderColor='#f0f0f0';">
+                                <input type="checkbox" name="recurrence_site_ids" value="{{ rs.recurrence_site_id }}" class="rec-site-checkbox"
+                                       {% if rs.recurrence_site_id in selected_rec_site_ids %}checked{% endif %}>
+                                <span>{{ rs.site_name }}</span>
+                            </label>
                             {% endfor %}
-                        </select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="access-label">Salvage / Palliative Treatment Plan</label>
-                        <input type="text" name="recurrence_treatment_plan" 
-                               value="{% if fu %}{{ fu.recurrence_treatment_plan|default:'' }}{% endif %}" 
-                               class="access-input" placeholder="e.g. Pembrolizumab + Lenvatinib, Palliative SBRT, Pelvic Exenteration...">
-                    </div>
+                </div>
+
+                <div>
+                    <label class="access-label">Salvage / Palliative Treatment Plan</label>
+                    <input type="text" name="recurrence_treatment_plan" 
+                           value="{% if fu %}{{ fu.recurrence_treatment_plan|default:'' }}{% endif %}" 
+                           class="access-input" placeholder="e.g. Pembrolizumab + Lenvatinib, Palliative SBRT, Pelvic Exenteration...">
                 </div>
             </fieldset>
 
-            <!-- Section 3: Vital Status, Death Reporting & Next Follow-Up -->
+            <!-- Section 3: Vital Status & Scheduling -->
             <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
                 <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">3. Vital Status & Scheduling</legend>
                 
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <input type="checkbox" name="death_reported" value="1" {% if fu and fu.death_reported %}checked{% endif %}>
-                        <label class="access-label" style="margin: 0; font-weight: bold; color: #000;">Patient Deceased (Death Reported)</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 6px; padding: 6px 0;">
+                        <input type="checkbox" name="death_reported" id="deathReportedChk" value="1" 
+                               {% if fu and fu.death_reported %}checked{% endif %} onchange="updateFollowUpUIState()">
+                        <label class="access-label" for="deathReportedChk" style="margin: 0; font-weight: bold; color: #000; cursor: pointer;">
+                            Patient Deceased (Death Reported)
+                        </label>
                     </div>
-                    <div>
-                        <label class="access-label">Date of Death</label>
-                        <input type="date" name="date_of_death" 
+                    <div id="dateOfDeathContainer">
+                        <label class="access-label" id="dateOfDeathLabel">Date of Death</label>
+                        <input type="date" name="date_of_death" id="dateOfDeathInput"
                                value="{% if fu and fu.date_of_death %}{{ fu.date_of_death|date:'Y-m-d' }}{% endif %}" 
                                class="access-input">
                     </div>
-                    <div>
-                        <label class="access-label">Cause of Death</label>
-                        <select name="cause_of_death_id" class="access-select">
+                    <div id="causeOfDeathContainer">
+                        <label class="access-label" id="causeOfDeathLabel">Cause of Death</label>
+                        <select name="cause_of_death_id" id="causeOfDeathSelect" class="access-select">
                             <option value="">-- Select Cause --</option>
                             {% for cod in causes_of_death %}
                                 <option value="{{ cod.cause_of_death_id }}" {% if fu and fu.cause_of_death_id == cod.cause_of_death_id %}selected{% endif %}>
@@ -173,28 +204,335 @@
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+                <div id="nextFuContainer" style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; padding: 6px 0; border-top: 1px dashed #d0d0d0;">
                     <div>
-                        <label class="access-label" style="font-weight: bold; color: #003366;">Next Scheduled Follow-Up Date</label>
-                        <input type="date" name="next_fu_date" 
+                        <label class="access-label" id="nextFuDateLabel" style="font-weight: bold; color: #003366;">
+                            Next Scheduled Follow-Up Date
+                        </label>
+                        <input type="date" name="next_fu_date" id="nextFuDateInput"
                                value="{% if fu and fu.next_fu_date %}{{ fu.next_fu_date|date:'Y-m-d' }}{% endif %}" 
                                class="access-input">
                     </div>
                     <div>
-                        <label class="access-label">Next Visit Instructions</label>
-                        <input type="text" name="next_fu_notes" 
+                        <label class="access-label" id="nextFuNotesLabel">Next Visit Instructions</label>
+                        <input type="text" name="next_fu_notes" id="nextFuNotesInput"
                                value="{% if fu %}{{ fu.next_fu_notes|default:'' }}{% endif %}" 
                                class="access-input" placeholder="e.g. Review with MRI Pelvis and serum creatinine in 3 months">
                     </div>
                 </div>
             </fieldset>
 
-            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
+            <!-- Notice when Examination & Investigations are inactive -->
+            <div id="examInactiveNotice" style="display: none; background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 8px 12px; margin-bottom: 12px; border-radius: 3px; font-size: 11px;">
+                ℹ️ <em>Clinical Examination & Investigation entry is inactive for deceased or lost-to-follow-up patients.</em>
+            </div>
+
+            <!-- Section 4: Clinical Examination & Investigation Reports (Active only for patients other than Dead and Lost to follow-up) -->
+            <div id="examInvestigationSection">
+                
+                <!-- 4A. Gynecological Physical & Pelvic Examination (with IBS SVG Diagram) -->
+                <fieldset style="border: 2px solid #003366; padding: 10px; margin-bottom: 12px; background: #fdfdfd;">
+                    <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
+                        🩺 4. Clinical & Gynecological Pelvic Examination Findings
+                    </legend>
+
+                    <div style="display: grid; grid-template-columns: 1fr 2fr 2fr; gap: 10px; margin-bottom: 8px;">
+                        <div>
+                            <label class="access-label">ECOG Performance Status</label>
+                            <select name="exam_ecog_id" class="access-select">
+                                <option value="">-- Select ECOG --</option>
+                                {% for e in ecog_scores %}
+                                    <option value="{{ e.ecog_id }}" {% if encounter and encounter.ecog_id == e.ecog_id %}selected{% endif %}>
+                                        ECOG {{ e.score }} ({{ e.description }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="access-label">Presenting Complaints at this Visit</label>
+                            <textarea name="exam_presenting_complaints" class="access-textarea" rows="2" placeholder="Symptoms reported today (bleeding, pain, discharge, bowel/bladder symptoms)...">{% if encounter %}{{ encounter.presenting_complaints|default:'' }}{% endif %}</textarea>
+                        </div>
+                        <div>
+                            <label class="access-label">General & Systemic Examination Findings</label>
+                            <textarea name="exam_examination_findings" class="access-textarea" rows="2" placeholder="Pallor, pedal edema, inguinal/supraclavicular lymphadenopathy, per abdomen...">{% if encounter %}{{ encounter.examination_findings|default:'' }}{% endif %}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Pelvic Examination Details -->
+                    <div style="background: #f7f9fb; border: 1px solid #d8e2ec; padding: 8px; margin-bottom: 8px; border-radius: 2px;">
+                        <!-- Parametrial invasion -->
+                        <div style="background: #eef2f7; border: 1px solid #d0dae5; padding: 6px 10px; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 6px;">
+                                <label style="font-weight: bold; color: #003366; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                    <input type="checkbox" name="exam_parametrial_invasion" id="para_invasion_chk" value="1" 
+                                           {% if encounter and encounter.parametrial_invasion %}checked{% endif %} onchange="toggleParametrialInvasion()">
+                                    Parametrial Invasion Present
+                                </label>
+                            </div>
+                            <div id="para_sub_fields" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; transition: opacity 0.2s; {% if not encounter or not encounter.parametrial_invasion %}opacity: 0.45; pointer-events: none;{% endif %}">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <input type="checkbox" name="exam_para_left" id="para_left_chk" value="1" 
+                                           {% if encounter and encounter.para_left %}checked{% endif %} {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
+                                    <label class="access-label" for="para_left_chk" style="margin: 0; cursor: pointer;">Left Parametrium</label>
+                                </div>
+                                <div>
+                                    <input type="number" step="0.1" name="exam_para_extent_left_cm" id="para_extent_left"
+                                           value="{% if encounter and encounter.para_extent_left_cm %}{{ encounter.para_extent_left_cm }}{% endif %}" 
+                                           class="access-input" placeholder="Left extent (cm)" {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <input type="checkbox" name="exam_para_right" id="para_right_chk" value="1" 
+                                           {% if encounter and encounter.para_right %}checked{% endif %} {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
+                                    <label class="access-label" for="para_right_chk" style="margin: 0; cursor: pointer;">Right Parametrium</label>
+                                </div>
+                                <div>
+                                    <input type="number" step="0.1" name="exam_para_extent_right_cm" id="para_extent_right"
+                                           value="{% if encounter and encounter.para_extent_right_cm %}{{ encounter.para_extent_right_cm }}{% endif %}" 
+                                           class="access-input" placeholder="Right extent (cm)" {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Rectal & Bladder invasion -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                            <div>
+                                <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                    <input type="checkbox" name="exam_rectal_invasion" value="1" {% if encounter and encounter.rectal_invasion %}checked{% endif %}>
+                                    <strong>Rectal Mucosa / Posterior Vaginal Wall Invasion Present</strong>
+                                </label>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                    <input type="checkbox" name="exam_bladder_invasion" value="1" {% if encounter and encounter.bladder_invasion %}checked{% endif %}>
+                                    <strong>Bladder Mucosa / Anterior Vaginal Wall Invasion Present</strong>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Tumour 3 Dimensions -->
+                        <div style="background: #fdfaf5; border: 1px solid #ecd8b0; padding: 6px 10px; border-radius: 2px;">
+                            <label class="access-label" style="font-weight: bold; color: #b45309; margin-bottom: 4px;">
+                                Tumour / Residual Mass Physical Dimensions (D₁ × D₂ × D₃ in cm)
+                            </label>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                                <div>
+                                    <label class="access-label" style="font-size: 10px;">Dimension 1 — Width / Transverse (cm)</label>
+                                    <input type="number" step="0.1" name="exam_tumour_size_cm" 
+                                           value="{% if encounter and encounter.tumour_size_cm %}{{ encounter.tumour_size_cm }}{% endif %}" 
+                                           class="access-input" placeholder="e.g. 2.5">
+                                </div>
+                                <div>
+                                    <label class="access-label" style="font-size: 10px;">Dimension 2 — Length / Craniocaudal (cm)</label>
+                                    <input type="number" step="0.1" name="exam_tumour_size_2_cm" 
+                                           value="{% if encounter and encounter.tumour_size_2_cm %}{{ encounter.tumour_size_2_cm }}{% endif %}" 
+                                           class="access-input" placeholder="e.g. 3.0">
+                                </div>
+                                <div>
+                                    <label class="access-label" style="font-size: 10px;">Dimension 3 — Thickness / Anteroposterior (cm)</label>
+                                    <input type="number" step="0.1" name="exam_tumour_size_3_cm" 
+                                           value="{% if encounter and encounter.tumour_size_3_cm %}{{ encounter.tumour_size_3_cm }}{% endif %}" 
+                                           class="access-input" placeholder="e.g. 2.0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive IBS SVG Anatomical Pelvic Diagram Component -->
+                    <div style="border: 1px solid #70a0d0; background: #f0f7fc; padding: 8px 10px; border-radius: 3px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <span style="font-weight: bold; color: #003366; font-size: 11px;">
+                                    📍 Interactive IBS Clinical Pelvic Diagram (65 Anatomical Zones)
+                                </span>
+                                <span style="font-size: 11px; color: #555; margin-left: 8px;">
+                                    Marked anatomical zones: 
+                                    <strong>{{ svg_findings|length }} zone{{ svg_findings|length|pluralize }}</strong>
+                                </span>
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                <button type="submit" name="auto_populate_svg" value="1" class="btn-access" style="background: #fff4e6; color: #b35900; border-color: #ffd8a8; font-weight: bold; padding: 3px 8px; font-size: 11px;" title="Auto-populate SVG anatomical zones from physical pelvic examination above">
+                                    ⚡ Auto-populate SVG from Examination
+                                </button>
+                                <button type="submit" name="open_diagram" value="1" class="btn-access btn-primary-action" style="padding: 3px 10px; font-size: 11px; font-weight: bold;" title="Save and open high-resolution interactive pelvic canvas">
+                                    🖌️ Open Interactive Clinical Diagram
+                                </button>
+                                {% if encounter and encounter.clinical_id %}
+                                    <a href="{% url 'examination_pdf' patient.mr_no 'baseline' %}?encounter_id={{ encounter.clinical_id }}" target="_blank" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; border-color: #70a0d0; padding: 3px 8px; font-size: 11px;">
+                                        📄 Examination PDF Report
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Display currently marked regions as badges -->
+                        <div style="min-height: 32px; background: #ffffff; border: 1px dashed #b0c0d0; padding: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border-radius: 2px;">
+                            {% for f in svg_findings %}
+                                <span style="background: #ffebe6; color: #990000; border: 1px solid #ffccd0; padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: bold;">
+                                    📍 {{ f.region.display_label }}
+                                </span>
+                            {% empty %}
+                                <span style="color: #777; font-style: italic; font-size: 11px;">
+                                    No anatomical pelvic regions currently marked. Click "Open Interactive Clinical Diagram" to map involved zones or "Auto-populate SVG".
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- 4B. Diagnostic Investigation Reports & Pathology -->
+                <fieldset style="border: 2px solid #006644; padding: 10px; margin-bottom: 12px; background: #fdfdfd;">
+                    <legend style="font-weight: bold; color: #006644; padding: 0 5px; font-size: 11px;">
+                        🔬 5. Diagnostic Investigation Reports & Pathology at this Follow-Up
+                    </legend>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <span style="font-size: 11px; color: #444;">
+                            Log or link investigations performed for this follow-up encounter:
+                        </span>
+                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                            <button type="submit" name="open_blood_add" value="1" class="btn-access" style="background: #fdf2f2; color: #991b1b; border-color: #fca5a5; font-size: 11px; font-weight: bold; padding: 2px 8px;">
+                                🩸 + Blood Test
+                            </button>
+                            <button type="submit" name="open_imaging_add" value="1" class="btn-access" style="background: #f0fdf4; color: #166534; border-color: #86efac; font-size: 11px; font-weight: bold; padding: 2px 8px;">
+                                🩻 + Imaging (MRI / PET / CT)
+                            </button>
+                            <button type="submit" name="open_pathology_add" value="1" class="btn-access" style="background: #eff6ff; color: #1e40af; border-color: #93c5fd; font-size: 11px; font-weight: bold; padding: 2px 8px;">
+                                🔬 + Pathology / Biopsy
+                            </button>
+                            <button type="submit" name="open_molecular_add" value="1" class="btn-access" style="background: #faf5ff; color: #6b21a8; border-color: #d8b4fe; font-size: 11px; font-weight: bold; padding: 2px 8px;">
+                                🧬 + Molecular & Cytogenetics
+                            </button>
+                            <a href="{% url 'investigations_hub' patient.mr_no %}" target="_blank" class="btn-access" style="font-size: 11px; padding: 2px 8px;">
+                                🔍 Full Investigations Hub
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Investigations Quick List & Link Selector -->
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 2px; padding: 8px;">
+                        <div style="font-weight: bold; font-size: 11px; color: #003366; margin-bottom: 6px;">
+                            Patient Recent Investigation Records (Check to link to this follow-up encounter):
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <!-- Blood Tests -->
+                            <div style="background: #fff; border: 1px solid #e0e0e0; padding: 6px; border-radius: 2px;">
+                                <div style="font-weight: bold; font-size: 10px; color: #b00000; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                                    <span>🩸 Blood Investigations (CBC, RFT, LFT)</span>
+                                    <span>{{ blood_tests|length }} record{{ blood_tests|length|pluralize }}</span>
+                                </div>
+                                <div style="max-height: 110px; overflow-y: auto;">
+                                    {% for b in blood_tests %}
+                                        {% with key="Blood_"|add:b.blood_id|stringformat:"s" %}
+                                        <div style="display: flex; align-items: flex-start; gap: 6px; font-size: 10px; padding: 2px 0; border-bottom: 1px dotted #f0f0f0;">
+                                            <input type="checkbox" name="link_blood_ids" value="{{ b.blood_id }}" 
+                                                   {% if key in linked_investigation_keys %}checked{% endif %}>
+                                            <div style="flex: 1;">
+                                                <strong>{{ b.test_date|date:'d-M-Y' }}</strong>: 
+                                                {% if b.hb %}Hb: {{ b.hb }} g/dL; {% endif %}
+                                                {% if b.serum_creatinine %}Creat: {{ b.serum_creatinine }} mg/dL; {% endif %}
+                                                {% if b.impression %}<span style="color: #666;">{{ b.impression|truncatechars:40 }}</span>{% endif %}
+                                            </div>
+                                            <a href="{% url 'blood_edit' patient.mr_no b.blood_id %}?return_to=followup{% if fu %}&fu_id={{ fu.follow_up_status_id }}{% endif %}" style="font-size: 9px; text-decoration: underline;">View</a>
+                                        </div>
+                                        {% endwith %}
+                                    {% empty %}
+                                        <div style="font-size: 10px; color: #888; font-style: italic;">No blood tests logged.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Imaging Studies -->
+                            <div style="background: #fff; border: 1px solid #e0e0e0; padding: 6px; border-radius: 2px;">
+                                <div style="font-weight: bold; font-size: 10px; color: #166534; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                                    <span>🩻 Imaging Studies (MRI Pelvis, CT, PET)</span>
+                                    <span>{{ imaging_studies|length }} record{{ imaging_studies|length|pluralize }}</span>
+                                </div>
+                                <div style="max-height: 110px; overflow-y: auto;">
+                                    {% for img in imaging_studies %}
+                                        {% with key="Imaging_"|add:img.imaging_id|stringformat:"s" %}
+                                        <div style="display: flex; align-items: flex-start; gap: 6px; font-size: 10px; padding: 2px 0; border-bottom: 1px dotted #f0f0f0;">
+                                            <input type="checkbox" name="link_imaging_ids" value="{{ img.imaging_id }}" 
+                                                   {% if key in linked_investigation_keys %}checked{% endif %}>
+                                            <div style="flex: 1;">
+                                                <strong>{{ img.imaging_date|date:'d-M-Y' }}</strong>: 
+                                                {{ img.imaging_type }} ({{ img.body_sites.all|join:", "|default:"Pelvis" }})
+                                                {% if img.impression %}<div style="color: #666;">{{ img.impression|truncatechars:45 }}</div>{% endif %}
+                                            </div>
+                                            <a href="{% url 'imaging_edit' patient.mr_no img.imaging_id %}?return_to=followup{% if fu %}&fu_id={{ fu.follow_up_status_id }}{% endif %}" style="font-size: 9px; text-decoration: underline;">View</a>
+                                        </div>
+                                        {% endwith %}
+                                    {% empty %}
+                                        <div style="font-size: 10px; color: #888; font-style: italic;">No imaging studies logged.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Pathology Reports -->
+                            <div style="background: #fff; border: 1px solid #e0e0e0; padding: 6px; border-radius: 2px;">
+                                <div style="font-weight: bold; font-size: 10px; color: #1e40af; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                                    <span>🔬 Pathology & Biopsy Reports</span>
+                                    <span>{{ pathology_reports|length }} record{{ pathology_reports|length|pluralize }}</span>
+                                </div>
+                                <div style="max-height: 110px; overflow-y: auto;">
+                                    {% for p in pathology_reports %}
+                                        {% with key="Pathology_"|add:p.path_id|stringformat:"s" %}
+                                        <div style="display: flex; align-items: flex-start; gap: 6px; font-size: 10px; padding: 2px 0; border-bottom: 1px dotted #f0f0f0;">
+                                            <input type="checkbox" name="link_pathology_ids" value="{{ p.path_id }}" 
+                                                   {% if key in linked_investigation_keys %}checked{% endif %}>
+                                            <div style="flex: 1;">
+                                                <strong>{{ p.path_date|date:'d-M-Y' }}</strong>: 
+                                                {{ p.biopsy_site|default:p.specimen|default:"Biopsy" }} - 
+                                                {{ p.impression|default:p.histology|default:"Histopathology"|truncatechars:40 }}
+                                            </div>
+                                            <a href="{% url 'pathology_edit' patient.mr_no p.path_id %}?return_to=followup{% if fu %}&fu_id={{ fu.follow_up_status_id }}{% endif %}" style="font-size: 9px; text-decoration: underline;">View</a>
+                                        </div>
+                                        {% endwith %}
+                                    {% empty %}
+                                        <div style="font-size: 10px; color: #888; font-style: italic;">No pathology reports logged.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Molecular & Cytogenetics -->
+                            <div style="background: #fff; border: 1px solid #e0e0e0; padding: 6px; border-radius: 2px;">
+                                <div style="font-weight: bold; font-size: 10px; color: #6b21a8; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                                    <span>🧬 Molecular & Cytogenetics</span>
+                                    <span>{{ molecular_tests|length }} record{{ molecular_tests|length|pluralize }}</span>
+                                </div>
+                                <div style="max-height: 110px; overflow-y: auto;">
+                                    {% for m in molecular_tests %}
+                                        {% with key="Molecular_"|add:m.molecular_id|stringformat:"s" %}
+                                        <div style="display: flex; align-items: flex-start; gap: 6px; font-size: 10px; padding: 2px 0; border-bottom: 1px dotted #f0f0f0;">
+                                            <input type="checkbox" name="link_molecular_ids" value="{{ m.molecular_id }}" 
+                                                   {% if key in linked_investigation_keys %}checked{% endif %}>
+                                            <div style="flex: 1;">
+                                                <strong>{{ m.test_date|date:'d-M-Y' }}</strong>: 
+                                                {{ m.molecular_type }} - {{ m.impression|truncatechars:40 }}
+                                            </div>
+                                            <a href="{% url 'molecular_edit' patient.mr_no m.molecular_id %}?return_to=followup{% if fu %}&fu_id={{ fu.follow_up_status_id }}{% endif %}" style="font-size: 9px; text-decoration: underline;">View</a>
+                                        </div>
+                                        {% endwith %}
+                                    {% empty %}
+                                        <div style="font-size: 10px; color: #888; font-style: italic;">No molecular tests logged.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- Access Command Button Ribbon -->
+            <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2; flex-wrap: wrap;">
                 <button type="submit" name="save_stay" value="1" class="btn-access btn-primary-action">
                     💾 Save Follow-Up Record
                 </button>
-                <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
-                    ➡️ Save & Proceed to Patient Summary
+                <button type="submit" name="save_patient_dashboard" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
+                    ➡️ Save and Go to Patient dashboard
+                </button>
+                <button type="submit" name="save_next" value="1" class="btn-access" style="background: #004d40; color: #fff; font-weight: bold;">
+                    📄 Save & Proceed to Patient Summary
                 </button>
                 {% if fu and fu.follow_up_status_id %}
                     {% if user.is_staff or user.is_superuser %}
@@ -205,6 +543,7 @@
                     </button>
                     {% endif %}
                 {% endif %}
+                <div style="flex-grow: 1;"></div>
                 <a href="{% url 'followup_list' patient.mr_no %}" class="btn-access" style="color: #666;">
                     ✖️ Cancel / Back
                 </a>
@@ -212,4 +551,162 @@
         </form>
     </div>
 </div>
+
+<script>
+function toggleParametrialInvasion() {
+    var chk = document.getElementById('para_invasion_chk');
+    var subFields = document.getElementById('para_sub_fields');
+    var leftChk = document.getElementById('para_left_chk');
+    var rightChk = document.getElementById('para_right_chk');
+    var leftExtent = document.getElementById('para_extent_left');
+    var rightExtent = document.getElementById('para_extent_right');
+
+    if (chk && subFields) {
+        if (chk.checked) {
+            subFields.style.opacity = '1.0';
+            subFields.style.pointerEvents = 'auto';
+            if (leftChk) leftChk.disabled = false;
+            if (rightChk) rightChk.disabled = false;
+            if (leftExtent) leftExtent.disabled = false;
+            if (rightExtent) rightExtent.disabled = false;
+        } else {
+            subFields.style.opacity = '0.45';
+            subFields.style.pointerEvents = 'none';
+            if (leftChk) { leftChk.disabled = true; leftChk.checked = false; }
+            if (rightChk) { rightChk.disabled = true; rightChk.checked = false; }
+            if (leftExtent) { leftExtent.disabled = true; leftExtent.value = ''; }
+            if (rightExtent) { rightExtent.disabled = true; rightExtent.value = ''; }
+        }
+    }
+}
+
+function updateFollowUpUIState() {
+    // --- 1. Contact Type & Proxy Status (Rule 1) ---
+    var contactSelect = document.getElementById('contactTypeSelect');
+    var proxySelect = document.getElementById('proxyStatusSelect');
+    var proxyContainer = document.getElementById('proxyStatusContainer');
+    var proxyRequiredIndicator = document.getElementById('proxyRequiredIndicator');
+
+    if (contactSelect && proxySelect) {
+        var opt = contactSelect.options[contactSelect.selectedIndex];
+        var optText = opt ? opt.text.trim().toLowerCase() : '';
+        // Only if contact type is "Proxy" (and not "lost to follow-up")
+        var isProxy = optText === 'proxy' || (optText.includes('proxy') && !optText.includes('lost'));
+
+        if (isProxy) {
+            proxySelect.disabled = false;
+            proxySelect.style.background = '#ffffff';
+            if (proxyContainer) {
+                proxyContainer.style.opacity = '1.0';
+                proxyContainer.style.pointerEvents = 'auto';
+            }
+            if (proxyRequiredIndicator) proxyRequiredIndicator.style.display = 'inline';
+        } else {
+            proxySelect.disabled = true;
+            proxySelect.value = '';
+            proxySelect.style.background = '#f0f0f0';
+            if (proxyContainer) {
+                proxyContainer.style.opacity = '0.5';
+                proxyContainer.style.pointerEvents = 'none';
+            }
+            if (proxyRequiredIndicator) proxyRequiredIndicator.style.display = 'none';
+        }
+    }
+
+    // --- 2. Vital Status, Death & Lost-to-follow-up (Rules 3, 4, 5) ---
+    var deathChk = document.getElementById('deathReportedChk');
+    var diseaseSelect = document.getElementById('diseaseStatusSelect');
+    var diseaseOpt = diseaseSelect ? diseaseSelect.options[diseaseSelect.selectedIndex] : null;
+    var diseaseText = diseaseOpt ? diseaseOpt.text.trim().toLowerCase() : '';
+
+    var contactOptForDeath = contactSelect ? contactSelect.options[contactSelect.selectedIndex] : null;
+    var contactTextForDeath = contactOptForDeath ? contactOptForDeath.text.trim().toLowerCase() : '';
+
+    var isDead = (deathChk && deathChk.checked) || diseaseText.includes('dead');
+    var isLost = diseaseText.includes('lost') || contactTextForDeath.includes('lost');
+
+    // Rule 3: Only if patient is marked death should date of death be active
+    var dateInput = document.getElementById('dateOfDeathInput');
+    var causeSelect = document.getElementById('causeOfDeathSelect');
+    var dateContainer = document.getElementById('dateOfDeathContainer');
+    var causeContainer = document.getElementById('causeOfDeathContainer');
+
+    if (dateInput && causeSelect) {
+        if (isDead) {
+            dateInput.disabled = false;
+            causeSelect.disabled = false;
+            dateInput.style.background = '#ffffff';
+            causeSelect.style.background = '#ffffff';
+            if (dateContainer) { dateContainer.style.opacity = '1.0'; dateContainer.style.pointerEvents = 'auto'; }
+            if (causeContainer) { causeContainer.style.opacity = '1.0'; causeContainer.style.pointerEvents = 'auto'; }
+            if (deathChk && !deathChk.checked && diseaseText.includes('dead')) {
+                deathChk.checked = true;
+            }
+        } else {
+            dateInput.disabled = true;
+            causeSelect.disabled = true;
+            dateInput.value = '';
+            causeSelect.value = '';
+            dateInput.style.background = '#f0f0f0';
+            causeSelect.style.background = '#f0f0f0';
+            if (dateContainer) { dateContainer.style.opacity = '0.5'; dateContainer.style.pointerEvents = 'none'; }
+            if (causeContainer) { causeContainer.style.opacity = '0.5'; causeContainer.style.pointerEvents = 'none'; }
+        }
+    }
+
+    // Rule 4: For lost to follow up and dead - no need to make the "Next scheduled follow-up date" Active
+    var nextDateInput = document.getElementById('nextFuDateInput');
+    var nextNotesInput = document.getElementById('nextFuNotesInput');
+    var nextFuContainer = document.getElementById('nextFuContainer');
+
+    if (nextDateInput && nextNotesInput) {
+        if (isDead || isLost) {
+            nextDateInput.disabled = true;
+            nextNotesInput.disabled = true;
+            nextDateInput.value = '';
+            nextNotesInput.value = '';
+            nextDateInput.style.background = '#f0f0f0';
+            nextNotesInput.style.background = '#f0f0f0';
+            if (nextFuContainer) {
+                nextFuContainer.style.opacity = '0.45';
+                nextFuContainer.style.pointerEvents = 'none';
+            }
+        } else {
+            nextDateInput.disabled = false;
+            nextNotesInput.disabled = false;
+            nextDateInput.style.background = '#ffffff';
+            nextNotesInput.style.background = '#ffffff';
+            if (nextFuContainer) {
+                nextFuContainer.style.opacity = '1.0';
+                nextFuContainer.style.pointerEvents = 'auto';
+            }
+        }
+    }
+
+    // Rule 5: Provision for Investigation reports and examination findings (including IBS SVG diagram) for patients OTHER THAN dead and lost to follow-up
+    var examSection = document.getElementById('examInvestigationSection');
+    var noticeBox = document.getElementById('examInactiveNotice');
+
+    if (examSection) {
+        if (isDead || isLost) {
+            examSection.style.display = 'none';
+            if (noticeBox) {
+                noticeBox.style.display = 'block';
+                var reason = isDead ? 'Patient is marked deceased' : 'Patient is lost to follow-up';
+                noticeBox.innerHTML = 'ℹ️ <em>Clinical Examination & Diagnostic Investigation entry is inactive because: <strong>' + reason + '</strong>.</em>';
+            }
+        } else {
+            examSection.style.display = 'block';
+            if (noticeBox) {
+                noticeBox.style.display = 'none';
+            }
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateFollowUpUIState();
+    toggleParametrialInvasion();
+});
+</script>
 {% endblock %}
