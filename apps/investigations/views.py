@@ -142,8 +142,8 @@ def pathology_form_view(request, mr_no, path_id=None):
         )
 
         messages.success(request, f"Pathology report ({path_report.path_date}) saved.")
-        if 'save_next' in request.POST:
-            return redirect('diagnosis_detail', mr_no=patient.mr_no)
+        if 'save_stay' in request.POST:
+            return redirect('pathology_edit', mr_no=patient.mr_no, path_id=path_report.path_id)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=pathology")
 
     return render(request, 'investigations/pathology_form.html', {
@@ -310,8 +310,8 @@ def imaging_form_view(request, mr_no, imaging_id=None):
         )
 
         messages.success(request, f"Imaging investigation ({imaging.imaging_type}) saved.")
-        if 'save_next' in request.POST:
-            return redirect('diagnosis_detail', mr_no=patient.mr_no)
+        if 'save_stay' in request.POST:
+            return redirect('imaging_edit', mr_no=patient.mr_no, imaging_id=imaging.imaging_id)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=imaging")
 
     return render(request, 'investigations/imaging_form.html', {
@@ -359,7 +359,9 @@ def molecular_form_view(request, mr_no, molecular_id=None):
             notes=f"Saved molecular study ({mol.molecular_type})"
         )
 
-        messages.success(request, f"Molecular test record ({mol.test_date}) saved.")
+        messages.success(request, f"Molecular and cytogenetics investigation ({mol.test_date}) saved.")
+        if 'save_stay' in request.POST:
+            return redirect('molecular_edit', mr_no=patient.mr_no, molecular_id=mol.molecular_id)
         return redirect(f"/investigations/{patient.mr_no}/hub/?tab=molecular")
 
     return render(request, 'investigations/molecular_form.html', {

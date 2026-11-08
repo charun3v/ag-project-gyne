@@ -73,9 +73,13 @@ def validate_nact_cycle_date(course, cycle_date):
     Validation Rules for NACT cycle date:
     1. Must fall between Course Start Date and Course End Date (if specified).
     2. Must strictly precede linked definitive treatment (EBRT / Brachy).
+    3. Cannot be a future date.
     """
     if not cycle_date:
         return False, "Cycle date is mandatory."
+
+    if cycle_date > date.today():
+        return False, f"Validation Failed: NACT cycle date ({cycle_date.strftime('%d-%b-%Y')}) cannot be a future date."
 
     if course.nact_start_date and cycle_date < course.nact_start_date:
         return False, f"Validation Failed: NACT cycle date ({cycle_date.strftime('%d-%b-%Y')}) cannot be earlier than Course Start Date ({course.nact_start_date.strftime('%d-%b-%Y')})."
@@ -99,9 +103,13 @@ def validate_adjuvant_cycle_date(course, cycle_date):
     Validation Rules for Adjuvant cycle date:
     1. Must fall between Course Start Date and Course End Date (if specified).
     2. Must strictly follow prior treatment completion (EBRT / Brachy).
+    3. Cannot be a future date.
     """
     if not cycle_date:
         return False, "Cycle date is mandatory."
+
+    if cycle_date > date.today():
+        return False, f"Validation Failed: Adjuvant cycle date ({cycle_date.strftime('%d-%b-%Y')}) cannot be a future date."
 
     if course.adjuvant_start_date and cycle_date < course.adjuvant_start_date:
         return False, f"Validation Failed: Adjuvant cycle date ({cycle_date.strftime('%d-%b-%Y')}) cannot be earlier than Course Start Date ({course.adjuvant_start_date.strftime('%d-%b-%Y')})."
@@ -193,12 +201,22 @@ def nact_form_view(request, mr_no, course_id=None):
             course.cycle_frequency_days = int(request.POST.get('cycle_frequency_days') or 21)
             course.nact_start_date = parse_date_str(request.POST.get('nact_start_date'))
             course.nact_end_date = parse_date_str(request.POST.get('nact_end_date'))
+            course.post_nact_stage = request.POST.get('post_nact_stage', '').strip() or None
             course.response_to_nact_id = request.POST.get('response_id') or None
             course.nact_status_id = request.POST.get('nact_status_id') or None
             course.linked_ebrt_course_id = request.POST.get('linked_ebrt_course_id') or None
             course.linked_brachy_course_id = request.POST.get('linked_brachy_course_id') or None
             course.post_nact_assessment_done = bool(request.POST.get('post_nact_assessment_done'))
             course.post_nact_mri_done = bool(request.POST.get('post_nact_mri_done'))
+
+            # Disallow future dates for course start and end
+            if course.nact_start_date and course.nact_start_date > date.today():
+                messages.error(request, f"Validation Failed: NACT Start Date ({course.nact_start_date.strftime('%d-%b-%Y')}) cannot be a future date.")
+                return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id) if course.nact_course_id else redirect('nact_add', mr_no=patient.mr_no)
+
+            if course.nact_end_date and course.nact_end_date > date.today():
+                messages.error(request, f"Validation Failed: NACT End Date ({course.nact_end_date.strftime('%d-%b-%Y')}) cannot be a future date.")
+                return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id) if course.nact_course_id else redirect('nact_add', mr_no=patient.mr_no)
 
             # Validate date order for course start and end
             if course.nact_start_date and course.nact_end_date and course.nact_end_date < course.nact_start_date:
@@ -273,7 +291,7 @@ def nact_form_view(request, mr_no, course_id=None):
 
         messages.success(request, f"NACT record for {patient.pt_name} saved.")
         if 'save_next' in request.POST:
-            return redirect('radiotherapy_hub', mr_no=patient.mr_no)
+            return redirect('ebrt_router', mr_no=patient.mr_no)
         return redirect('nact_edit', mr_no=patient.mr_no, course_id=course.nact_course_id)
 
     if course:

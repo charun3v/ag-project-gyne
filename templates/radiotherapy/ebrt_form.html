@@ -142,35 +142,35 @@
                     <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
                         <div>
                             <label class="access-label" style="font-weight: bold; color: #b00000;">1. Simulation Date *</label>
-                            <input type="date" name="simulation_date" id="simDate" required
+                            <input type="date" name="simulation_date" id="simDate" required max="{% now 'Y-m-d' %}"
                                    value="{% if course and course.simulation_date %}{{ course.simulation_date|date:'Y-m-d' }}{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                             <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">Mandatory baseline date</span>
                         </div>
                         <div>
                             <label class="access-label">2. Contouring Date</label>
-                            <input type="date" name="contouring_date" id="contDate"
+                            <input type="date" name="contouring_date" id="contDate" max="{% now 'Y-m-d' %}"
                                    value="{% if course and course.contouring_date %}{{ course.contouring_date|date:'Y-m-d' }}{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                             <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">&ge; Simulation date</span>
                         </div>
                         <div>
                             <label class="access-label">3. Plan Approval Date</label>
-                            <input type="date" name="plan_approval_date" id="planAppDate"
+                            <input type="date" name="plan_approval_date" id="planAppDate" max="{% now 'Y-m-d' %}"
                                    value="{% if course and course.plan_approval_date %}{{ course.plan_approval_date|date:'Y-m-d' }}{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                             <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">&ge; Contouring date</span>
                         </div>
                         <div>
                             <label class="access-label" style="font-weight: bold; color: #003366;">4. RT Start Date</label>
-                            <input type="date" name="ebrt_start_date" id="rtStartDate"
+                            <input type="date" name="ebrt_start_date" id="rtStartDate" max="{% now 'Y-m-d' %}"
                                    value="{% if course and course.ebrt_start_date %}{{ course.ebrt_start_date|date:'Y-m-d' }}{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                             <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">&ge; Plan Approval date</span>
                         </div>
                         <div>
                             <label class="access-label" style="font-weight: bold; color: #003366;">5. RT End Date</label>
-                            <input type="date" name="ebrt_end_date" id="rtEndDate"
+                            <input type="date" name="ebrt_end_date" id="rtEndDate" max="{% now 'Y-m-d' %}"
                                    value="{% if course and course.ebrt_end_date %}{{ course.ebrt_end_date|date:'Y-m-d' }}{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                             <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">&ge; RT Start date</span>
@@ -779,6 +779,21 @@
 
         // Filter entered dates
         const entered = dates.filter(d => d.input && d.input.value);
+        const today = new Date().toISOString().split('T')[0];
+
+        // Check future dates
+        for (let i = 0; i < entered.length; i++) {
+            const item = entered[i];
+            if (item.input.value > today) {
+                item.input.style.borderColor = '#b00000';
+                item.input.style.backgroundColor = '#fff5f5';
+                if (timelineWarning) {
+                    timelineWarning.style.display = 'inline-block';
+                    timelineWarning.innerHTML = `⚠️ Date Error: <strong>${item.name}</strong> (${item.input.value}) cannot be a future date.`;
+                }
+                return false;
+            }
+        }
 
         for (let i = 0; i < entered.length - 1; i++) {
             const curr = entered[i];
@@ -809,9 +824,8 @@
             if (rtStartDateInput && rtStartDateInput.value) {
                 concDateInput.min = rtStartDateInput.value;
             }
-            if (rtEndDateInput && rtEndDateInput.value) {
-                concDateInput.max = rtEndDateInput.value;
-            }
+            const rtEnd = rtEndDateInput && rtEndDateInput.value ? rtEndDateInput.value : '';
+            concDateInput.max = (rtEnd && rtEnd < today) ? rtEnd : today;
         }
 
         if (timelineWarning) {

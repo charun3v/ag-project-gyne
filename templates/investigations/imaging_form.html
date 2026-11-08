@@ -104,19 +104,19 @@
                 <!-- Dimensions -->
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px;">
                     <div>
-                        <label class="access-label">Tumour Dimension 1 (cm)</label>
+                        <label class="access-label">CC (Cranio-caudal) (cm)</label>
                         <input type="number" step="0.1" name="tumour_dimension_1_cm" 
                                value="{% if pelvis_detail and pelvis_detail.tumour_dimension_1_cm %}{{ pelvis_detail.tumour_dimension_1_cm }}{% endif %}" 
                                class="access-input" placeholder="e.g. 4.8">
                     </div>
                     <div>
-                        <label class="access-label">Tumour Dimension 2 (cm)</label>
+                        <label class="access-label">AP (Antero-Posterior) (cm)</label>
                         <input type="number" step="0.1" name="tumour_dimension_2_cm" 
                                value="{% if pelvis_detail and pelvis_detail.tumour_dimension_2_cm %}{{ pelvis_detail.tumour_dimension_2_cm }}{% endif %}" 
                                class="access-input" placeholder="e.g. 3.6">
                     </div>
                     <div>
-                        <label class="access-label">Tumour Dimension 3 (cm)</label>
+                        <label class="access-label">ML (Medio-Lateral) (cm)</label>
                         <input type="number" step="0.1" name="tumour_dimension_3_cm" 
                                value="{% if pelvis_detail and pelvis_detail.tumour_dimension_3_cm %}{{ pelvis_detail.tumour_dimension_3_cm }}{% endif %}" 
                                class="access-input" placeholder="e.g. 4.2">
@@ -129,10 +129,6 @@
                         <label style="font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
                             <input type="checkbox" name="cervix_involved" value="1" {% if pelvis_detail and pelvis_detail.cervix_involved %}checked{% endif %}>
                             Cervix Involved
-                        </label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; margin-top: 4px;">
-                            <input type="checkbox" name="cervical_stromal_invasion" value="1" {% if pelvis_detail and pelvis_detail.cervical_stromal_invasion %}checked{% endif %}>
-                            Stromal Invasion &gt; 50%
                         </label>
                     </div>
                     <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 6px;">
@@ -269,8 +265,8 @@
                 <button type="submit" name="save_stay" value="1" class="btn-access btn-primary-action">
                     💾 Save Imaging Investigation
                 </button>
-                <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
-                    ➡️ Save & Proceed to Diagnosis & Staging
+                <button type="submit" name="save_return" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
+                    ➡️ Save and return to Investigation page
                 </button>
                 <a href="{% url 'investigations_hub' patient.mr_no %}?tab=imaging" class="btn-access" style="color: #666;">
                     ✖️ Cancel / Back

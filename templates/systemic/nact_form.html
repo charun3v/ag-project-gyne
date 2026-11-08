@@ -89,16 +89,16 @@
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
                         <div>
                             <label class="access-label">Course Start Date</label>
-                            <input type="date" name="nact_start_date" 
+                            <input type="date" name="nact_start_date" max="{% now 'Y-m-d' %}"
                                    value="{% if course and course.nact_start_date %}{{ course.nact_start_date|date:'Y-m-d' }}{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                         </div>
                         <div>
                             <label class="access-label">Course End Date</label>
-                            <input type="date" name="nact_end_date" 
+                            <input type="date" name="nact_end_date" max="{% now 'Y-m-d' %}"
                                    value="{% if course and course.nact_end_date %}{{ course.nact_end_date|date:'Y-m-d' }}{% endif %}" 
                                    class="access-input" {% if course and course.approval_locked %}disabled{% endif %}>
                         </div>
@@ -112,6 +112,12 @@
                                     </option>
                                 {% endfor %}
                             </select>
+                        </div>
+                        <div>
+                            <label class="access-label">Post-NACT Staging</label>
+                            <input type="text" name="post_nact_stage" 
+                                   value="{% if course and course.post_nact_stage %}{{ course.post_nact_stage }}{% endif %}" 
+                                   class="access-input" placeholder="e.g. ypt1bN0 / Stage IIB" {% if course and course.approval_locked %}disabled{% endif %}>
                         </div>
                         <div>
                             <label class="access-label">Course Status</label>
@@ -330,7 +336,7 @@
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 6px;">
                                 <div>
                                     <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle 1 Administration Date</label>
-                                    <input type="date" name="quick_cycle_date" value="{% now 'Y-m-d' %}" class="access-input">
+                                    <input type="date" name="quick_cycle_date" max="{% now 'Y-m-d' %}" value="{% now 'Y-m-d' %}" class="access-input">
                                 </div>
                                 <div>
                                     <label class="access-label" style="font-weight: bold; color: #003366;">Cycle Status</label>
@@ -365,7 +371,7 @@
                     💾 Save NACT Course Parameters
                 </button>
                 <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
-                    ➡️ Save & Proceed to Radiotherapy Hub
+                    ➡️ Save & Proceed to EBRT Details
                 </button>
                 {% else %}
                 <span style="font-size: 12px; color: #555; font-style: italic;">
@@ -393,9 +399,9 @@
             <div style="padding: 16px; font-size: 12px; color: #333;">
                 <div style="margin-bottom: 14px;">
                     <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
-                    <input type="date" name="cycle_date" id="addCycleDate" required class="access-input" value="{% if course and course.nact_start_date %}{{ course.nact_start_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}">
+                    <input type="date" name="cycle_date" id="addCycleDate" max="{% now 'Y-m-d' %}" required class="access-input" value="{% if course and course.nact_start_date %}{{ course.nact_start_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}">
                     <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">
-                        Must be between Course Start Date and Course End Date, and precede linked definitive RT.
+                        Must be between Course Start Date and Course End Date, and precede linked definitive RT. Future dates not permitted.
                     </span>
                 </div>
                 <div style="margin-bottom: 16px;">
@@ -430,9 +436,9 @@
             <div style="padding: 16px; font-size: 12px; color: #333;">
                 <div style="margin-bottom: 12px;">
                     <label class="access-label" style="font-weight: bold; color: #b00000;">Cycle Administration Date *</label>
-                    <input type="date" name="cycle_date" id="editCycleDate" required class="access-input">
+                    <input type="date" name="cycle_date" id="editCycleDate" max="{% now 'Y-m-d' %}" required class="access-input">
                     <span style="font-size: 10px; color: #666; display: block; margin-top: 2px;">
-                        Must be between Course Start Date and Course End Date, and precede linked definitive RT.
+                        Must be between Course Start Date and Course End Date, and precede linked definitive RT. Future dates not permitted.
                     </span>
                 </div>
                 <div style="margin-bottom: 12px;">
@@ -599,6 +605,7 @@ function openAddCycleModal() {
     const sDate = sInput ? sInput.value : '';
     const eDate = eInput ? eInput.value : '';
     const dateField = document.getElementById('addCycleDate');
+    const today = new Date().toISOString().split('T')[0];
     if (dateField) {
         if (sDate) {
             dateField.min = sDate;
@@ -608,11 +615,8 @@ function openAddCycleModal() {
         } else {
             dateField.removeAttribute('min');
         }
-        if (eDate) {
-            dateField.max = eDate;
-        } else {
-            dateField.removeAttribute('max');
-        }
+        const maxLimit = (eDate && eDate < today) ? eDate : today;
+        dateField.max = maxLimit;
     }
     document.getElementById('addCycleModal').style.display = 'flex';
 }
@@ -631,10 +635,12 @@ function openEditCycleModal(cycleId, cycleNum, cycleDate, cycleStatus, preNotes,
     const eInput = document.querySelector('input[name="nact_end_date"]');
     const sDate = sInput ? sInput.value : '';
     const eDate = eInput ? eInput.value : '';
+    const today = new Date().toISOString().split('T')[0];
     const dateField = document.getElementById('editCycleDate');
     if (dateField) {
         if (sDate) dateField.min = sDate; else dateField.removeAttribute('min');
-        if (eDate) dateField.max = eDate; else dateField.removeAttribute('max');
+        const maxLimit = (eDate && eDate < today) ? eDate : today;
+        dateField.max = maxLimit;
         dateField.value = cycleDate || '';
     }
     document.getElementById('editCycleStatus').value = cycleStatus || 'Administered';
@@ -654,7 +660,13 @@ function validateNactCycleDateModal(formEl) {
     const eInput = document.querySelector('input[name="nact_end_date"]');
     const sDate = sInput ? sInput.value : '';
     const eDate = eInput ? eInput.value : '';
+    const today = new Date().toISOString().split('T')[0];
     const val = dateInput.value;
+    if (val > today) {
+        alert("Validation Failed: Cycle Date (" + val + ") cannot be a future date.");
+        dateInput.focus();
+        return false;
+    }
     if (sDate && val < sDate) {
         alert("Validation Failed: Cycle Date (" + val + ") cannot be earlier than Course Start Date (" + sDate + ").");
         dateInput.focus();

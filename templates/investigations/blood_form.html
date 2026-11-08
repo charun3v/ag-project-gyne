@@ -141,10 +141,10 @@
 
             <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
                 <button type="submit" name="save_stay" value="1" class="btn-access btn-primary-action">
-                    💾 Save Blood Test Record
+                    💾 Save Blood Investigation
                 </button>
-                <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
-                    ➡️ Save & Proceed to Hub
+                <button type="submit" name="save_return" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
+                    ➡️ Save and return to Investigation page
                 </button>
                 <a href="{% url 'investigations_hub' patient.mr_no %}?tab=blood" class="btn-access" style="color: #666;">
                     ✖️ Cancel / Back

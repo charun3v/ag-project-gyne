@@ -218,7 +218,7 @@
                                 </span>
                             {% endif %}
                             <strong style="font-size: 12px; color: #b00000;">
-                                {{ d.diagnosis_description|default:d.primary_site.site|default:'Gynae Oncology' }}
+                                {% if d.diagnosis_description %}{{ d.diagnosis_description }}{% elif d.primary_site %}{{ d.primary_site.site }}{% else %}Gynae Oncology{% endif %}
                             </strong>
                             {% if d.diagnosis_description and d.primary_site %}
                                 <span style="font-size: 11px; color: #555;">({{ d.primary_site.site }})</span>
@@ -332,6 +332,7 @@
                         <div>Regimen: <strong>{{ nc.chemo_regimen.regimen_code|default:'Regimen' }}</strong> ({{ nc.chemo_regimen.regimen_description|default:'' }})</div>
                         <div>Cycles: <strong>{{ nc.cycles.count }}</strong> given / {{ nc.planned_cycles }} planned | Status: {{ nc.nact_status.status_name|default:'In Progress' }}</div>
                         <div>Tumor Response: <strong>{{ nc.response_to_nact.response_code|default:'Pending' }}</strong></div>
+                        <div>Post NACT staging: <strong>{{ nc.post_nact_stage|default:'—' }}</strong></div>
                         <div>Approval: {% if nc.is_approved %}<span style="color: #2e7d32; font-weight: bold;">🔒 Approved by {{ nc.approved_by }} ({{ nc.approved_on|date:'d-M-Y' }})</span>{% else %}<span style="color: #874d00;">📝 Draft</span>{% endif %}</div>
 
                         <!-- Cycles grouped: cycle date shown once, drugs listed beneath -->

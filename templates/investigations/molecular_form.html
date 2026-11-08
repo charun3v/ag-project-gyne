@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{% if molecular %}Edit Molecular Test{% else %}New Molecular Test{% endif %} - {{ patient.mr_no }}{% endblock %}
+{% block title %}{% if molecular %}Edit Molecular and Cytogenetics Investigation{% else %}New Molecular and Cytogenetics Investigation{% endif %} - {{ patient.mr_no }}{% endblock %}
 
 {% block content %}
 <div class="patient-banner">
@@ -9,13 +9,13 @@
         <span class="pt-meta"> (MR No: <strong>{{ patient.mr_no }}</strong> | {{ patient.age }}y / {{ patient.sex }})</span>
     </div>
     <div>
-        <span class="pt-badge">Molecular Biomarkers & IHC</span>
+        <span class="pt-badge">Molecular and Cytogenetics</span>
     </div>
 </div>
 
 <div class="access-subform">
     <div class="access-subform-header">
-        <span>🧬 frmMolecular: Molecular Pathology, IHC Biomarkers & NGS</span>
+        <span>🧬 frmMolecular: Molecular and Cytogenetics</span>
         <div style="font-weight: normal; font-size: 11px;">
             <a href="{% url 'investigations_hub' patient.mr_no %}?tab=molecular" style="color: #fff; text-decoration: underline;">Back to Hub</a>
         </div>
@@ -72,8 +72,11 @@
             </div>
 
             <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
-                <button type="submit" class="btn-access btn-primary-action">
-                    💾 Save Molecular Test Record
+                <button type="submit" name="save_stay" value="1" class="btn-access btn-primary-action">
+                    💾 Save Molecular Investigation
+                </button>
+                <button type="submit" name="save_return" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
+                    ➡️ Save and return to Investigation page
                 </button>
                 <a href="{% url 'investigations_hub' patient.mr_no %}?tab=molecular" class="btn-access" style="color: #666;">
                     ✖️ Cancel / Back

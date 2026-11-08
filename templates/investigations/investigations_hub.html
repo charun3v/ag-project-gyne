@@ -68,7 +68,7 @@
                 🩻 Radiology & MRI Pelvis ({{ imaging_studies.count }})
             </a>
             <a href="?tab=molecular" class="inv-tab {% if active_tab == 'molecular' %}active{% endif %}">
-                🧬 Molecular & IHC ({{ molecular_tests.count }})
+                🧬 Molecular and Cytogenetics ({{ molecular_tests.count }})
             </a>
         </div>
 
@@ -258,7 +258,7 @@
             </table>
         {% endif %}
 
-        <!-- TAB 4: MOLECULAR & IHC -->
+        <!-- TAB 4: MOLECULAR AND CYTOGENETICS -->
         {% if active_tab == 'molecular' %}
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-weight: bold; color: #003366; font-size: 11px;">Next-Gen Sequencing, IHC Biomarkers & PCR</span>
@@ -318,21 +318,12 @@
 
         <!-- Hub Action Footer -->
         <div style="margin-top: 14px; display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px; border: 1px solid #b8c4d2;">
-            <a href="{% url 'patient_summary' patient.mr_no %}" class="btn-access">
-                📄 Full Patient Summary
-            </a>
-            <a href="{% url 'diagnosis_detail' patient.mr_no %}" class="btn-access btn-primary-action" style="font-weight: bold; background: #003366; color: white;">
-                🎯 Proceed to Diagnosis & Staging
-            </a>
-            <a href="{% url 'radiotherapy_hub' patient.mr_no %}" class="btn-access">
-                ➡️ Radiotherapy Hub (EBRT / Brachy)
-            </a>
-            <a href="{% url 'systemic_hub' patient.mr_no %}" class="btn-access">
-                💊 Systemic Chemo Hub
+            <a href="{% url 'patient_summary' patient.mr_no %}" class="btn-access btn-primary-action" style="font-weight: bold; background: #003366; color: white;">
+                ➡️ Save and Go to Patient dashboard
             </a>
             <div style="flex-grow: 1;"></div>
             <a href="{% url 'dashboard' %}" class="btn-access" style="color: #666;">
-                🏠 Back to Dashboard
+                ✖️ Cancel / Back
             </a>
         </div>
     </div>

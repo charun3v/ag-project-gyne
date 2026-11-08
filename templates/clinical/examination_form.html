@@ -230,13 +230,15 @@
                         🖌️ Open Clinical Diagram
                     </a>
                 {% endif %}
-                <button type="submit" name="save_next" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
-                    {% if enc_slug == 'pre-brachy' %}
-                        ➡️ Save & Proceed to Brachytherapy
-                    {% else %}
-                        ➡️ Save & Proceed to Investigations Hub
-                    {% endif %}
+                {% if enc_slug == 'pre-brachy' %}
+                <button type="submit" name="save_patient_dashboard" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
+                    ➡️ Save and Go to Patient dashboard
                 </button>
+                {% else %}
+                <button type="submit" name="save_next" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
+                    ➡️ Save & Proceed to Investigations Hub
+                </button>
+                {% endif %}
                 <a href="{% url 'examination_pdf' patient.mr_no enc_slug %}" target="_blank" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; border-color: #70a0d0;">
                     📄 Generate Examination PDF Report
                 </a>

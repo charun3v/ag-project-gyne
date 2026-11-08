@@ -598,6 +598,7 @@ def build_patient_summary_pdf(patient):
         reg_name = str(nact_course.chemo_regimen) if nact_course.chemo_regimen else "NACT"
         freq_str = f"Every {nact_course.cycle_frequency_days} days" if nact_course.cycle_frequency_days else "—"
         resp_name = str(nact_course.response_to_nact) if nact_course.response_to_nact else "Evaluated"
+        post_nact_stage_val = nact_course.post_nact_stage or "—"
 
         nact_lines = [
             f"<b>A. Neoadjuvant Chemotherapy (NACT):</b> <font color='#2e7d32'><b>YES — Administered</b></font><br/>"
@@ -605,7 +606,8 @@ def build_patient_summary_pdf(patient):
             f"<b>Frequency:</b> {freq_str} &nbsp;|&nbsp; "
             f"<b>Cycles:</b> {nact_course.received_cycles} administered / {nact_course.planned_cycles} planned &nbsp;|&nbsp; "
             f"<b>Dates:</b> {start_d} to {end_d} &nbsp;|&nbsp; "
-            f"<b>Response:</b> {resp_name}"
+            f"<b>Response:</b> {resp_name} &nbsp;|&nbsp; "
+            f"<b>Post NACT staging:</b> {post_nact_stage_val}"
         ]
 
         if cycles.exists():

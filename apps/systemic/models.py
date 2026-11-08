@@ -205,6 +205,7 @@ class NACTCourse(models.Model):
     
     post_nact_assessment_done = models.BooleanField(default=False, db_column='PostNACT_Assessment_Done')
     post_nact_mri_done = models.BooleanField(default=False, db_column='PostNACT_MRI_Done')
+    post_nact_stage = models.CharField(max_length=50, blank=True, null=True, db_column='Post_NACT_Stage')
     notes = models.TextField(blank=True, null=True, db_column='Notes')
 
     # Approval and locking

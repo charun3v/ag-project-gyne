@@ -162,6 +162,11 @@ def validate_ebrt_chronology(simulation_date, contouring_date, plan_approval_dat
 
     entered = [(name, d) for name, d in dates if d is not None]
 
+    today = date.today()
+    for name, d in entered:
+        if d > today:
+            return False, f"Validation Failed: {name} ({d.strftime('%d-%b-%Y')}) cannot be a future date."
+
     for i in range(len(entered) - 1):
         name_curr, d_curr = entered[i]
         name_next, d_next = entered[i + 1]
@@ -418,6 +423,10 @@ def ebrt_concurrent_cycle_save_view(request, mr_no, course_id, cycle_id=None):
         messages.error(request, "Cycle date is mandatory.")
         return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
 
+    if cycle_date > date.today():
+        messages.error(request, f"Validation Failed: Cycle date ({cycle_date.strftime('%d-%b-%Y')}) cannot be a future date.")
+        return redirect('ebrt_edit', mr_no=patient.mr_no, course_id=course.ebrt_course_id)
+
     # Date validation: EBRT Start <= cycle_date <= EBRT End
     if not course.ebrt_start_date:
         messages.error(request, "Validation Failed: EBRT Start Date must be specified on the course before recording concurrent chemotherapy cycles.")
@@ -578,8 +587,19 @@ def brachy_form_view(request, mr_no, course_id=None):
         else:
             course.total_fractions_delivered = 0
 
-        course.brachy_start_date = request.POST.get('brachy_start_date') or None
-        course.brachy_end_date = request.POST.get('brachy_end_date') or None
+        start_d = parse_date_str(request.POST.get('brachy_start_date'))
+        end_d = parse_date_str(request.POST.get('brachy_end_date'))
+        if start_d and start_d > date.today():
+            messages.error(request, f"Validation Failed: Brachy Start Date ({start_d.strftime('%d-%b-%Y')}) cannot be a future date.")
+            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course else redirect('brachy_add', mr_no=patient.mr_no)
+        if end_d and end_d > date.today():
+            messages.error(request, f"Validation Failed: Brachy End Date ({end_d.strftime('%d-%b-%Y')}) cannot be a future date.")
+            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course else redirect('brachy_add', mr_no=patient.mr_no)
+        if start_d and end_d and end_d < start_d:
+            messages.error(request, "Validation Failed: Brachy End Date cannot precede Start Date.")
+            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course else redirect('brachy_add', mr_no=patient.mr_no)
+        course.brachy_start_date = start_d
+        course.brachy_end_date = end_d
 
         course.alpha_beta_tumor = float(request.POST.get('alpha_beta_tumor') or 10.0)
         course.alpha_beta_bladder = float(request.POST.get('alpha_beta_bladder') or 3.0)
