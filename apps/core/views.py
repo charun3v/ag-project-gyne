@@ -798,6 +798,17 @@ LOOKUP_CONFIG = {
         'secondary_label': 'Reason Code (e.g. TOXICITY)',
         'custom_applicability': True,
     },
+    'cause_of_death': {
+        'title': 'Cause of Death Options',
+        'table_name': 'sbtblCauseOfDeath',
+        'app': 'followup',
+        'model_name': 'CauseOfDeath',
+        'pk': 'cause_of_death_id',
+        'name_field': 'cause_name',
+        'name_label': 'Cause of Death (e.g. Disease related, Non disease related)',
+        'secondary_field': None,
+        'secondary_label': None,
+    },
 }
 
 def get_lookup_model(category):

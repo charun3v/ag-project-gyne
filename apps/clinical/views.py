@@ -425,14 +425,20 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
         encounter.examination_findings = request.POST.get('examination_findings', '')
 
         # Pelvic Examination
-        encounter.parametrial_invasion = bool(request.POST.get('parametrial_invasion'))
-        encounter.para_left = bool(request.POST.get('para_left'))
-        encounter.para_right = bool(request.POST.get('para_right'))
-        encounter.para_extent_left_cm = float(request.POST.get('para_extent_left_cm')) if request.POST.get('para_extent_left_cm') else None
-        encounter.para_extent_right_cm = float(request.POST.get('para_extent_right_cm')) if request.POST.get('para_extent_right_cm') else None
+        encounter.parametrial_invasion = request.POST.get('parametrial_invasion') in ['1', 'yes', 'true', True]
+        if encounter.parametrial_invasion:
+            encounter.para_left = bool(request.POST.get('para_left'))
+            encounter.para_right = bool(request.POST.get('para_right'))
+            encounter.para_extent_left_cm = float(request.POST.get('para_extent_left_cm')) if request.POST.get('para_extent_left_cm') else None
+            encounter.para_extent_right_cm = float(request.POST.get('para_extent_right_cm')) if request.POST.get('para_extent_right_cm') else None
+        else:
+            encounter.para_left = False
+            encounter.para_right = False
+            encounter.para_extent_left_cm = None
+            encounter.para_extent_right_cm = None
 
-        encounter.rectal_invasion = bool(request.POST.get('rectal_invasion'))
-        encounter.bladder_invasion = bool(request.POST.get('bladder_invasion'))
+        encounter.rectal_invasion = request.POST.get('rectal_invasion') in ['1', 'yes', 'true', True]
+        encounter.bladder_invasion = request.POST.get('bladder_invasion') in ['1', 'yes', 'true', True]
 
         encounter.tumour_size_cm = float(request.POST.get('tumour_size_cm')) if request.POST.get('tumour_size_cm') else None
         encounter.tumour_size_2_cm = float(request.POST.get('tumour_size_2_cm')) if request.POST.get('tumour_size_2_cm') else None
@@ -480,6 +486,23 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
     # Fetch marked SVG findings for display
     svg_findings = encounter.svg_findings.filter(soft_deleted=False) if encounter else []
 
+    # Pre-populate height and weight from previous encounter if not already set
+    initial_height = encounter.height if (encounter and encounter.height) else None
+    if initial_height is None:
+        last_ht_enc = patient.encounters.filter(soft_deleted=False, height__isnull=False)
+        if encounter:
+            last_ht_enc = last_ht_enc.exclude(clinical_id=encounter.clinical_id)
+        last_ht = last_ht_enc.order_by('-encounter_date', '-clinical_id').first()
+        initial_height = last_ht.height if last_ht else None
+
+    initial_weight = encounter.weight if (encounter and encounter.weight) else None
+    if initial_weight is None:
+        last_wt_enc = patient.encounters.filter(soft_deleted=False, weight__isnull=False)
+        if encounter:
+            last_wt_enc = last_wt_enc.exclude(clinical_id=encounter.clinical_id)
+        last_wt = last_wt_enc.order_by('-encounter_date', '-clinical_id').first()
+        initial_weight = last_wt.weight if last_wt else None
+
     if 'post-nact' in enc_type_lower or (encounter_type_obj and 'nact' in encounter_type_obj.encounter_type_name.lower()):
         enc_slug = 'post-nact'
     elif 'brachy' in enc_type_lower or (encounter_type_obj and 'brachy' in encounter_type_obj.encounter_type_name.lower()):
@@ -494,6 +517,8 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
         'ecog_scores': ecog_scores,
         'svg_findings': svg_findings,
         'enc_slug': enc_slug,
+        'initial_height': initial_height,
+        'initial_weight': initial_weight,
     })
 
 

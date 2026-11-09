@@ -176,6 +176,17 @@
                             <span style="font-size: 9px; color: #666; display: block; margin-top: 2px;">&ge; RT Start date</span>
                         </div>
                     </div>
+
+                    <!-- Calculated EBRT OTT Display (Both start and end days inclusive) -->
+                    <div id="ebrtOttBox" style="margin-top: 8px; padding: 6px 12px; background: #e8f4fd; border: 1px solid #70a0d0; border-radius: 3px; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-weight: bold; color: #003366;">⏱️ EBRT Overall Treatment Time (OTT):</span>
+                            <span id="ebrtOttValue" style="font-weight: bold; color: #003366; font-size: 12px; background: #fff; padding: 2px 8px; border: 1px solid #70a0d0; border-radius: 2px;">
+                                —
+                            </span>
+                        </div>
+                        <span style="font-size: 10px; color: #555;">(Calculated as: EBRT End Date &minus; EBRT Start Date, inclusive of both days)</span>
+                    </div>
                 </div>
             </fieldset>
 
@@ -796,18 +807,42 @@
             timelineWarning.style.display = 'none';
             timelineWarning.textContent = '';
         }
+        calculateEbrtOtt();
         return true;
+    }
+
+    function calculateEbrtOtt() {
+        const ottVal = document.getElementById('ebrtOttValue');
+        if (!ottVal) return;
+        const startStr = rtStartDateInput && rtStartDateInput.value ? rtStartDateInput.value : '';
+        const endStr = rtEndDateInput && rtEndDateInput.value ? rtEndDateInput.value : '';
+        if (startStr && endStr) {
+            const dStart = new Date(startStr + 'T00:00:00');
+            const dEnd = new Date(endStr + 'T00:00:00');
+            if (!isNaN(dStart) && !isNaN(dEnd)) {
+                if (dEnd >= dStart) {
+                    const diffTime = dEnd - dStart;
+                    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive of both start and end days
+                    ottVal.innerHTML = `<span style="color: #006622; font-weight: bold;">${diffDays} days</span> <span style="font-size: 10px; color: #555; font-weight: normal;">(${startStr} to ${endStr})</span>`;
+                } else {
+                    ottVal.innerHTML = `<span style="color: #b00000; font-weight: bold;">⚠️ Invalid (RT End Date is before RT Start Date)</span>`;
+                }
+                return;
+            }
+        }
+        ottVal.innerHTML = `<span style="color: #777; font-style: italic; font-weight: normal;">Enter RT Start Date and RT End Date to calculate OTT</span>`;
     }
 
     [simDateInput, contDateInput, planAppDateInput, rtStartDateInput, rtEndDateInput].forEach(inp => {
         if (inp) {
-            inp.addEventListener('change', validateChronology);
-            inp.addEventListener('input', validateChronology);
+            inp.addEventListener('change', () => { validateChronology(); calculateEbrtOtt(); });
+            inp.addEventListener('input', () => { validateChronology(); calculateEbrtOtt(); });
         }
     });
 
-    // Run initial validation check on load
+    // Run initial validation and OTT calculation on load
     validateChronology();
+    calculateEbrtOtt();
 
     // Form submission validation guard
     const ebrtMainForm = document.getElementById('ebrtMainForm');

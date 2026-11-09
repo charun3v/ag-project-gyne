@@ -52,13 +52,13 @@
                     <div>
                         <label class="access-label">Height (cm)</label>
                         <input type="number" step="0.1" name="height" id="htInput" 
-                               value="{% if encounter and encounter.height %}{{ encounter.height }}{% endif %}" 
+                               value="{% if encounter and encounter.height %}{{ encounter.height }}{% elif initial_height %}{{ initial_height }}{% endif %}" 
                                class="access-input" placeholder="e.g. 155.0">
                     </div>
                     <div>
                         <label class="access-label">Weight (kg)</label>
                         <input type="number" step="0.1" name="weight" id="wtInput" 
-                               value="{% if encounter and encounter.weight %}{{ encounter.weight }}{% endif %}" 
+                               value="{% if encounter and encounter.weight %}{{ encounter.weight }}{% elif initial_weight %}{{ initial_weight }}{% endif %}" 
                                class="access-input" placeholder="e.g. 58.5">
                     </div>
                 </div>
@@ -79,18 +79,31 @@
             <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
                 <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">2. Gynecological & Pelvic Examination Findings</legend>
                 
-                <!-- Parametrial assessment -->
-                <div style="background: #eef2f7; border: 1px solid #d0dae5; padding: 8px; margin-bottom: 8px;">
-                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 6px;">
-                        <label style="font-weight: bold; color: #003366; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="parametrial_invasion" id="para_invasion_chk" value="1" {% if encounter and encounter.parametrial_invasion %}checked{% endif %} onchange="toggleParametrialInvasion()">
-                            Parametrial Invasion Present
-                        </label>
+                <!-- 1. Parametrial assessment: YES / NO -->
+                <div style="background: #eef2f7; border: 1px solid #d0dae5; padding: 8px; margin-bottom: 8px; border-radius: 2px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="font-weight: bold; color: #003366; font-size: 11px;">
+                            Parametrial Invasion
+                        </span>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #b00000; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="parametrial_invasion" id="para_inv_yes" value="1" 
+                                       {% if encounter and encounter.parametrial_invasion %}checked{% endif %} 
+                                       onchange="toggleParametrialInvasion()">
+                                YES
+                            </label>
+                            <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #006622; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="parametrial_invasion" id="para_inv_no" value="0" 
+                                       {% if not encounter or not encounter.parametrial_invasion %}checked{% endif %} 
+                                       onchange="toggleParametrialInvasion()">
+                                NO
+                            </label>
+                        </div>
                     </div>
                     <div id="para_sub_fields" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; transition: opacity 0.2s; {% if not encounter or not encounter.parametrial_invasion %}opacity: 0.45; pointer-events: none;{% endif %}">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <input type="checkbox" name="para_left" id="para_left_chk" value="1" {% if encounter and encounter.para_left %}checked{% endif %} {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
-                            <label class="access-label" style="margin: 0;">Left Parametrium</label>
+                            <label class="access-label" for="para_left_chk" style="margin: 0; cursor: pointer;">Left Parametrium</label>
                         </div>
                         <div>
                             <input type="number" step="0.1" name="para_extent_left_cm" id="para_extent_left"
@@ -99,7 +112,7 @@
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <input type="checkbox" name="para_right" id="para_right_chk" value="1" {% if encounter and encounter.para_right %}checked{% endif %} {% if not encounter or not encounter.parametrial_invasion %}disabled{% endif %}>
-                            <label class="access-label" style="margin: 0;">Right Parametrium</label>
+                            <label class="access-label" for="para_right_chk" style="margin: 0; cursor: pointer;">Right Parametrium</label>
                         </div>
                         <div>
                             <input type="number" step="0.1" name="para_extent_right_cm" id="para_extent_right"
@@ -109,20 +122,90 @@
                     </div>
                 </div>
 
-                <!-- Rectal & Bladder invasion -->
+                <!-- 2. Rectal & Bladder invasion: YES / NO -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
-                    <div>
-                        <label class="access-label">Rectal Mucosa / Vaginal Wall</label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; margin-top: 4px;">
-                            <input type="checkbox" name="rectal_invasion" value="1" {% if encounter and encounter.rectal_invasion %}checked{% endif %}>
-                            Rectal Invasion Present
-                        </label>
+                    <!-- Rectal Invasion -->
+                    <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 8px; border-radius: 2px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-weight: bold; color: #003366; font-size: 11px;">
+                                Rectal Mucosa / Vaginal Wall
+                            </span>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #b00000; display: flex; align-items: center; gap: 4px;">
+                                    <input type="radio" name="rectal_invasion" id="rectal_inv_yes" value="1" 
+                                           {% if encounter and encounter.rectal_invasion %}checked{% endif %} 
+                                           onchange="toggleRectalInvasion()">
+                                    YES
+                                </label>
+                                <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #006622; display: flex; align-items: center; gap: 4px;">
+                                    <input type="radio" name="rectal_invasion" id="rectal_inv_no" value="0" 
+                                           {% if not encounter or not encounter.rectal_invasion %}checked{% endif %} 
+                                           onchange="toggleRectalInvasion()">
+                                    NO
+                                </label>
+                            </div>
+                        </div>
+                        <div id="rectal_sub_fields" style="font-size: 10px; color: #b00000; margin-top: 4px; {% if not encounter or not encounter.rectal_invasion %}display: none;{% endif %}">
+                            ⚠️ Rectal mucosal nodularity / ulceration / gross invasion confirmed
+                        </div>
                     </div>
-                    <div>
-                        <label class="access-label">Bladder Mucosa</label>
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; margin-top: 4px;">
-                            <input type="checkbox" name="bladder_invasion" value="1" {% if encounter and encounter.bladder_invasion %}checked{% endif %}>
-                            Bladder Invasion Present
+
+                    <!-- Bladder Invasion -->
+                    <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 8px; border-radius: 2px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-weight: bold; color: #003366; font-size: 11px;">
+                                Bladder Mucosa
+                            </span>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #b00000; display: flex; align-items: center; gap: 4px;">
+                                    <input type="radio" name="bladder_invasion" id="bladder_inv_yes" value="1" 
+                                           {% if encounter and encounter.bladder_invasion %}checked{% endif %} 
+                                           onchange="toggleBladderInvasion()">
+                                    YES
+                                </label>
+                                <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #006622; display: flex; align-items: center; gap: 4px;">
+                                    <input type="radio" name="bladder_invasion" id="bladder_inv_no" value="0" 
+                                           {% if not encounter or not encounter.bladder_invasion %}checked{% endif %} 
+                                           onchange="toggleBladderInvasion()">
+                                    NO
+                                </label>
+                            </div>
+                        </div>
+                        <div id="bladder_sub_fields" style="font-size: 10px; color: #b00000; margin-top: 4px; {% if not encounter or not encounter.bladder_invasion %}display: none;{% endif %}">
+                            ⚠️ Bladder mucosal breach / gross invasion confirmed (FIGO IVA)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Nodal Invasion: YES / NO -->
+                <div style="background: #fafafa; border: 1px solid #e0e0e0; padding: 8px; margin-bottom: 8px; border-radius: 2px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="font-weight: bold; color: #003366; font-size: 11px;">
+                            Clinical Lymph Node Invasion
+                        </span>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #b00000; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="nodal_invasion" id="nodal_inv_yes" value="1" 
+                                       onchange="toggleNodalInvasion()">
+                                YES
+                            </label>
+                            <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #006622; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="nodal_invasion" id="nodal_inv_no" value="0" checked
+                                       onchange="toggleNodalInvasion()">
+                                NO
+                            </label>
+                        </div>
+                    </div>
+                    <div id="nodal_sub_fields" style="display: none; gap: 16px; flex-wrap: wrap; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #e0e0e0; font-size: 11px;">
+                        <span style="font-weight: bold; color: #555;">Involved Stations:</span>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" name="exam_node_pelvic" value="1"> Pelvic Nodes
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" name="exam_node_pa" value="1"> Para-aortic (PA) Nodes
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" name="exam_node_ing" value="1"> Inguinal Nodes
                         </label>
                     </div>
                 </div>
@@ -253,29 +336,68 @@
 
 <script>
 function toggleParametrialInvasion() {
-    const chk = document.getElementById('para_invasion_chk');
+    const yesRadio = document.getElementById('para_inv_yes');
+    const isYes = yesRadio && yesRadio.checked;
     const container = document.getElementById('para_sub_fields');
     const leftChk = document.getElementById('para_left_chk');
     const leftExtent = document.getElementById('para_extent_left');
     const rightChk = document.getElementById('para_right_chk');
     const rightExtent = document.getElementById('para_extent_right');
 
-    const isChecked = chk && chk.checked;
     if (container) {
-        container.style.opacity = isChecked ? '1' : '0.45';
-        container.style.pointerEvents = isChecked ? 'auto' : 'none';
+        container.style.opacity = isYes ? '1' : '0.45';
+        container.style.pointerEvents = isYes ? 'auto' : 'none';
     }
-    if (leftChk) leftChk.disabled = !isChecked;
-    if (leftExtent) leftExtent.disabled = !isChecked;
-    if (rightChk) rightChk.disabled = !isChecked;
-    if (rightExtent) rightExtent.disabled = !isChecked;
+    if (leftChk) leftChk.disabled = !isYes;
+    if (leftExtent) leftExtent.disabled = !isYes;
+    if (rightChk) rightChk.disabled = !isYes;
+    if (rightExtent) rightExtent.disabled = !isYes;
 
-    if (!isChecked) {
+    if (!isYes) {
         if (leftChk) leftChk.checked = false;
         if (leftExtent) leftExtent.value = '';
         if (rightChk) rightChk.checked = false;
         if (rightExtent) rightExtent.value = '';
     }
 }
+
+function toggleRectalInvasion() {
+    const yesRadio = document.getElementById('rectal_inv_yes');
+    const isYes = yesRadio && yesRadio.checked;
+    const container = document.getElementById('rectal_sub_fields');
+    if (container) {
+        container.style.display = isYes ? 'block' : 'none';
+    }
+}
+
+function toggleBladderInvasion() {
+    const yesRadio = document.getElementById('bladder_inv_yes');
+    const isYes = yesRadio && yesRadio.checked;
+    const container = document.getElementById('bladder_sub_fields');
+    if (container) {
+        container.style.display = isYes ? 'block' : 'none';
+    }
+}
+
+function toggleNodalInvasion() {
+    const yesRadio = document.getElementById('nodal_inv_yes');
+    const isYes = yesRadio && yesRadio.checked;
+    const container = document.getElementById('nodal_sub_fields');
+    if (container) {
+        container.style.display = isYes ? 'flex' : 'none';
+        const chks = container.querySelectorAll('input[type="checkbox"]');
+        chks.forEach(c => {
+            c.disabled = !isYes;
+            if (!isYes) c.checked = false;
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    toggleParametrialInvasion();
+    toggleRectalInvasion();
+    toggleBladderInvasion();
+    toggleNodalInvasion();
+});
 </script>
 {% endblock %}

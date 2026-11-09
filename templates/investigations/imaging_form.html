@@ -230,14 +230,27 @@
                     <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #003366;">
                         Lymph Node Metastasis Assessment
                     </div>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="font-size: 11px; font-weight: bold; color: #003366;">
+                            Significant Lymph Nodes Present:
+                        </span>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #b00000; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="nodes_present" id="mri_nodes_yes" value="1" 
+                                       {% if pelvis_detail and pelvis_detail.nodes_present %}checked{% endif %} 
+                                       onchange="toggleMRILymphNodes()">
+                                YES
+                            </label>
+                            <label style="font-size: 11px; font-weight: bold; cursor: pointer; color: #006622; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="nodes_present" id="mri_nodes_no" value="0" 
+                                       {% if not pelvis_detail or not pelvis_detail.nodes_present %}checked{% endif %} 
+                                       onchange="toggleMRILymphNodes()">
+                                NO
+                            </label>
+                        </div>
+                    </div>
                     <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
-                        <label style="font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="nodes_present" id="mri_nodes_present_chk" value="1" 
-                                   {% if pelvis_detail and pelvis_detail.nodes_present %}checked{% endif %}
-                                   onchange="toggleMRILymphNodes()">
-                            Significant Lymph Nodes Present (Yes / No)
-                        </label>
-                        <div id="mri_nodes_subgroup" style="display: flex; gap: 16px; align-items: center; margin-left: 12px; padding-left: 12px; border-left: 2px solid #ccc;">
+                        <div id="mri_nodes_subgroup" style="display: flex; gap: 16px; align-items: center; padding-left: 6px;">
                             <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
                                 <input type="checkbox" name="pelvic_nodes_present" id="mri_pelvic_nodes_chk" value="1" 
                                        {% if pelvis_detail and pelvis_detail.pelvic_nodes_present %}checked{% endif %}>
@@ -391,7 +404,7 @@ function toggleMRIParametriumRight() {
 }
 
 function toggleMRILymphNodes() {
-    const isNodesPresent = document.getElementById('mri_nodes_present_chk')?.checked;
+    const isNodesPresent = document.getElementById('mri_nodes_yes')?.checked;
     const pelvicChk = document.getElementById('mri_pelvic_nodes_chk');
     const paChk = document.getElementById('mri_pa_nodes_chk');
     const inguinalChk = document.getElementById('mri_inguinal_nodes_chk');

@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import models
 from datetime import date
 
 from patients.models import Patient
@@ -46,6 +47,95 @@ def followup_form_view(request, mr_no, followup_id=None):
     encounter = fu.encounter if (fu and fu.encounter) else None
     svg_findings = encounter.svg_findings.filter(soft_deleted=False) if encounter else []
 
+    # Prior recurrence lookup for pre-population across consecutive visits
+    prior_rec = patient.follow_up_records.filter(
+        soft_deleted=False
+    ).filter(
+        models.Q(recurrence_detected=True) | models.Q(date_of_recurrence__isnull=False)
+    )
+    if fu:
+        prior_rec = prior_rec.exclude(follow_up_status_id=fu.follow_up_status_id)
+    prior_rec = prior_rec.order_by('-follow_up_date', '-follow_up_status_id').first()
+
+    # Pre-populate recurrence information if recurrence occurred in prior visit
+    if not fu:
+        if prior_rec:
+            initial_date_of_recurrence = prior_rec.date_of_recurrence
+            initial_recurrence_detected = True
+            initial_recurrence_confirmed_by = prior_rec.recurrence_confirmed_by
+            initial_recurrence_local = prior_rec.recurrence_local
+            initial_recurrence_nodal = prior_rec.recurrence_nodal
+            initial_recurrence_distant = prior_rec.recurrence_distant
+            initial_second_primary = prior_rec.second_primary
+            initial_node_pelvic = prior_rec.node_pelvic
+            initial_node_para_aortic = prior_rec.node_para_aortic
+            initial_node_inguinal = prior_rec.node_inguinal
+            initial_distant_nodal_other = prior_rec.distant_nodal_other
+            initial_distant_visceral = prior_rec.distant_visceral
+            initial_rec_plan = prior_rec.recurrence_treatment_plan
+            selected_rec_site_ids = set(prior_rec.recurrence_sites.values_list('recurrence_site_id', flat=True))
+            if prior_rec.recurrence_site_id:
+                selected_rec_site_ids.add(prior_rec.recurrence_site_id)
+            # Default value of current status as "Alive with recurrence"
+            rec_ds = disease_statuses.filter(status_name__icontains='recurrence').first()
+            default_disease_status_id = rec_ds.disease_status_id if rec_ds else None
+        else:
+            initial_date_of_recurrence = None
+            initial_recurrence_detected = False
+            initial_recurrence_confirmed_by = ''
+            initial_recurrence_local = False
+            initial_recurrence_nodal = False
+            initial_recurrence_distant = False
+            initial_second_primary = False
+            initial_node_pelvic = False
+            initial_node_para_aortic = False
+            initial_node_inguinal = False
+            initial_distant_nodal_other = False
+            initial_distant_visceral = False
+            initial_rec_plan = ''
+            selected_rec_site_ids = set()
+            ned_ds = disease_statuses.filter(status_name__icontains='NED').first() or disease_statuses.first()
+            default_disease_status_id = ned_ds.disease_status_id if ned_ds else None
+    else:
+        initial_date_of_recurrence = fu.date_of_recurrence or (prior_rec.date_of_recurrence if prior_rec else None)
+        initial_recurrence_detected = fu.recurrence_detected or (True if prior_rec else False)
+        initial_recurrence_confirmed_by = fu.recurrence_confirmed_by or (prior_rec.recurrence_confirmed_by if prior_rec else '')
+        initial_recurrence_local = fu.recurrence_local or (prior_rec.recurrence_local if prior_rec else False)
+        initial_recurrence_nodal = fu.recurrence_nodal or (prior_rec.recurrence_nodal if prior_rec else False)
+        initial_recurrence_distant = fu.recurrence_distant or (prior_rec.recurrence_distant if prior_rec else False)
+        initial_second_primary = fu.second_primary or (prior_rec.second_primary if prior_rec else False)
+        initial_node_pelvic = fu.node_pelvic or (prior_rec.node_pelvic if prior_rec else False)
+        initial_node_para_aortic = fu.node_para_aortic or (prior_rec.node_para_aortic if prior_rec else False)
+        initial_node_inguinal = fu.node_inguinal or (prior_rec.node_inguinal if prior_rec else False)
+        initial_distant_nodal_other = fu.distant_nodal_other or (prior_rec.distant_nodal_other if prior_rec else False)
+        initial_distant_visceral = fu.distant_visceral or (prior_rec.distant_visceral if prior_rec else False)
+        initial_rec_plan = fu.recurrence_treatment_plan or (prior_rec.recurrence_treatment_plan if prior_rec else '')
+        default_disease_status_id = fu.disease_status_id
+        selected_rec_site_ids = set(fu.recurrence_sites.values_list('recurrence_site_id', flat=True))
+        if fu.recurrence_site_id:
+            selected_rec_site_ids.add(fu.recurrence_site_id)
+        elif prior_rec and not selected_rec_site_ids:
+            selected_rec_site_ids = set(prior_rec.recurrence_sites.values_list('recurrence_site_id', flat=True))
+            if prior_rec.recurrence_site_id:
+                selected_rec_site_ids.add(prior_rec.recurrence_site_id)
+
+    # Pre-populate height and weight from previous entry
+    initial_height = encounter.height if (encounter and encounter.height) else None
+    if initial_height is None:
+        last_ht_enc = patient.encounters.filter(soft_deleted=False, height__isnull=False)
+        if encounter:
+            last_ht_enc = last_ht_enc.exclude(clinical_id=encounter.clinical_id)
+        last_ht = last_ht_enc.order_by('-encounter_date', '-clinical_id').first()
+        initial_height = last_ht.height if last_ht else None
+
+    initial_weight = encounter.weight if (encounter and encounter.weight) else None
+    if initial_weight is None:
+        last_wt_enc = patient.encounters.filter(soft_deleted=False, weight__isnull=False)
+        if encounter:
+            last_wt_enc = last_wt_enc.exclude(clinical_id=encounter.clinical_id)
+        last_wt = last_wt_enc.order_by('-encounter_date', '-clinical_id').first()
+        initial_weight = last_wt.weight if last_wt else None
+
     # Patient Investigations
     blood_tests = patient.blood_tests.filter(soft_deleted=False).order_by('-test_date')[:10]
     pathology_reports = patient.pathology_reports.filter(soft_deleted=False).order_by('-path_date')[:10]
@@ -82,30 +172,47 @@ def followup_form_view(request, mr_no, followup_id=None):
         # Determine dead & lost status
         is_dead = bool(request.POST.get('death_reported')) or ('dead' in ds_name)
         is_lost = ('lost' in ds_name) or ('lost' in ct_name)
+        is_ned = ('ned' in ds_name) or ('no evidence' in ds_name)
 
-        # Recurrence
-        fu.recurrence_detected = bool(request.POST.get('recurrence_detected'))
-        fu.date_of_recurrence = request.POST.get('date_of_recurrence') or None
-        fu.recurrence_confirmed_by = request.POST.get('recurrence_confirmed_by', '')
-        fu.recurrence_local = bool(request.POST.get('recurrence_local'))
-        fu.recurrence_nodal = bool(request.POST.get('recurrence_nodal'))
-        fu.recurrence_distant = bool(request.POST.get('recurrence_distant'))
-        fu.second_primary = bool(request.POST.get('second_primary'))
+        # Recurrence details (saved if not NED and not Dead)
+        if not is_ned and not is_dead and not is_lost:
+            fu.recurrence_detected = bool(request.POST.get('recurrence_detected'))
+            fu.date_of_recurrence = request.POST.get('date_of_recurrence') or None
+            fu.recurrence_confirmed_by = request.POST.get('recurrence_confirmed_by', '')
+            fu.recurrence_local = bool(request.POST.get('recurrence_local'))
+            
+            # Nodal invasion: Yes / No selection
+            fu.recurrence_nodal = request.POST.get('recurrence_nodal') in ['1', 'yes', 'true', True]
+            if fu.recurrence_nodal:
+                fu.node_pelvic = bool(request.POST.get('node_pelvic'))
+                fu.node_para_aortic = bool(request.POST.get('node_para_aortic'))
+                fu.node_inguinal = bool(request.POST.get('node_inguinal'))
+                fu.distant_nodal_other = bool(request.POST.get('distant_nodal_other'))
+            else:
+                fu.node_pelvic = False
+                fu.node_para_aortic = False
+                fu.node_inguinal = False
+                fu.distant_nodal_other = False
 
-        fu.node_pelvic = bool(request.POST.get('node_pelvic'))
-        fu.node_para_aortic = bool(request.POST.get('node_para_aortic'))
-        fu.node_inguinal = bool(request.POST.get('node_inguinal'))
-        fu.distant_nodal_other = bool(request.POST.get('distant_nodal_other'))
-        fu.distant_visceral = bool(request.POST.get('distant_visceral'))
+            fu.recurrence_distant = bool(request.POST.get('recurrence_distant'))
+            fu.second_primary = bool(request.POST.get('second_primary'))
+            fu.distant_visceral = bool(request.POST.get('distant_visceral'))
 
-        # Rule 2: Primary recurrence site multi-selection
-        rec_site_ids = request.POST.getlist('recurrence_site_ids')
-        if not rec_site_ids and request.POST.get('recurrence_site_id'):
-            rec_site_ids = [request.POST.get('recurrence_site_id')]
-        fu.recurrence_site_id = int(rec_site_ids[0]) if rec_site_ids else None
-        fu.recurrence_treatment_plan = request.POST.get('recurrence_treatment_plan', '')
+            # Rule 2: Primary recurrence site multi-selection
+            rec_site_ids = request.POST.getlist('recurrence_site_ids')
+            if not rec_site_ids and request.POST.get('recurrence_site_id'):
+                rec_site_ids = [request.POST.get('recurrence_site_id')]
+            fu.recurrence_site_id = int(rec_site_ids[0]) if rec_site_ids else None
+            fu.recurrence_treatment_plan = request.POST.get('recurrence_treatment_plan', '')
+        else:
+            if is_ned:
+                fu.recurrence_detected = False
+                fu.date_of_recurrence = None
+            rec_site_ids = []
+            fu.recurrence_site_id = None
+            fu.recurrence_treatment_plan = ''
 
-        # Rule 3: Only if patient is marked death should date of death be active
+        # Vital Status & Death Monitoring (Rules 2, 3)
         if is_dead:
             fu.death_reported = True
             fu.date_of_death = request.POST.get('date_of_death') or None
@@ -115,7 +222,7 @@ def followup_form_view(request, mr_no, followup_id=None):
             fu.date_of_death = None
             fu.cause_of_death_id = None
 
-        # Rule 4: For lost to follow up and dead - no need to make "Next scheduled follow-up date" active
+        # Next Scheduled Follow-Up Date (Rules 3, 4)
         if is_dead or is_lost:
             fu.next_fu_date = None
             fu.next_fu_notes = ''
@@ -133,7 +240,7 @@ def followup_form_view(request, mr_no, followup_id=None):
         else:
             fu.recurrence_sites.clear()
 
-        # Rule 5: In case of patients other than Dead and lost to follow-up - clinical examination findings & investigations
+        # Rule 5: Clinical examination findings & investigations for patients other than dead and lost
         if not (is_dead or is_lost):
             # Clinical Encounter & Physical Exam
             enc = fu.encounter
@@ -144,19 +251,27 @@ def followup_form_view(request, mr_no, followup_id=None):
                 enc = Encounter(patient=patient, encounter_type=enc_type_fu, entered_by=request.user.username)
 
             enc.encounter_date = fu.follow_up_date
+            enc.height = float(request.POST.get('exam_height')) if request.POST.get('exam_height') else None
+            enc.weight = float(request.POST.get('exam_weight')) if request.POST.get('exam_weight') else None
             enc.ecog_id = request.POST.get('exam_ecog_id') or None
             enc.presenting_complaints = request.POST.get('exam_presenting_complaints', '')
             enc.examination_findings = request.POST.get('exam_examination_findings', '')
 
-            # Pelvic Exam
-            enc.parametrial_invasion = bool(request.POST.get('exam_parametrial_invasion'))
-            enc.para_left = bool(request.POST.get('exam_para_left'))
-            enc.para_right = bool(request.POST.get('exam_para_right'))
-            enc.para_extent_left_cm = float(request.POST.get('exam_para_extent_left_cm')) if request.POST.get('exam_para_extent_left_cm') else None
-            enc.para_extent_right_cm = float(request.POST.get('exam_para_extent_right_cm')) if request.POST.get('exam_para_extent_right_cm') else None
+            # Pelvic Exam: Yes / No selections
+            enc.parametrial_invasion = request.POST.get('exam_parametrial_invasion') in ['1', 'yes', 'true', True]
+            if enc.parametrial_invasion:
+                enc.para_left = bool(request.POST.get('exam_para_left'))
+                enc.para_right = bool(request.POST.get('exam_para_right'))
+                enc.para_extent_left_cm = float(request.POST.get('exam_para_extent_left_cm')) if request.POST.get('exam_para_extent_left_cm') else None
+                enc.para_extent_right_cm = float(request.POST.get('exam_para_extent_right_cm')) if request.POST.get('exam_para_extent_right_cm') else None
+            else:
+                enc.para_left = False
+                enc.para_right = False
+                enc.para_extent_left_cm = None
+                enc.para_extent_right_cm = None
 
-            enc.rectal_invasion = bool(request.POST.get('exam_rectal_invasion'))
-            enc.bladder_invasion = bool(request.POST.get('exam_bladder_invasion'))
+            enc.rectal_invasion = request.POST.get('exam_rectal_invasion') in ['1', 'yes', 'true', True]
+            enc.bladder_invasion = request.POST.get('exam_bladder_invasion') in ['1', 'yes', 'true', True]
 
             enc.tumour_size_cm = float(request.POST.get('exam_tumour_size_cm')) if request.POST.get('exam_tumour_size_cm') else None
             enc.tumour_size_2_cm = float(request.POST.get('exam_tumour_size_2_cm')) if request.POST.get('exam_tumour_size_2_cm') else None
@@ -214,13 +329,6 @@ def followup_form_view(request, mr_no, followup_id=None):
             return redirect('followup_edit', mr_no=patient.mr_no, followup_id=fu.follow_up_status_id)
         return redirect('followup_list', mr_no=patient.mr_no)
 
-    # Pre-select recurrence site IDs for form template
-    selected_rec_site_ids = set()
-    if fu:
-        selected_rec_site_ids = set(fu.recurrence_sites.values_list('recurrence_site_id', flat=True))
-        if fu.recurrence_site_id:
-            selected_rec_site_ids.add(fu.recurrence_site_id)
-
     return render(request, 'followup/followup_form.html', {
         'patient': patient,
         'fu': fu,
@@ -229,6 +337,22 @@ def followup_form_view(request, mr_no, followup_id=None):
         'contact_types': contact_types,
         'proxy_statuses': proxy_statuses,
         'disease_statuses': disease_statuses,
+        'default_disease_status_id': default_disease_status_id,
+        'initial_date_of_recurrence': initial_date_of_recurrence,
+        'initial_recurrence_detected': initial_recurrence_detected,
+        'initial_recurrence_confirmed_by': initial_recurrence_confirmed_by,
+        'initial_recurrence_local': initial_recurrence_local,
+        'initial_recurrence_nodal': initial_recurrence_nodal,
+        'initial_recurrence_distant': initial_recurrence_distant,
+        'initial_second_primary': initial_second_primary,
+        'initial_node_pelvic': initial_node_pelvic,
+        'initial_node_para_aortic': initial_node_para_aortic,
+        'initial_node_inguinal': initial_node_inguinal,
+        'initial_distant_nodal_other': initial_distant_nodal_other,
+        'initial_distant_visceral': initial_distant_visceral,
+        'initial_rec_plan': initial_rec_plan,
+        'initial_height': initial_height,
+        'initial_weight': initial_weight,
         'response_statuses': response_statuses,
         'recurrence_sites': recurrence_sites,
         'selected_rec_site_ids': selected_rec_site_ids,

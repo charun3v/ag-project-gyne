@@ -328,7 +328,7 @@ def imaging_form_view(request, mr_no, imaging_id=None):
             pelvis_detail.hydronephrosis_right = bool(request.POST.get('hydronephrosis_right'))
 
             # Lymph Node Status
-            pelvis_detail.nodes_present = bool(request.POST.get('nodes_present'))
+            pelvis_detail.nodes_present = request.POST.get('nodes_present') in ['1', 'yes', 'true', True]
             if pelvis_detail.nodes_present:
                 pelvis_detail.pelvic_nodes_present = bool(request.POST.get('pelvic_nodes_present'))
                 pelvis_detail.pa_nodes_present = bool(request.POST.get('pa_nodes_present'))
