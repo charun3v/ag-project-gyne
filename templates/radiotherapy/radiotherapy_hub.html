@@ -382,14 +382,11 @@
 
 <!-- Navigation Ribbon -->
 <div style="display: flex; gap: 8px; align-items: center; background: #e0e6ed; padding: 8px 12px; border: 1px solid #b8c4d2; border-radius: 3px; margin-top: 12px; flex-wrap: wrap;">
-    <a href="{% url 'investigations_hub' patient.mr_no %}" class="btn-access">
-        🧪 Investigations Hub
+    <a href="{% url 'adjuvant_router' patient.mr_no %}" class="btn-access btn-primary-action">
+        💊 Proceed to Adjuvant Chemotherapy
     </a>
-    <a href="{% url 'systemic_hub' patient.mr_no %}" class="btn-access btn-primary-action">
-        ➡️ Systemic Chemo Hub (Concurrent / NACT)
-    </a>
-    <a href="{% url 'followup_list' patient.mr_no %}" class="btn-access">
-        📅 Follow-Up Tracking
+    <a href="{% url 'patient_dashboard' patient.mr_no %}" class="btn-access" style="background: #eef2f7; color: #003366; font-weight: bold; border-color: #b8c4d2;">
+        👤 Patient Dashboard
     </a>
     <div style="flex-grow: 1;"></div>
     <a href="{% url 'dashboard' %}" class="btn-access" style="color: #666;">

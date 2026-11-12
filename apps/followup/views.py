@@ -13,6 +13,7 @@ from followup.models import (
 from systemic.models import ResponseStatus
 from clinical.models import Encounter, EncounterType, ECOGScore
 from clinical.svg_generator import auto_populate_svg_from_encounter
+from clinical.views import get_patient_baseline_height, get_patient_latest_weight
 
 
 @login_required
@@ -119,22 +120,15 @@ def followup_form_view(request, mr_no, followup_id=None):
             if prior_rec.recurrence_site_id:
                 selected_rec_site_ids.add(prior_rec.recurrence_site_id)
 
-    # Pre-populate height and weight from previous entry
-    initial_height = encounter.height if (encounter and encounter.height) else None
-    if initial_height is None:
-        last_ht_enc = patient.encounters.filter(soft_deleted=False, height__isnull=False)
-        if encounter:
-            last_ht_enc = last_ht_enc.exclude(clinical_id=encounter.clinical_id)
-        last_ht = last_ht_enc.order_by('-encounter_date', '-clinical_id').first()
-        initial_height = last_ht.height if last_ht else None
+    # Pre-populate height and weight across all encounters for this patient
+    initial_height = get_patient_baseline_height(patient, encounter)
+    initial_weight = get_patient_latest_weight(patient, encounter)
 
-    initial_weight = encounter.weight if (encounter and encounter.weight) else None
-    if initial_weight is None:
-        last_wt_enc = patient.encounters.filter(soft_deleted=False, weight__isnull=False)
-        if encounter:
-            last_wt_enc = last_wt_enc.exclude(clinical_id=encounter.clinical_id)
-        last_wt = last_wt_enc.order_by('-encounter_date', '-clinical_id').first()
-        initial_weight = last_wt.weight if last_wt else None
+    if encounter:
+        if not encounter.height and initial_height:
+            encounter.height = initial_height
+        if not encounter.weight and initial_weight:
+            encounter.weight = initial_weight
 
     # Patient Investigations
     blood_tests = patient.blood_tests.filter(soft_deleted=False).order_by('-test_date')[:10]
@@ -251,8 +245,28 @@ def followup_form_view(request, mr_no, followup_id=None):
                 enc = Encounter(patient=patient, encounter_type=enc_type_fu, entered_by=request.user.username)
 
             enc.encounter_date = fu.follow_up_date
-            enc.height = float(request.POST.get('exam_height')) if request.POST.get('exam_height') else None
-            enc.weight = float(request.POST.get('exam_weight')) if request.POST.get('exam_weight') else None
+
+            h_val = request.POST.get('exam_height')
+            if h_val:
+                try:
+                    enc.height = float(h_val)
+                except (ValueError, TypeError):
+                    enc.height = initial_height
+            elif initial_height:
+                enc.height = initial_height
+            else:
+                enc.height = None
+
+            w_val = request.POST.get('exam_weight')
+            if w_val:
+                try:
+                    enc.weight = float(w_val)
+                except (ValueError, TypeError):
+                    enc.weight = initial_weight
+            elif initial_weight:
+                enc.weight = initial_weight
+            else:
+                enc.weight = None
             enc.ecog_id = request.POST.get('exam_ecog_id') or None
             enc.presenting_complaints = request.POST.get('exam_presenting_complaints', '')
             enc.examination_findings = request.POST.get('exam_examination_findings', '')

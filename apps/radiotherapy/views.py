@@ -689,10 +689,12 @@ def brachy_form_view(request, mr_no, course_id=None):
         if 'add_session' in request.POST:
             return redirect('brachy_session_add', mr_no=patient.mr_no, course_id=course.brachy_course_id)
         if 'save_next' in request.POST:
-            return redirect('followup_list', mr_no=patient.mr_no)
+            return redirect('adjuvant_router', mr_no=patient.mr_no)
+        if 'save_dashboard' in request.POST:
+            return redirect('patient_dashboard', mr_no=patient.mr_no)
         if 'save_stay' in request.POST:
             return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id)
-        return redirect('radiotherapy_hub', mr_no=patient.mr_no)
+        return redirect('adjuvant_router', mr_no=patient.mr_no)
 
     sessions = course.sessions.all().prefetch_related('fractions', 'applicator', 'image_guidance').order_by('session_number') if course else []
 

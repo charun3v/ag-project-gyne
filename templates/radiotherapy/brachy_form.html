@@ -165,9 +165,15 @@
                                 ➕ Add Application details
                             </button>
                             <button type="submit" name="save_next" value="1" class="btn-access" style="background: #003366; color: #fff; font-weight: bold; padding: 5px 12px;">
-                                ➡️ Save & Proceed to Follow-Up & Surveillance
+                                💊 Save & Proceed to Adjuvant Chemotherapy
+                            </button>
+                            <button type="submit" name="save_dashboard" value="1" class="btn-access" style="background: #eef2f7; color: #003366; font-weight: bold; border-color: #b8c4d2; padding: 5px 12px;">
+                                👤 Save & Go to Patient Dashboard
                             </button>
                             <div style="flex-grow: 1;"></div>
+                            <a href="{% url 'patient_dashboard' patient.mr_no %}" class="btn-access" style="color: #003366; font-weight: bold;">
+                                👤 Patient Dashboard
+                            </a>
                             {% if course and course.brachy_course_id and user.is_staff or course and course.brachy_course_id and user.is_superuser %}
                             <button type="submit" form="deleteBrachyCourseForm" class="btn-access" style="background: #dc3545; color: #fff; font-weight: bold; border-color: #bd2130; padding: 5px 12px;">
                                 🗑️ Delete Course

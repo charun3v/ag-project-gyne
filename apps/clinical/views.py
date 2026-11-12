@@ -385,6 +385,54 @@ def diagnosis_set_primary_view(request, mr_no, diagnosis_id):
     return redirect('diagnosis_detail', mr_no=patient.mr_no)
 
 
+def get_patient_baseline_height(patient, current_encounter=None):
+    """
+    Returns the known height (cm) for a patient from any recorded clinical encounter.
+    In adult oncology, height is a fixed anthropometric parameter and must autopopulate
+    in all subsequent examination forms once recorded.
+    """
+    if current_encounter and current_encounter.height and current_encounter.height > 0:
+        return current_encounter.height
+
+    enc_with_ht = patient.encounters.filter(
+        soft_deleted=False,
+        height__isnull=False,
+        height__gt=0
+    )
+    if current_encounter and current_encounter.clinical_id:
+        enc_with_ht = enc_with_ht.exclude(clinical_id=current_encounter.clinical_id)
+
+    last_ht = enc_with_ht.order_by('-encounter_date', '-clinical_id').first()
+    if last_ht and last_ht.height and last_ht.height > 0:
+        return last_ht.height
+
+    any_ht = patient.encounters.filter(soft_deleted=False, height__isnull=False, height__gt=0).order_by('-clinical_id').first()
+    return any_ht.height if any_ht else None
+
+
+def get_patient_latest_weight(patient, current_encounter=None):
+    """
+    Returns the most recently recorded weight (kg) for a patient.
+    """
+    if current_encounter and current_encounter.weight and current_encounter.weight > 0:
+        return current_encounter.weight
+
+    enc_with_wt = patient.encounters.filter(
+        soft_deleted=False,
+        weight__isnull=False,
+        weight__gt=0
+    )
+    if current_encounter and current_encounter.clinical_id:
+        enc_with_wt = enc_with_wt.exclude(clinical_id=current_encounter.clinical_id)
+
+    last_wt = enc_with_wt.order_by('-encounter_date', '-clinical_id').first()
+    if last_wt and last_wt.weight and last_wt.weight > 0:
+        return last_wt.weight
+
+    any_wt = patient.encounters.filter(soft_deleted=False, weight__isnull=False, weight__gt=0).order_by('-clinical_id').first()
+    return any_wt.weight if any_wt else None
+
+
 @login_required
 def examination_detail_view(request, mr_no, enc_type='baseline'):
     """Replicates frmEncounter / frmExamination - Physical and pelvic exam."""
@@ -408,6 +456,10 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
     encounter = patient.encounters.filter(encounter_type=encounter_type_obj, soft_deleted=False).first()
     ecog_scores = ECOGScore.objects.filter(is_active=True)
 
+    # Pre-populate height and weight across all encounters for this patient
+    initial_height = get_patient_baseline_height(patient, encounter)
+    initial_weight = get_patient_latest_weight(patient, encounter)
+
     if request.method == 'POST':
         if not encounter:
             encounter = Encounter(
@@ -417,8 +469,29 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
             )
 
         encounter.encounter_date = request.POST.get('encounter_date') or date.today()
-        encounter.height = float(request.POST.get('height')) if request.POST.get('height') else None
-        encounter.weight = float(request.POST.get('weight')) if request.POST.get('weight') else None
+
+        ht_val = request.POST.get('height')
+        if ht_val:
+            try:
+                encounter.height = float(ht_val)
+            except (ValueError, TypeError):
+                encounter.height = initial_height
+        elif initial_height:
+            encounter.height = initial_height
+        else:
+            encounter.height = None
+
+        wt_val = request.POST.get('weight')
+        if wt_val:
+            try:
+                encounter.weight = float(wt_val)
+            except (ValueError, TypeError):
+                encounter.weight = initial_weight
+        elif initial_weight:
+            encounter.weight = initial_weight
+        else:
+            encounter.weight = None
+
         encounter.ecog_id = request.POST.get('ecog_id') or None
 
         encounter.presenting_complaints = request.POST.get('presenting_complaints', '')
@@ -486,22 +559,15 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
     # Fetch marked SVG findings for display
     svg_findings = encounter.svg_findings.filter(soft_deleted=False) if encounter else []
 
-    # Pre-populate height and weight from previous encounter if not already set
-    initial_height = encounter.height if (encounter and encounter.height) else None
-    if initial_height is None:
-        last_ht_enc = patient.encounters.filter(soft_deleted=False, height__isnull=False)
-        if encounter:
-            last_ht_enc = last_ht_enc.exclude(clinical_id=encounter.clinical_id)
-        last_ht = last_ht_enc.order_by('-encounter_date', '-clinical_id').first()
-        initial_height = last_ht.height if last_ht else None
+    # Pre-populate height and weight across all encounters for this patient
+    initial_height = get_patient_baseline_height(patient, encounter)
+    initial_weight = get_patient_latest_weight(patient, encounter)
 
-    initial_weight = encounter.weight if (encounter and encounter.weight) else None
-    if initial_weight is None:
-        last_wt_enc = patient.encounters.filter(soft_deleted=False, weight__isnull=False)
-        if encounter:
-            last_wt_enc = last_wt_enc.exclude(clinical_id=encounter.clinical_id)
-        last_wt = last_wt_enc.order_by('-encounter_date', '-clinical_id').first()
-        initial_weight = last_wt.weight if last_wt else None
+    if encounter:
+        if not encounter.height and initial_height:
+            encounter.height = initial_height
+        if not encounter.weight and initial_weight:
+            encounter.weight = initial_weight
 
     if 'post-nact' in enc_type_lower or (encounter_type_obj and 'nact' in encounter_type_obj.encounter_type_name.lower()):
         enc_slug = 'post-nact'
