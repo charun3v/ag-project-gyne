@@ -198,10 +198,12 @@ def patient_summary_pdf_view(request, mr_no):
     return response
 
 
+from core.permissions import can_delete_patient
+
 @login_required
 def patient_delete_view(request, mr_no):
     """Allows administrators to delete (soft-delete) a patient record."""
-    if not (request.user.is_staff or request.user.is_superuser):
+    if not can_delete_patient(request.user):
         messages.error(request, "Permission denied: Administrator privileges required to delete patient records.")
         return redirect('dashboard')
 

@@ -86,7 +86,7 @@
                 <div class="pt-main-col">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div class="mr-badge">{{ pt.mr_no }}</div>
-                        {% if user.is_staff or user.is_superuser %}
+                        {% if CAN_DELETE_PATIENT %}
                             <a href="{% url 'patient_delete' pt.mr_no %}" style="font-size: 10px; color: #b00000; text-decoration: none; padding: 0 4px; border: 1px solid #ffcccc; border-radius: 2px; background: #fff5f5;" title="Delete Patient Record (Admin)">🗑️</a>
                         {% endif %}
                     </div>

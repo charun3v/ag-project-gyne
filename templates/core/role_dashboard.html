@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Roles & Privileges Dashboard (RBAC) - {{ APP_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="access-subform">
+    <!-- Subform Header matching Access Clinical Styling -->
+    <div class="access-subform-header" style="background: linear-gradient(180deg, #003366 0%, #002244 100%);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 14px;">🛡️</span>
+            <span>Roles & Privileges Management Dashboard (RBAC Matrix)</span>
+            <span style="font-size: 10px; background: rgba(255,255,255,0.18); padding: 1px 6px; border-radius: 2px; margin-left: 6px;">
+                sbtblRole Security Governance
+            </span>
+        </div>
+        <div style="font-weight: normal; font-size: 11px; display: flex; gap: 12px; align-items: center;">
+            <a href="{% url 'user_list' %}" style="color: #e2edfa; text-decoration: underline;">👥 User Management</a>
+            <span style="opacity: 0.5;">|</span>
+            <a href="{% url 'dashboard' %}" style="color: #fff; text-decoration: underline;">🏠 Back to Dashboard</a>
+        </div>
+    </div>
+
+    <div class="access-subform-body">
+        <!-- Top Statistics & Quick Action Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+            <!-- Summary KPI Badges -->
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div style="background: #eef4fa; border: 1px solid #c2d7f2; border-radius: 3px; padding: 4px 10px; font-size: 11px;">
+                    <span style="color: #555;">Defined Roles:</span>
+                    <strong style="color: #003366; font-size: 12px; margin-left: 4px;">{{ total_roles }}</strong>
+                    <span style="color: #2e7d32; font-size: 10px; margin-left: 4px;">({{ active_roles }} active)</span>
+                </div>
+                <div style="background: #eef4fa; border: 1px solid #c2d7f2; border-radius: 3px; padding: 4px 10px; font-size: 11px;">
+                    <span style="color: #555;">Active User Accounts:</span>
+                    <strong style="color: #003366; font-size: 12px; margin-left: 4px;">{{ total_users }}</strong>
+                </div>
+                <div style="background: #fdf2e9; border: 1px solid #f5c6cb; border-radius: 3px; padding: 4px 10px; font-size: 11px;">
+                    <span style="color: #b00000; font-weight: bold;">⚡ Administrative Roles:</span>
+                    <strong style="color: #b00000; font-size: 12px; margin-left: 4px;">{{ admin_roles_count }}</strong>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <a href="{% url 'role_create' %}" class="btn-access btn-primary-action" style="font-weight: bold;">
+                    ➕ Create New Custom Role
+                </a>
+                <a href="{% url 'user_list' %}" class="btn-access">
+                    👥 Manage User Accounts
+                </a>
+                <a href="{% url 'lookup_manager_default' %}" class="btn-access">
+                    ⚙️ Dropdown Manager
+                </a>
+            </div>
+        </div>
+
+        <!-- Role Scope Notice -->
+        <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 8px 12px; border-radius: 3px; margin-bottom: 14px; font-size: 11px; color: #5d4037; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong>🔒 Security Policy:</strong>
+                <span>Only system <strong>Administrators</strong> hold permissions to <strong>delete patients</strong>, <strong>manage user accounts</strong>, <strong>modify privileges & roles</strong>, and <strong>export research datasets</strong>. Use the matrix below to inspect or configure granular privileges per role.</span>
+            </div>
+            <span style="font-size: 10px; color: #8d6e63; font-style: italic;">Instant click-to-toggle enabled</span>
+        </div>
+
+        <!-- Comprehensive Capability Matrix Table -->
+        <div style="overflow-x: auto; border: 1px solid #c8d4e2; border-radius: 3px; margin-bottom: 16px; background: #ffffff;">
+            <table class="access-table" style="margin-bottom: 0; font-size: 11px;">
+                <thead>
+                    <tr style="background: #eef2f7;">
+                        <th style="min-width: 280px; width: 320px; text-align: left; vertical-align: bottom; padding: 8px 10px; border-right: 2px solid #b8c8d8;">
+                            <div style="font-size: 12px; font-weight: bold; color: #003366;">Clinical & System Capabilities (16 Flags)</div>
+                            <div style="font-size: 10px; color: #666; font-weight: normal; margin-top: 2px;">
+                                MS Access sbtblRole Permission Schema
+                            </div>
+                        </th>
+                        {% for r in roles %}
+                            <th style="min-width: 110px; text-align: center; vertical-align: top; padding: 6px 4px; border-right: 1px solid #d0dae5; {% if r.role_id == 1 %}background: #e8f0fe;{% endif %}">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
+                                    <div style="font-size: 12px; font-weight: bold; color: #003366;">
+                                        {{ r.role_name }}
+                                        {% if r.role_id == 1 %}<span style="font-size: 9px; color: #b00000;">★</span>{% endif %}
+                                    </div>
+                                    <span style="font-size: 9px; background: #f0f0f0; color: #555; padding: 1px 4px; border-radius: 2px;">
+                                        {{ r.active_user_count|default:0 }} user{{ r.active_user_count|default:0|pluralize }}
+                                    </span>
+                                    {% if not r.is_active %}
+                                        <span style="font-size: 9px; color: #b00000; font-weight: bold;">(Inactive)</span>
+                                    {% endif %}
+                                    <div style="margin-top: 4px;">
+                                        <a href="{% url 'role_edit' r.role_id %}" class="btn-access" style="font-size: 9px; padding: 1px 6px;" title="Edit all privileges for {{ r.role_name }}">
+                                            ✏️ Edit
+                                        </a>
+                                    </div>
+                                </div>
+                            </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in matrix %}
+                        <!-- Category Section Divider -->
+                        <tr style="background: #e2eaf4;">
+                            <td colspan="{{ roles|length|add:1 }}" style="font-weight: bold; font-size: 11px; padding: 6px 10px; color: #003366; border-top: 2px solid #b0c4de; border-bottom: 1px solid #b0c4de;">
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span>
+                                        <span style="display: inline-block; width: 8px; height: 8px; background: {{ cat.badge_color }}; border-radius: 50%; margin-right: 6px;"></span>
+                                        {{ cat.category }}
+                                    </span>
+                                    <span style="font-size: 10px; font-weight: normal; color: #555;">{{ cat.description }}</span>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Capabilities in Category -->
+                        {% for cap in cat.capabilities %}
+                            <tr style="border-bottom: 1px solid #e8ecf1;">
+                                <td style="padding: 6px 10px; border-right: 2px solid #b8c8d8;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                                        <span style="font-weight: 600; color: #1a2530;">{{ cap.label }}</span>
+                                        {% if cap.admin_only_default %}
+                                            <span style="font-size: 9px; background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; padding: 0 4px; border-radius: 2px; font-weight: bold;" title="Restricted Administrative Operation">
+                                                Admin Restrict
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div style="font-size: 10px; color: #666; margin-top: 1px;">{{ cap.description }}</div>
+                                </td>
+
+                                {% for rv in cap.role_values %}
+                                    <td style="text-align: center; vertical-align: middle; padding: 4px; border-right: 1px solid #e0e8f0; {% if rv.role_id == 1 %}background: #f7faff;{% endif %}">
+                                        <form method="post" action="{% url 'role_quick_toggle_cap' rv.role_id %}" style="display: inline; margin: 0; padding: 0;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="capability" value="{{ cap.field }}">
+                                            {% if rv.allowed %}
+                                                <button type="submit" 
+                                                        style="background: #e6f4ea; color: #137333; border: 1px solid #ceead6; border-radius: 3px; padding: 3px 8px; font-size: 10px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;"
+                                                        title="Click to REVOKE capability '{{ cap.label }}' from {{ rv.role_name }}"
+                                                        {% if rv.is_primary_admin and cap.field in 'cap_login cap_manage_users cap_manage_roles' %}disabled style="opacity: 0.7; cursor: not-allowed;"{% endif %}>
+                                                    ✔ Allowed
+                                                </button>
+                                            {% else %}
+                                                <button type="submit" 
+                                                        style="background: #fdf2f2; color: #c5221f; border: 1px solid #fad2cf; border-radius: 3px; padding: 3px 8px; font-size: 10px; font-weight: normal; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;"
+                                                        title="Click to GRANT capability '{{ cap.label }}' to {{ rv.role_name }}">
+                                                    ✕ Restricted
+                                                </button>
+                                            {% endif %}
+                                        </form>
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Detailed Role Cards Grid -->
+        <fieldset style="border: 1px solid #c0c0c0; padding: 12px; background: #fafafa; border-radius: 3px;">
+            <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+                System Role Definitions & User Assignments (sbtblRole)
+            </legend>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
+                {% for r in roles %}
+                    <div style="border: 1px solid #c8d4e2; background: #ffffff; border-radius: 3px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; {% if r.role_id == 1 %}border-left: 4px solid #003366;{% endif %}">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                                <div>
+                                    <strong style="color: #003366; font-size: 12px;">{{ r.role_name }}</strong>
+                                    {% if r.role_id == 1 %}
+                                        <span style="background: #003366; color: #fff; font-size: 9px; padding: 1px 4px; border-radius: 2px; margin-left: 4px;">Primary Admin</span>
+                                    {% endif %}
+                                </div>
+                                <span style="font-size: 10px; {% if r.is_active %}color: #2e7d32; font-weight: bold;{% else %}color: #b00000;{% endif %}">
+                                    {% if r.is_active %}● Active{% else %}○ Inactive{% endif %}
+                                </span>
+                            </div>
+
+                            <p style="font-size: 11px; color: #555; margin: 4px 0 8px 0; min-height: 28px;">
+                                {{ r.role_description|default:'Standard institutional oncology workflow role.' }}
+                            </p>
+
+                            <!-- Key Capabilities Highlights -->
+                            <div style="font-size: 10px; line-height: 1.5; color: #444; background: #f8fafc; padding: 6px; border-radius: 2px; margin-bottom: 8px;">
+                                <div><strong>Assigned Users:</strong> {{ r.active_user_count|default:0 }} account{{ r.active_user_count|default:0|pluralize }}</div>
+                                <div style="margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px;">
+                                    {% if r.cap_delete_records %}
+                                        <span style="background: #ffebee; color: #b71c1c; padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 9px;">🗑️ Delete Patients</span>
+                                    {% endif %}
+                                    {% if r.cap_manage_users %}
+                                        <span style="background: #e8eaf6; color: #1a237e; padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 9px;">👥 User Admin</span>
+                                    {% endif %}
+                                    {% if r.cap_manage_roles %}
+                                        <span style="background: #ede7f6; color: #4a148c; padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 9px;">🛡️ Roles Admin</span>
+                                    {% endif %}
+                                    {% if r.cap_export_data %}
+                                        <span style="background: #e0f2f1; color: #004d40; padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 9px;">📊 Export Data</span>
+                                    {% endif %}
+                                    {% if r.cap_approve %}
+                                        <span style="background: #f1f8e9; color: #33691e; padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 9px;">✓ Approver</span>
+                                    {% endif %}
+                                    {% if r.cap_enter_clinical %}
+                                        <span style="background: #f5f5f5; color: #333; padding: 0 4px; border-radius: 2px; font-size: 9px;">Clinical Entry</span>
+                                    {% endif %}
+                                    {% if r.cap_enter_treatment %}
+                                        <span style="background: #f5f5f5; color: #333; padding: 0 4px; border-radius: 2px; font-size: 9px;">Radiotherapy</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card Action Buttons -->
+                        <div style="display: flex; gap: 6px; justify-content: flex-end; align-items: center; border-top: 1px solid #edf2f7; padding-top: 6px;">
+                            <a href="{% url 'role_edit' r.role_id %}" class="btn-access btn-primary-action" style="font-size: 10px; padding: 2px 8px;">
+                                ✏️ Configure Privileges
+                            </a>
+                            {% if r.role_id != 1 and r.role_name|lower != 'admin' %}
+                                <a href="{% url 'role_toggle_active' r.role_id %}" 
+                                   class="btn-access" 
+                                   style="font-size: 10px; padding: 2px 6px; {% if r.is_active %}color: #b00000;{% else %}color: #2e7d32;{% endif %}"
+                                   onclick="return confirm('Toggle active status for role {{ r.role_name }}?');">
+                                    {% if r.is_active %}Deactivate{% else %}Activate{% endif %}
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </fieldset>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if edit_role %}Configure Role: {{ edit_role.role_name }}{% else %}New System Role{% endif %} - Roles & Privileges{% endblock %}
+
+{% block content %}
+<div class="access-subform">
+    <!-- Header -->
+    <div class="access-subform-header" style="background: linear-gradient(180deg, #003366 0%, #002244 100%);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span>🛡️</span>
+            <span>{% if edit_role %}Configure Privileges & Capabilities: [{{ edit_role.role_name }}]{% else %}Create New Custom System Role{% endif %}</span>
+            <span style="font-size: 10px; background: rgba(255,255,255,0.18); padding: 1px 6px; border-radius: 2px; margin-left: 6px;">
+                sbtblRole RBAC Editor
+            </span>
+        </div>
+        <div style="font-weight: normal; font-size: 11px;">
+            <a href="{% url 'role_dashboard' %}" style="color: #fff; text-decoration: underline;">Back to Roles Dashboard</a>
+        </div>
+    </div>
+
+    <div class="access-subform-body">
+        <form method="post" action="">
+            {% csrf_token %}
+
+            <!-- Section 1: Role Identity & Status -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 12px; margin-bottom: 14px; background: #fafafa; border-radius: 3px;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+                    1. Role Identity & Profile Metadata
+                </legend>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+                    <div>
+                        <label class="access-label" style="font-weight: bold; color: #003366;">Role Name *</label>
+                        <input type="text" name="role_name" 
+                               value="{% if edit_role %}{{ edit_role.role_name }}{% endif %}" 
+                               class="access-input" 
+                               {% if is_primary_admin %}readonly style="background-color: #f0f0f0;" title="Primary Administrator role name is protected"{% else %}required autofocus{% endif %} 
+                               placeholder="e.g. Research Fellow, Clinical Auditor, Data Entry">
+                        {% if is_primary_admin %}
+                            <span style="font-size: 10px; color: #888; display: block; margin-top: 2px;">
+                                🔒 Primary Administrator role identifier cannot be renamed.
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label class="access-label">Display Order</label>
+                        <input type="number" name="display_order" 
+                               value="{% if edit_role %}{{ edit_role.display_order }}{% else %}10{% endif %}" 
+                               class="access-input" min="1" step="1">
+                    </div>
+
+                    <div>
+                        <label class="access-label">Account Role Status</label>
+                        <label style="display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11px; cursor: pointer;">
+                            <input type="checkbox" name="is_active" value="1" 
+                                   {% if not edit_role or edit_role.is_active %}checked{% endif %}
+                                   {% if is_primary_admin %}disabled{% endif %}>
+                            <span style="font-weight: bold; {% if not edit_role or edit_role.is_active %}color: #2e7d32;{% else %}color: #b00000;{% endif %}">
+                                Active Role
+                            </span>
+                        </label>
+                        {% if is_primary_admin %}
+                            <input type="hidden" name="is_active" value="1">
+                            <span style="font-size: 10px; color: #888;">(Admin is always active)</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="access-label">Role Description & Clinical Scope</label>
+                    <input type="text" name="role_description" 
+                           value="{% if edit_role %}{{ edit_role.role_description|default:'' }}{% endif %}" 
+                           class="access-input" 
+                           placeholder="Brief description of institutional responsibilities and clinical access scope...">
+                </div>
+            </fieldset>
+
+            <!-- Section 2: Capability Flags (16 Granular Flags) -->
+            <fieldset style="border: 1px solid #c0c0c0; padding: 12px; margin-bottom: 14px; background: #fafafa; border-radius: 3px;">
+                <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 11px;">
+                    2. Role-Based Capabilities & Permissions (16 System Flags)
+                </legend>
+
+                <p style="font-size: 11px; color: #555; margin: 0 0 12px 0;">
+                    Select the specific clinical and administrative privileges assigned to all users with this role. Changes take effect immediately upon saving.
+                </p>
+
+                <!-- Capability Categories -->
+                {% for cat in categories %}
+                    <div style="background: #ffffff; border: 1px solid #d0dae5; border-radius: 3px; padding: 10px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #edf2f7; padding-bottom: 4px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="display: inline-block; width: 8px; height: 8px; background: {{ cat.badge_color }}; border-radius: 50%;"></span>
+                                <strong style="color: #003366; font-size: 11px;">{{ cat.category }}</strong>
+                            </div>
+                            <span style="font-size: 10px; color: #666;">{{ cat.description }}</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px;">
+                            {% for cap in cat.capabilities %}
+                                <label style="display: flex; align-items: flex-start; gap: 8px; background: #fdfdfd; border: 1px solid #e2e8f0; padding: 6px 8px; border-radius: 2px; cursor: pointer; transition: background 0.15s;">
+                                    <input type="checkbox" name="{{ cap.field }}" value="1" 
+                                           style="margin-top: 2px;"
+                                           {% if cap.field in active_caps %}checked{% elif not edit_role and not cap.admin_only_default %}checked{% endif %}
+                                           {% if is_primary_admin and cap.field in 'cap_login cap_manage_users cap_manage_roles cap_view_patients' %}
+                                               disabled checked
+                                           {% endif %}>
+                                    <div style="flex: 1;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-weight: 600; font-size: 11px; color: #1a2530;">{{ cap.label }}</span>
+                                            {% if cap.admin_only_default %}
+                                                <span style="font-size: 9px; background: #ffebee; color: #c62828; padding: 0 4px; border-radius: 2px; font-weight: bold;">
+                                                    Admin Only
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div style="font-size: 10px; color: #666; margin-top: 2px; line-height: 1.3;">
+                                            {{ cap.description }}
+                                        </div>
+                                    </div>
+                                    {% if is_primary_admin and cap.field in 'cap_login cap_manage_users cap_manage_roles cap_view_patients' %}
+                                        <input type="hidden" name="{{ cap.field }}" value="1">
+                                    {% endif %}
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </fieldset>
+
+            <!-- Bottom Actions Bar -->
+            <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; background: #e0e6ed; padding: 8px 12px; border: 1px solid #b8c4d2;">
+                <a href="{% url 'role_dashboard' %}" class="btn-access" style="color: #666;">
+                    ✖️ Cancel / Back
+                </a>
+                <button type="submit" class="btn-access btn-primary-action" style="font-weight: bold; padding: 4px 16px;">
+                    💾 Save Role Capabilities & Privileges
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

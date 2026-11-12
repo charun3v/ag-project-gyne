@@ -19,6 +19,9 @@
                 <a href="{% url 'user_create' %}" class="btn-access btn-primary-action">
                     ➕ Create New User Account
                 </a>
+                <a href="{% url 'role_dashboard' %}" class="btn-access" style="background: #eef6ff; color: #003366; font-weight: bold; border-color: #003366;">
+                    🛡️ Roles & Privileges Dashboard
+                </a>
                 <a href="{% url 'lookup_manager_default' %}" class="btn-access">
                     ⚙️ Dropdown Options Manager
                 </a>
@@ -93,6 +96,12 @@
             <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">
                 Role-Based Capability Privileges (sbtblRole)
             </legend>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 11px; color: #555;">Overview of active system roles. To modify granular capabilities, permissions, or configure roles:</span>
+                <a href="{% url 'role_dashboard' %}" class="btn-access" style="font-size: 11px; padding: 2px 8px; background: #003366; color: #fff; font-weight: bold; text-decoration: none;">
+                    🛡️ Open Roles & Privileges Dashboard
+                </a>
+            </div>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 11px;">
                 {% for r in roles %}
                     <div style="border: 1px solid #d0dae5; background: #fff; padding: 6px; border-radius: 2px;">

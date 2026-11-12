@@ -171,7 +171,7 @@
                     <a href="{% url 'investigations_hub' patient.mr_no %}" class="btn-access">
                         🧪 Investigations Hub
                     </a>
-                    {% if user.is_staff or user.is_superuser %}
+                    {% if CAN_DELETE_PATIENT %}
                         <a href="{% url 'patient_delete' patient.mr_no %}" class="btn-access" style="color: #b00000; border-color: #ffcccc;" title="Delete Patient Record (Admin)">
                             🗑️ Delete Patient
                         </a>

@@ -15,6 +15,13 @@ urlpatterns = [
     path('admin-panel/users/<int:user_id>/edit/', views.user_form_view, name='user_edit'),
     path('admin-panel/users/<int:user_id>/toggle/', views.user_toggle_active_view, name='user_toggle_active'),
 
+    # Roles & Privileges Dashboard (RBAC Admin)
+    path('admin-panel/roles/', views.role_dashboard_view, name='role_dashboard'),
+    path('admin-panel/roles/add/', views.role_form_view, name='role_create'),
+    path('admin-panel/roles/<int:role_id>/edit/', views.role_form_view, name='role_edit'),
+    path('admin-panel/roles/<int:role_id>/toggle/', views.role_toggle_active_view, name='role_toggle_active'),
+    path('admin-panel/roles/<int:role_id>/toggle-cap/', views.role_quick_toggle_cap_view, name='role_quick_toggle_cap'),
+
     # Dropdowns & Lookup Tables Manager (Admin)
     path('admin-panel/lookups/', views.lookup_manager_view, name='lookup_manager_default'),
     path('admin-panel/lookups/<str:category>/', views.lookup_manager_view, name='lookup_manager'),

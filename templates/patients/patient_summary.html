@@ -47,7 +47,7 @@
         <a href="{% url 'investigations_pdf' patient.mr_no %}" target="_blank" class="btn-access" style="background: #eef6ff; border-color: #003366; color: #003366; font-weight: bold;">🧪 Investigations PDF</a>
         <button onclick="window.print()" class="btn-access btn-primary-action">🖨️ Print</button>
         <a href="{% url 'patient_edit' patient.mr_no %}" class="btn-access">✏️ Edit Demographics</a>
-        {% if user.is_staff or user.is_superuser %}
+        {% if CAN_DELETE_PATIENT %}
             <a href="{% url 'patient_delete' patient.mr_no %}" class="btn-access" style="color: #b00000; border-color: #ffcccc;" title="Delete Patient Record (Admin)">🗑️ Delete</a>
         {% endif %}
         <a href="{% url 'dashboard' %}" class="btn-access">🏠 Dashboard</a>

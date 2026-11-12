@@ -8,6 +8,15 @@ from django.utils import timezone
 from django.db.models import Count
 
 from core.models import ApprovalAudit, AuditLog
+from core.permissions import (
+    is_admin_user,
+    can_delete_patient,
+    can_manage_users,
+    can_export_data,
+    can_manage_roles,
+    ROLE_CAPABILITY_CATEGORIES,
+    ALL_CAPABILITY_FIELDS,
+)
 from patients.models import Patient
 from clinical.models import Diagnosis, Encounter, ClinicalHistory
 from radiotherapy.models import EBRTCourse, BrachyCourse
@@ -291,7 +300,12 @@ def export_data_view(request):
     Generates Analytical Research Exports matching the specification:
     - Wide-format (default): One row per patient with descriptive text names (no IDs or internal audit stamps).
     - Long-format (?format=long): One row per event or drug administration for longitudinal/timeline analysis in R.
+    Access is strictly restricted to administrators or roles with cap_export_data.
     """
+    if not can_export_data(request.user):
+        messages.error(request, "Permission denied: Administrator privileges required to export patient data.")
+        return redirect('dashboard')
+
     export_format = request.GET.get('format', 'wide').lower()
 
     if export_format == 'long':
@@ -452,21 +466,10 @@ def export_data_view(request):
 
 # --- Admin User Management & Access Control ---
 
-def is_admin_user(user):
-    """Checks if the user has administrative privileges or cap_manage_users."""
-    if not user.is_authenticated:
-        return False
-    if user.is_superuser or user.is_staff:
-        return True
-    profile = getattr(user, 'profile', None)
-    if profile and profile.role and profile.role.cap_manage_users:
-        return True
-    return False
-
 @login_required
 def user_list_view(request):
     """Replicates Access User Management - lists all system users and roles."""
-    if not is_admin_user(request.user):
+    if not can_manage_users(request.user):
         messages.error(request, "Access denied. User Management requires administrator privileges.")
         return redirect('dashboard')
 
@@ -484,7 +487,7 @@ def user_list_view(request):
 @login_required
 def user_form_view(request, user_id=None):
     """Create or edit system user accounts."""
-    if not is_admin_user(request.user):
+    if not can_manage_users(request.user):
         messages.error(request, "Access denied. User Management requires administrator privileges.")
         return redirect('dashboard')
 
@@ -569,8 +572,8 @@ def user_form_view(request, user_id=None):
 @login_required
 def user_toggle_active_view(request, user_id):
     """Quickly activate or deactivate a user account."""
-    if not is_admin_user(request.user):
-        messages.error(request, "Access denied.")
+    if not can_manage_users(request.user):
+        messages.error(request, "Access denied. User Management requires administrator privileges.")
         return redirect('dashboard')
 
     from django.contrib.auth.models import User
@@ -594,6 +597,226 @@ def user_toggle_active_view(request, user_id):
     )
     messages.success(request, f"User '{target_user.username}' status set to {'Active' if target_user.is_active else 'Inactive'}.")
     return redirect('user_list')
+
+
+# --- Roles & Privileges Management Dashboard (RBAC) ---
+
+@login_required
+def role_dashboard_view(request):
+    """
+    Roles & Privileges Management Dashboard (RBAC)
+    Provides a comprehensive visual capability matrix across all system roles.
+    """
+    if not can_manage_roles(request.user):
+        messages.error(request, "Access denied. Roles & Privileges Dashboard requires administrator privileges.")
+        return redirect('dashboard')
+
+    from core.models import Role, UserProfile
+    from django.contrib.auth.models import User
+    from django.db import models
+
+    roles = list(Role.objects.all().order_by('display_order', 'role_id'))
+    for r in roles:
+        r.active_user_count = User.objects.filter(profile__role=r, is_active=True).count()
+
+    total_roles = len(roles)
+    active_roles = sum(1 for r in roles if r.is_active)
+    total_users = User.objects.filter(is_active=True).count()
+    admin_roles_count = sum(
+        1 for r in roles
+        if r.is_active and (r.cap_manage_users or r.cap_delete_records or r.cap_export_data or r.cap_manage_roles)
+    )
+
+    # Pre-build role capabilities matrix for template rendering
+    matrix = []
+    for cat in ROLE_CAPABILITY_CATEGORIES:
+        cat_data = {
+            'category': cat['category'],
+            'description': cat['description'],
+            'badge_color': cat['badge_color'],
+            'capabilities': []
+        }
+        for cap in cat['capabilities']:
+            field_name = cap['field']
+            role_values = []
+            for r in roles:
+                role_values.append({
+                    'role_id': r.role_id,
+                    'role_name': r.role_name,
+                    'is_primary_admin': (r.role_id == 1 or r.role_name.strip().lower() == 'admin'),
+                    'allowed': getattr(r, field_name, False),
+                })
+            cat_data['capabilities'].append({
+                'field': field_name,
+                'label': cap['label'],
+                'description': cap['description'],
+                'admin_only_default': cap['admin_only_default'],
+                'role_values': role_values,
+            })
+        matrix.append(cat_data)
+
+    return render(request, 'core/role_dashboard.html', {
+        'roles': roles,
+        'matrix': matrix,
+        'categories': ROLE_CAPABILITY_CATEGORIES,
+        'total_roles': total_roles,
+        'active_roles': active_roles,
+        'total_users': total_users,
+        'admin_roles_count': admin_roles_count,
+    })
+
+
+@login_required
+def role_form_view(request, role_id=None):
+    """
+    Create or edit role capabilities and privileges.
+    """
+    if not can_manage_roles(request.user):
+        messages.error(request, "Access denied. Roles & Privileges configuration requires administrator privileges.")
+        return redirect('dashboard')
+
+    from core.models import Role, AuditLog
+    from django.db import models
+
+    edit_role = get_object_or_404(Role, role_id=role_id) if role_id else None
+    is_primary_admin = bool(edit_role and (edit_role.role_id == 1 or edit_role.role_name.strip().lower() == 'admin'))
+    active_caps = {field for field in ALL_CAPABILITY_FIELDS if getattr(edit_role, field, False)} if edit_role else set()
+
+    if request.method == 'POST':
+        role_name = request.POST.get('role_name', '').strip()
+        role_description = request.POST.get('role_description', '').strip()
+        display_order = int(request.POST.get('display_order', 1) or 1)
+        is_active = bool(request.POST.get('is_active'))
+
+        if not role_name:
+            messages.error(request, "Role name is required.")
+            return render(request, 'core/role_form.html', {
+                'edit_role': edit_role,
+                'categories': ROLE_CAPABILITY_CATEGORIES,
+                'is_primary_admin': is_primary_admin,
+                'active_caps': active_caps,
+            })
+
+        if not edit_role:
+            if Role.objects.filter(role_name__iexact=role_name).exists():
+                messages.error(request, f"A role with name '{role_name}' already exists.")
+                return render(request, 'core/role_form.html', {
+                    'edit_role': edit_role,
+                    'categories': ROLE_CAPABILITY_CATEGORIES,
+                    'is_primary_admin': is_primary_admin,
+                    'active_caps': active_caps,
+                })
+            max_id = Role.objects.aggregate(models.Max('role_id'))['role_id__max'] or 0
+            new_id = max_id + 1
+            if new_id == 99:
+                new_id = 100
+            edit_role = Role(role_id=new_id)
+
+        if not is_primary_admin:
+            edit_role.role_name = role_name
+            edit_role.is_active = is_active
+        else:
+            edit_role.is_active = True
+
+        edit_role.role_description = role_description
+        edit_role.display_order = display_order
+
+        for cap_field in ALL_CAPABILITY_FIELDS:
+            val = bool(request.POST.get(cap_field))
+            if is_primary_admin and cap_field in ['cap_login', 'cap_manage_users', 'cap_manage_roles', 'cap_view_patients']:
+                val = True
+            setattr(edit_role, cap_field, val)
+
+        edit_role.save()
+
+        AuditLog.objects.create(
+            username=request.user.username,
+            full_name=request.user.first_name,
+            action="UPDATE" if role_id else "INSERT",
+            table_affected="sbtblRole",
+            record_ref=f"Role:{edit_role.role_name} (ID {edit_role.role_id})",
+            notes=f"Updated privileges and capabilities for role '{edit_role.role_name}'"
+        )
+        messages.success(request, f"Capabilities and privileges for role '{edit_role.role_name}' saved successfully.")
+        return redirect('role_dashboard')
+
+    return render(request, 'core/role_form.html', {
+        'edit_role': edit_role,
+        'categories': ROLE_CAPABILITY_CATEGORIES,
+        'is_primary_admin': is_primary_admin,
+        'active_caps': active_caps,
+    })
+
+
+@login_required
+def role_toggle_active_view(request, role_id):
+    """Activate or deactivate a role."""
+    if not can_manage_roles(request.user):
+        messages.error(request, "Access denied. Administrator privileges required.")
+        return redirect('dashboard')
+
+    from core.models import Role, AuditLog
+
+    role = get_object_or_404(Role, role_id=role_id)
+    if role.role_id == 1 or role.role_name.strip().lower() == 'admin':
+        messages.error(request, "The primary Administrator role cannot be deactivated.")
+        return redirect('role_dashboard')
+
+    role.is_active = not role.is_active
+    role.save()
+
+    AuditLog.objects.create(
+        username=request.user.username,
+        full_name=request.user.first_name,
+        action="UPDATE",
+        table_affected="sbtblRole",
+        record_ref=f"Role:{role.role_name}",
+        notes=f"Toggled role active status to {role.is_active}"
+    )
+    status_str = "activated" if role.is_active else "deactivated"
+    messages.success(request, f"Role '{role.role_name}' has been {status_str}.")
+    return redirect('role_dashboard')
+
+
+@login_required
+def role_quick_toggle_cap_view(request, role_id):
+    """Quickly toggle an individual capability flag directly from the dashboard matrix."""
+    if not can_manage_roles(request.user):
+        messages.error(request, "Access denied. Administrator privileges required.")
+        return redirect('dashboard')
+
+    from core.models import Role, AuditLog
+
+    role = get_object_or_404(Role, role_id=role_id)
+    cap_field = request.POST.get('capability')
+
+    if cap_field not in ALL_CAPABILITY_FIELDS:
+        messages.error(request, "Invalid capability specified.")
+        return redirect('role_dashboard')
+
+    is_primary_admin = (role.role_id == 1 or role.role_name.strip().lower() == 'admin')
+    if is_primary_admin and cap_field in ['cap_login', 'cap_manage_users', 'cap_manage_roles']:
+        messages.error(request, "Essential administrative capabilities cannot be revoked from the primary Administrator role.")
+        return redirect('role_dashboard')
+
+    curr_val = getattr(role, cap_field, False)
+    new_val = not curr_val
+    setattr(role, cap_field, new_val)
+    role.save()
+
+    AuditLog.objects.create(
+        username=request.user.username,
+        full_name=request.user.first_name,
+        action="UPDATE",
+        table_affected="sbtblRole",
+        record_ref=f"Role:{role.role_name}.{cap_field}",
+        notes=f"Toggled capability {cap_field} to {new_val}"
+    )
+
+    cap_label = cap_field.replace('cap_', '').replace('_', ' ').title()
+    state_str = "granted to" if new_val else "revoked from"
+    messages.success(request, f"Capability '{cap_label}' successfully {state_str} role '{role.role_name}'.")
+    return redirect('role_dashboard')
 
 
 # --- Centralized Dropdowns & Lookup Tables Manager ---
