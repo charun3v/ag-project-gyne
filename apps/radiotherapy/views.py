@@ -615,13 +615,13 @@ def brachy_form_view(request, mr_no, course_id=None):
         end_d = parse_date_str(request.POST.get('brachy_end_date'))
         if start_d and start_d > date.today():
             messages.error(request, f"Validation Failed: Brachy Start Date ({start_d.strftime('%d-%b-%Y')}) cannot be a future date.")
-            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course else redirect('brachy_add', mr_no=patient.mr_no)
+            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course.brachy_course_id else redirect('brachy_add', mr_no=patient.mr_no)
         if end_d and end_d > date.today():
             messages.error(request, f"Validation Failed: Brachy End Date ({end_d.strftime('%d-%b-%Y')}) cannot be a future date.")
-            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course else redirect('brachy_add', mr_no=patient.mr_no)
+            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course.brachy_course_id else redirect('brachy_add', mr_no=patient.mr_no)
         if start_d and end_d and end_d < start_d:
             messages.error(request, "Validation Failed: Brachy End Date cannot precede Start Date.")
-            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course else redirect('brachy_add', mr_no=patient.mr_no)
+            return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course.brachy_course_id else redirect('brachy_add', mr_no=patient.mr_no)
         course.brachy_start_date = start_d
         course.brachy_end_date = end_d
 
@@ -640,17 +640,18 @@ def brachy_form_view(request, mr_no, course_id=None):
         is_completed = (course.treatment_status == 'COMPLETED') or bool(request.POST.get('is_course_completed'))
         if is_completed:
             missing_errors = []
-            for sess in course.sessions.all():
-                s_meas = {
-                    'tandem_length_cm': sess.tandem_length_cm,
-                    'ovoid_diameter_mm': sess.ovoid_diameter_mm,
-                    'ovoid_length_mm': sess.ovoid_length_mm,
-                    'ring_diameter_mm': sess.ring_diameter_mm,
-                    'needle_count': sess.needle_count,
-                }
-                errs = validate_applicator_measurements(sess.applicator, s_meas, is_completing_or_approving=True)
-                if errs:
-                    missing_errors.append(f"Session #{sess.session_number} ({sess.applicator.name}): {'; '.join(errs.values())}")
+            if course.brachy_course_id:
+                for sess in course.sessions.all():
+                    s_meas = {
+                        'tandem_length_cm': sess.tandem_length_cm,
+                        'ovoid_diameter_mm': sess.ovoid_diameter_mm,
+                        'ovoid_length_mm': sess.ovoid_length_mm,
+                        'ring_diameter_mm': sess.ring_diameter_mm,
+                        'needle_count': sess.needle_count,
+                    }
+                    errs = validate_applicator_measurements(sess.applicator, s_meas, is_completing_or_approving=True)
+                    if errs:
+                        missing_errors.append(f"Session #{sess.session_number} ({sess.applicator.name}): {'; '.join(errs.values())}")
             if missing_errors:
                 messages.error(request, f"Cannot mark Brachy Course Completed: {'; '.join(missing_errors)}")
                 return redirect('brachy_edit', mr_no=patient.mr_no, course_id=course.brachy_course_id) if course.brachy_course_id else redirect('brachy_add', mr_no=patient.mr_no)

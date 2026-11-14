@@ -23,7 +23,7 @@ def history_detail_view(request, mr_no):
         if not history:
             history = ClinicalHistory(patient=patient, entered_by=request.user.username)
 
-        history.snapshot_date = request.POST.get('snapshot_date') or date.today()
+        history.snapshot_date = request.POST.get('snapshot_date') or patient.date_of_registration or date.today()
         history.hpi = request.POST.get('hpi', '')
         history.past_med_surg = request.POST.get('past_med_surg', '')
 
@@ -453,12 +453,20 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
     if not encounter_type_obj:
         encounter_type_obj = EncounterType.objects.first()
 
+    if 'post-nact' in enc_type_lower or (encounter_type_obj and 'nact' in encounter_type_obj.encounter_type_name.lower()):
+        enc_slug = 'post-nact'
+    elif 'brachy' in enc_type_lower or (encounter_type_obj and 'brachy' in encounter_type_obj.encounter_type_name.lower()):
+        enc_slug = 'pre-brachy'
+    else:
+        enc_slug = 'baseline'
+
     encounter = patient.encounters.filter(encounter_type=encounter_type_obj, soft_deleted=False).first()
     ecog_scores = ECOGScore.objects.filter(is_active=True)
 
     # Pre-populate height and weight across all encounters for this patient
     initial_height = get_patient_baseline_height(patient, encounter)
     initial_weight = get_patient_latest_weight(patient, encounter)
+    latest_history = patient.histories.filter(soft_deleted=False).order_by('-snapshot_date', '-history_id').first()
 
     if request.method == 'POST':
         if not encounter:
@@ -468,7 +476,11 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
                 entered_by=request.user.username
             )
 
-        encounter.encounter_date = request.POST.get('encounter_date') or date.today()
+        if enc_slug == 'baseline' or 'baseline' in enc_type_lower:
+            default_enc_date = patient.date_of_registration or date.today()
+        else:
+            default_enc_date = date.today()
+        encounter.encounter_date = request.POST.get('encounter_date') or default_enc_date
 
         ht_val = request.POST.get('height')
         if ht_val:
@@ -517,8 +529,44 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
         encounter.tumour_size_2_cm = float(request.POST.get('tumour_size_2_cm')) if request.POST.get('tumour_size_2_cm') else None
         encounter.tumour_size_3_cm = float(request.POST.get('tumour_size_3_cm')) if request.POST.get('tumour_size_3_cm') else None
 
-        encounter.tandem_sounded = bool(request.POST.get('tandem_sounded'))
-        encounter.tandem_length_cm = float(request.POST.get('tandem_length_cm')) if request.POST.get('tandem_length_cm') else None
+        # Pre-Brachy Uterine Sounding validation (mandatory, 0 allowed for unable to sound)
+        if enc_slug == 'pre-brachy' or 'brachy' in enc_type_lower:
+            tandem_raw = request.POST.get('tandem_length_cm')
+            if tandem_raw is None or str(tandem_raw).strip() == '':
+                messages.error(request, "Uterine sound length is mandatory for Pre-Brachytherapy examination (Enter 0 if uterus cannot be sounded).")
+                svg_findings = encounter.svg_findings.filter(soft_deleted=False) if encounter and encounter.clinical_id else []
+                return render(request, 'clinical/examination_form.html', {
+                    'patient': patient,
+                    'encounter': encounter,
+                    'encounter_type': encounter_type_obj,
+                    'ecog_scores': ecog_scores,
+                    'svg_findings': svg_findings,
+                    'enc_slug': enc_slug,
+                    'initial_height': initial_height,
+                    'initial_weight': initial_weight,
+                    'latest_history': latest_history,
+                })
+            try:
+                t_val = float(tandem_raw)
+                encounter.tandem_length_cm = t_val
+                encounter.tandem_sounded = (t_val > 0)
+            except (ValueError, TypeError):
+                messages.error(request, "Please enter a valid numeric value for uterine sound length (or 0).")
+                svg_findings = encounter.svg_findings.filter(soft_deleted=False) if encounter and encounter.clinical_id else []
+                return render(request, 'clinical/examination_form.html', {
+                    'patient': patient,
+                    'encounter': encounter,
+                    'encounter_type': encounter_type_obj,
+                    'ecog_scores': ecog_scores,
+                    'svg_findings': svg_findings,
+                    'enc_slug': enc_slug,
+                    'initial_height': initial_height,
+                    'initial_weight': initial_weight,
+                    'latest_history': latest_history,
+                })
+        else:
+            encounter.tandem_sounded = bool(request.POST.get('tandem_sounded'))
+            encounter.tandem_length_cm = float(request.POST.get('tandem_length_cm')) if request.POST.get('tandem_length_cm') else None
 
         encounter.last_modified_by = request.user.username
         encounter.save()
@@ -585,6 +633,7 @@ def examination_detail_view(request, mr_no, enc_type='baseline'):
         'enc_slug': enc_slug,
         'initial_height': initial_height,
         'initial_weight': initial_weight,
+        'latest_history': latest_history,
     })
 
 
@@ -672,7 +721,7 @@ def save_diagram_findings_view(request, encounter_id):
         if return_to == 'followup':
             if fu_id:
                 return redirect('followup_edit', mr_no=patient.mr_no, followup_id=fu_id)
-            fu = getattr(encounter, 'follow_up_records', None)
+            fu = getattr(encounter, 'followup_records', None) or getattr(encounter, 'follow_up_records', None) or getattr(encounter, 'followupstatus_set', None)
             if fu and fu.filter(soft_deleted=False).exists():
                 return redirect('followup_edit', mr_no=patient.mr_no, followup_id=fu.filter(soft_deleted=False).first().follow_up_status_id)
             return redirect('followup_list', mr_no=patient.mr_no)

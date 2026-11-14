@@ -32,9 +32,9 @@
                 
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
                     <div>
-                        <label class="access-label" style="font-weight: bold;">Imaging Date *</label>
+                        <label class="access-label" style="font-weight: bold; color: #b00000;">Imaging Date *</label>
                         <input type="date" name="imaging_date" 
-                               value="{% if imaging and imaging.imaging_date %}{{ imaging.imaging_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                               value="{% if imaging and imaging.imaging_date %}{{ imaging.imaging_date|date:'Y-m-d' }}{% endif %}" 
                                class="access-input" required>
                     </div>
                     <div>

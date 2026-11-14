@@ -177,3 +177,20 @@ class ComplianceReason(models.Model):
         return self.reason_name
 
 
+class UserRecentPatient(models.Model):
+    """Tracks patient records recently opened/accessed by each user for worklist personalization."""
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recent_patients')
+    patient = models.ForeignKey('patients.Patient', on_delete=models.CASCADE, related_name='user_accesses', db_column='MR_No')
+    last_accessed = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'tblUserRecentPatients'
+        ordering = ['-last_accessed']
+        unique_together = ('user', 'patient')
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.patient.mr_no} ({self.last_accessed.strftime('%Y-%m-%d %H:%M')})"
+
+
+

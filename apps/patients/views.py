@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
+from django.http import HttpResponse
 
 from patients.models import Patient
 from core.models import State, District, Consultant, AuditLog
@@ -9,69 +10,82 @@ from core.models import State, District, Consultant, AuditLog
 @login_required
 def patient_register_view(request):
     """Replicates frmPatientReg in DataEntry/New record mode."""
-    states = State.objects.all()
-    districts = District.objects.all()
-    consultants = Consultant.objects.filter(is_active=True)
+    try:
+        states = State.objects.all()
+        districts = District.objects.all()
+        consultants = Consultant.objects.filter(is_active=True)
 
-    if request.method == 'POST':
-        mr_no = request.POST.get('mr_no', '').strip()
-        pt_name = request.POST.get('pt_name', '').strip()
-        phone = request.POST.get('phone', '').strip()
+        if request.method == 'POST':
+            mr_no = request.POST.get('mr_no', '').strip()
+            pt_name = request.POST.get('pt_name', '').strip()
+            phone = request.POST.get('phone', '').strip()
 
-        if not mr_no or not pt_name or not phone:
-            messages.error(request, "MR No., Patient Name, and Phone are required fields.")
-            return render(request, 'patients/patient_form.html', {
-                'states': states, 'districts': districts, 'consultants': consultants,
-                'is_new': True
-            })
+            if not mr_no or not pt_name or not phone:
+                messages.error(request, "MR No., Patient Name, and Phone are required fields.")
+                return render(request, 'patients/patient_form.html', {
+                    'states': states, 'districts': districts, 'consultants': consultants,
+                    'is_new': True
+                })
 
-        if Patient.objects.filter(mr_no=mr_no).exists():
-            messages.error(request, f"Patient with MR No. '{mr_no}' already exists in database.")
-            return render(request, 'patients/patient_form.html', {
-                'states': states, 'districts': districts, 'consultants': consultants,
-                'is_new': True
-            })
+            if Patient.objects.filter(mr_no=mr_no).exists():
+                messages.error(request, f"Patient with MR No. '{mr_no}' already exists in database.")
+                return render(request, 'patients/patient_form.html', {
+                    'states': states, 'districts': districts, 'consultants': consultants,
+                    'is_new': True
+                })
 
-        pt = Patient(
-            mr_no=mr_no,
-            pt_name=pt_name,
-            sex=request.POST.get('sex', 'Female'),
-            date_of_birth=request.POST.get('date_of_birth') or None,
-            dob_is_estimated=bool(request.POST.get('dob_is_estimated')),
-            date_of_registration=request.POST.get('date_of_registration') or None,
-            phone=phone,
-            phone_alternate=request.POST.get('phone_alternate', ''),
-            address=request.POST.get('address', ''),
-            state_id=request.POST.get('state_id') or None,
-            district_id=request.POST.get('district_id') or None,
-            pincode=request.POST.get('pincode', ''),
-            digipin=request.POST.get('digipin', ''),
-            country=request.POST.get('country', 'India'),
-            primary_consultant_id=request.POST.get('consultant_id') or None,
-            notes=request.POST.get('notes', ''),
-            entered_by=request.user.username,
-        )
-        pt.save()
+            pt = Patient(
+                mr_no=mr_no,
+                pt_name=pt_name,
+                sex=request.POST.get('sex', 'Female'),
+                date_of_birth=request.POST.get('date_of_birth') or None,
+                dob_is_estimated=bool(request.POST.get('dob_is_estimated')),
+                date_of_registration=request.POST.get('date_of_registration') or None,
+                phone=phone,
+                phone_alternate=request.POST.get('phone_alternate', ''),
+                address=request.POST.get('address', ''),
+                state_id=request.POST.get('state_id') or None,
+                district_id=request.POST.get('district_id') or None,
+                pincode=request.POST.get('pincode', ''),
+                digipin=request.POST.get('digipin', ''),
+                country=request.POST.get('country', 'India'),
+                primary_consultant_id=request.POST.get('consultant_id') or None,
+                notes=request.POST.get('notes', ''),
+                entered_by=request.user.username,
+            )
+            pt.save()
 
-        # Audit Log
-        AuditLog.objects.create(
-            username=request.user.username,
-            full_name=request.user.first_name,
-            action="INSERT",
-            table_affected="tblPtDetails",
-            record_ref=pt.mr_no,
-            notes="Registered new patient record"
-        )
+            # Audit Log
+            AuditLog.objects.create(
+                username=request.user.username,
+                full_name=request.user.first_name,
+                action="INSERT",
+                table_affected="tblPtDetails",
+                record_ref=pt.mr_no,
+                notes="Registered new patient record"
+            )
 
-        messages.success(request, f"Patient '{pt.pt_name}' [{pt.mr_no}] registered successfully!")
-        if 'save_next' in request.POST:
-            return redirect('history_detail', mr_no=pt.mr_no)
-        return redirect('dashboard')
+            from core.recent_patients import record_patient_opened
+            record_patient_opened(request.user, pt.mr_no)
 
-    return render(request, 'patients/patient_form.html', {
-        'states': states, 'districts': districts, 'consultants': consultants,
-        'is_new': True
-    })
+            messages.success(request, f"Patient '{pt.pt_name}' [{pt.mr_no}] registered successfully!")
+            if 'save_next' in request.POST:
+                return redirect('history_detail', mr_no=pt.mr_no)
+            return redirect('dashboard')
+
+        return render(request, 'patients/patient_form.html', {
+            'states': states, 'districts': districts, 'consultants': consultants,
+            'is_new': True
+        })
+    except Exception:
+        import traceback
+        tb = traceback.format_exc()
+        try:
+            with open(r'D:\n3v\My projects\Databases\Gynae\Gynae database\AG project - Gyne\register_view_exception.log', 'w', encoding='utf-8') as f_err:
+                f_err.write(tb)
+        except Exception:
+            pass
+        return HttpResponse(f"<h1>Server Error in Patient Register</h1><pre>{tb}</pre>", status=500)
 
 @login_required
 def patient_edit_view(request, mr_no):

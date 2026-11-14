@@ -1,4 +1,5 @@
 import csv
+from datetime import date
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -51,27 +52,36 @@ def dashboard_view(request, mr_no=None):
     Central clinical dashboard replicating frmDashboard and continuous frmDashboardPatientRow.
     Computes status badges for each of the 11 workflow tiles per patient.
     If mr_no is specified, serves the Patient-Specific Dashboard for that single patient.
+    Otherwise, displays the 15 most recent patients opened by the logged-in user.
     """
+    from core.recent_patients import get_user_recent_mr_nos, record_patient_opened
+
     if not mr_no:
         mr_no = request.GET.get('mr_no')
 
-    patients_qs = Patient.objects.filter(soft_deleted=False).prefetch_related(
-        'diagnoses__primary_site', 'encounters__encounter_type', 'histories',
-        'ebrt_courses__course_status', 'brachy_courses__course_status',
-        'nact_courses__nact_status', 'adjuvant_courses__chemo_status',
-        'follow_up_records__disease_status', 'documents',
-        'blood_tests', 'imaging_studies', 'pathology_reports', 'molecular_tests'
-    )
-
     single_patient = None
     is_single_patient = False
+
     if mr_no:
         single_patient = get_object_or_404(Patient, mr_no=mr_no, soft_deleted=False)
-        patients_qs = patients_qs.filter(mr_no=mr_no)
         is_single_patient = True
+        record_patient_opened(request.user, mr_no)
+        patients_list = [single_patient]
+    else:
+        recent_mr_nos = get_user_recent_mr_nos(request.user, limit=15)
+        pts = Patient.objects.filter(mr_no__in=recent_mr_nos, soft_deleted=False).prefetch_related(
+            'diagnoses__primary_site', 'encounters__encounter_type', 'histories',
+            'ebrt_courses__course_status', 'brachy_courses__course_status',
+            'nact_courses__nact_status', 'adjuvant_courses__chemo_status',
+            'follow_up_records__disease_status', 'documents',
+            'blood_tests', 'imaging_studies', 'pathology_reports', 'molecular_tests'
+        )
+        pts_by_mr = {p.mr_no: p for p in pts}
+        # Maintain exact chronological order of recent user access
+        patients_list = [pts_by_mr[m] for m in recent_mr_nos if m in pts_by_mr]
 
     patients_data = []
-    for pt in patients_qs:
+    for pt in patients_list:
         # Demographics: Complete if phone, age/dob, and address/district present
         demographics_completed = bool(pt.phone and (pt.date_of_birth or pt.age) and (pt.address or pt.district or pt.state))
         demographics_tile_class = 'tile-done' if demographics_completed else 'tile-partial'
@@ -297,178 +307,121 @@ def patient_dashboard_view(request, mr_no):
 @login_required
 def export_data_view(request):
     """
-    Generates Analytical Research Exports matching the specification:
-    - Wide-format (default): One row per patient with descriptive text names (no IDs or internal audit stamps).
-    - Long-format (?format=long): One row per event or drug administration for longitudinal/timeline analysis in R.
-    Access is strictly restricted to administrators or roles with cap_export_data.
+    Generates Analytical Research Exports matching clinical & biostatistical standards:
+    - Formats: Excel Workbook (.xlsx) or CSV (UTF-8 BOM).
+    - Scopes: Wide-Format (Patient Analysis) or Long-Format (Event Timeline).
+    - Filters: Primary Site, Date Range (from, to, field).
+    - Statistics: Variables formatted in snake_case, ISO dates, pre-computed survival endpoints (OS/DFS).
+    - Access: Restricted to administrators or roles with cap_export_data.
     """
     if not can_export_data(request.user):
         messages.error(request, "Permission denied: Administrator privileges required to export patient data.")
         return redirect('dashboard')
 
-    export_format = request.GET.get('format', 'wide').lower()
+    from clinical.models import PrimarySite
+    from core.exports import (
+        get_wide_format_data,
+        get_long_format_data,
+        get_wide_data_dictionary,
+        get_long_data_dictionary,
+        generate_excel_response,
+        generate_csv_response
+    )
 
-    if export_format == 'long':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="gynae_oncology_long_format_events.csv"'
-        writer = csv.writer(response)
-        writer.writerow([
-            'MR_No', 'Patient_Name', 'Phase', 'Course_ID', 'Cycle_Number', 'Event_Date',
-            'Drug_Agent', 'Dose', 'Dose_Unit', 'No_Of_Days', 'Day_Of_Administration',
-            'Route', 'Administered', 'Status', 'Approval_Status'
-        ])
+    primary_sites = PrimarySite.objects.filter(is_active=True).order_by('display_order', 'site')
 
-        for pt in Patient.objects.filter(soft_deleted=False).prefetch_related(
-            'nact_courses__cycles__drugs__chemo_agent',
-            'nact_courses__cycles__drugs__dose_unit',
-            'nact_courses__cycles__drugs__chemo_route',
-            'ebrt_courses__concurrent_chemo_courses__cycles__drugs__chemo_agent',
-            'ebrt_courses__concurrent_chemo_courses__cycles__drugs__dose_unit',
-            'ebrt_courses__concurrent_chemo_courses__cycles__drugs__chemo_route',
-            'adjuvant_courses__cycles__drugs__chemo_agent',
-            'adjuvant_courses__cycles__drugs__dose_unit',
-            'adjuvant_courses__cycles__drugs__chemo_route'
-        ):
-            # NACT Events
-            for nact in pt.nact_courses.filter(nact_received=True):
-                appr_str = f"Approved by {nact.approved_by}" if nact.is_approved else "Draft"
-                for cyc in nact.cycles.all():
-                    for d in cyc.drugs.all():
-                        writer.writerow([
-                            pt.mr_no, pt.pt_name, 'NACT', nact.nact_course_id, cyc.cycle_number,
-                            cyc.cycle_date, d.chemo_agent.agent_name, d.dose,
-                            d.dose_unit.unit_name if d.dose_unit else '',
-                            d.no_of_days, d.day_of_administration,
-                            d.chemo_route.route_name if d.chemo_route else '',
-                            'Yes' if d.administered else 'No',
-                            cyc.cycle_status, appr_str
-                        ])
+    params = request.POST if request.method == 'POST' else request.GET
+    download_requested = ('download' in params) or ('format' in request.GET) or (request.method == 'POST')
 
-            # Concurrent Chemo Events
-            for ebrt in pt.ebrt_courses.all():
-                ebrt_appr = f"Approved by {ebrt.approved_by}" if ebrt.is_approved else "Draft"
-                for conc in ebrt.concurrent_chemo_courses.filter(concurrent_received=True):
-                    for cyc in conc.cycles.all():
-                        for d in cyc.drugs.all():
-                            writer.writerow([
-                                pt.mr_no, pt.pt_name, 'Concurrent_Chemo', ebrt.ebrt_course_id, cyc.cycle_number,
-                                cyc.cycle_date, d.chemo_agent.agent_name, d.dose,
-                                d.dose_unit.unit_name if d.dose_unit else '',
-                                d.no_of_days, d.day_of_administration,
-                                d.chemo_route.route_name if d.chemo_route else '',
-                                'Yes' if d.administered else 'No',
-                                cyc.cycle_status, ebrt_appr
-                            ])
+    # If it's a plain GET to /export/ without download query params, render the Export Center Dialog
+    if not download_requested:
+        today_str = date.today().isoformat()
+        return render(request, 'core/export_dialog.html', {
+            'primary_sites': primary_sites,
+            'today_str': today_str,
+        })
 
-            # Adjuvant Events
-            for adj in pt.adjuvant_courses.filter(adjuvant_received=True):
-                adj_appr = f"Approved by {adj.approved_by}" if adj.is_approved else "Draft"
-                for cyc in adj.cycles.all():
-                    for d in cyc.drugs.all():
-                        writer.writerow([
-                            pt.mr_no, pt.pt_name, 'Adjuvant_Chemo', adj.adjuvant_course_id, cyc.cycle_number,
-                            cyc.cycle_date, d.chemo_agent.agent_name, d.dose,
-                            d.dose_unit.unit_name if d.dose_unit else '',
-                            d.no_of_days, d.day_of_administration,
-                            d.chemo_route.route_name if d.chemo_route else '',
-                            'Yes' if d.administered else 'No',
-                            cyc.cycle_status, adj_appr
-                        ])
+    dataset_format = params.get('format', 'wide').lower()
+    file_type = params.get('file_type', 'excel').lower()
+    if file_type not in ['excel', 'xlsx', 'csv']:
+        file_type = 'excel'
 
-        return response
+    selected_site = params.get('primary_site', '').strip()
+    date_from = params.get('date_from', '').strip() or None
+    date_to = params.get('date_to', '').strip() or None
+    date_field = params.get('date_field', 'registration').strip()
 
-    # Default: Wide-Format Patient-Level Analytical Record
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="gynae_oncology_wide_format_patients.csv"'
-    writer = csv.writer(response)
-    writer.writerow([
-        'MR_No', 'Patient_Name', 'Age', 'Sex', 'Date_Of_Birth', 'Registration_Date',
-        'Primary_Consultant', 'Primary_Site', 'Histology', 'FIGO_Stage', 'ECOG_Score',
-        'NACT_Given', 'NACT_Regimen', 'NACT_Planned_Cycles', 'NACT_Received_Cycles',
-        'NACT_Response', 'NACT_Status', 'NACT_Approved',
-        'EBRT_Given', 'EBRT_Intent', 'EBRT_Technique', 'EBRT_Targets',
-        'EBRT_Total_Dose_Gy', 'EBRT_Fractions', 'EBRT_Start_Date', 'EBRT_End_Date',
-        'EBRT_Status', 'EBRT_Approved',
-        'Concurrent_Chemo_Given', 'Concurrent_Regimen', 'Concurrent_Cycles_Administered',
-        'Brachy_Given', 'Brachy_Source', 'Brachy_Dosing', 'Brachy_Prescription_Dose_Gy',
-        'Brachy_Fractions_Delivered', 'Brachy_Status', 'Brachy_Approved',
-        'Adjuvant_Chemo_Given', 'Adjuvant_Planned_Cycles', 'Adjuvant_Received_Cycles',
-        'Adjuvant_Status', 'Adjuvant_Approved', 'FollowUp_Status'
-    ])
+    qs = Patient.objects.filter(soft_deleted=False)
 
-    for pt in Patient.objects.filter(soft_deleted=False).prefetch_related(
-        'diagnoses__primary_site', 'diagnoses__histology', 'encounters__ecog',
+    # 1. Filter by Primary Site
+    if selected_site and selected_site.upper() != 'ALL':
+        if selected_site.isdigit():
+            qs = qs.filter(diagnoses__primary_site_id=int(selected_site), diagnoses__soft_deleted=False).distinct()
+        else:
+            qs = qs.filter(diagnoses__primary_site__site__iexact=selected_site, diagnoses__soft_deleted=False).distinct()
+
+    # 2. Filter by Date Range
+    if date_from:
+        if date_field == 'diagnosis':
+            qs = qs.filter(diagnoses__date_of_diagnosis__gte=date_from, diagnoses__soft_deleted=False).distinct()
+        elif date_field == 'ebrt_start':
+            qs = qs.filter(ebrt_courses__ebrt_start_date__gte=date_from, ebrt_courses__soft_deleted=False).distinct()
+        elif date_field == 'last_followup':
+            qs = qs.filter(follow_up_records__follow_up_date__gte=date_from, follow_up_records__soft_deleted=False).distinct()
+        else: # default: registration
+            qs = qs.filter(date_of_registration__gte=date_from)
+
+    if date_to:
+        if date_field == 'diagnosis':
+            qs = qs.filter(diagnoses__date_of_diagnosis__lte=date_to, diagnoses__soft_deleted=False).distinct()
+        elif date_field == 'ebrt_start':
+            qs = qs.filter(ebrt_courses__ebrt_start_date__lte=date_to, ebrt_courses__soft_deleted=False).distinct()
+        elif date_field == 'last_followup':
+            qs = qs.filter(follow_up_records__follow_up_date__lte=date_to, follow_up_records__soft_deleted=False).distinct()
+        else: # default: registration
+            qs = qs.filter(date_of_registration__lte=date_to)
+
+    qs = qs.prefetch_related(
+        'diagnoses__primary_site', 'diagnoses__histology', 'diagnoses__grade',
+        'encounters__ecog', 'encounters__encounter_type',
         'nact_courses__chemo_regimen', 'nact_courses__response_to_nact', 'nact_courses__nact_status',
         'ebrt_courses__ebrt_intent', 'ebrt_courses__ebrt_technique', 'ebrt_courses__sites__ebrt_site',
-        'ebrt_courses__concurrent_chemo_courses', 'brachy_courses__brachy_source', 'brachy_courses__brachy_dosing',
-        'adjuvant_courses__chemo_status', 'follow_up_records__disease_status'
-    ):
-        diag = pt.diagnoses.filter(is_current=True).first()
-        base_enc = pt.encounters.filter(encounter_type__encounter_type_name__icontains='Baseline').first()
-        nact = pt.nact_courses.first()
-        ebrt = pt.ebrt_courses.first()
-        conc = ebrt.concurrent_chemo_courses.first() if ebrt else None
-        brachy = pt.brachy_courses.first()
-        adj = pt.adjuvant_courses.first()
-        fu = pt.follow_up_records.first()
+        'ebrt_courses__concurrent_chemo_courses__chemo_regimen',
+        'brachy_courses__brachy_source', 'brachy_courses__brachy_dosing', 'brachy_courses__sessions__fractions',
+        'adjuvant_courses__chemo_regimen', 'adjuvant_courses__chemo_status',
+        'follow_up_records__disease_status', 'follow_up_records__recurrence_site',
+        'follow_up_records__recurrence_sites', 'follow_up_records__cause_of_death'
+    ).order_by('-date_of_registration', 'mr_no')
 
-        targets_str = ", ".join([s.ebrt_site.site_name for s in ebrt.sites.all()]) if ebrt else ''
+    site_slug = selected_site.lower().replace(' ', '_') if (selected_site and selected_site.upper() != 'ALL') else 'all_sites'
+    date_stamp = date.today().strftime('%Y%m%d')
 
-        writer.writerow([
-            pt.mr_no,
-            pt.pt_name,
-            pt.age or '',
-            pt.sex,
-            pt.date_of_birth or '',
-            pt.date_of_registration or '',
-            pt.primary_consultant.consultant_name if pt.primary_consultant else '',
-            diag.primary_site.site if (diag and diag.primary_site) else '',
-            diag.histology.histology_name if (diag and diag.histology) else '',
-            diag.stage_text if diag else '',
-            base_enc.ecog.score if (base_enc and base_enc.ecog) else '',
-            'Yes' if (nact and nact.nact_received) else 'No',
-            nact.chemo_regimen.regimen_code if (nact and nact.chemo_regimen) else '',
-            nact.planned_cycles if nact else '',
-            nact.cycles.count() if nact else '',
-            nact.response_to_nact.response_code if (nact and nact.response_to_nact) else '',
-            nact.nact_status.status_name if (nact and nact.nact_status) else '',
-            'Yes' if (nact and nact.is_approved) else 'No',
-            'Yes' if ebrt else 'No',
-            ebrt.ebrt_intent.intent_name if (ebrt and ebrt.ebrt_intent) else '',
-            ebrt.ebrt_technique.technique_name if (ebrt and ebrt.ebrt_technique) else '',
-            targets_str,
-            ebrt.total_dose_gy if (ebrt and ebrt.total_dose_gy) else '',
-            ebrt.total_fractions if (ebrt and ebrt.total_fractions) else '',
-            ebrt.ebrt_start_date if (ebrt and ebrt.ebrt_start_date) else '',
-            ebrt.ebrt_end_date if (ebrt and ebrt.ebrt_end_date) else '',
-            ebrt.course_status.status_name if (ebrt and ebrt.course_status) else '',
-            'Yes' if (ebrt and ebrt.is_approved) else 'No',
-            'Yes' if (conc and conc.concurrent_received) else 'No',
-            conc.chemo_regimen.regimen_code if (conc and conc.chemo_regimen) else '',
-            conc.cycles.count() if conc else '',
-            'Yes' if brachy else 'No',
-            brachy.brachy_source.source_name if (brachy and brachy.brachy_source) else '',
-            brachy.brachy_dosing.dosing_point if (brachy and brachy.brachy_dosing) else '',
-            brachy.prescription_dose_gy if brachy else '',
-            brachy.total_fractions_delivered if brachy else '',
-            brachy.completion_status if brachy else '',
-            'Yes' if (brachy and brachy.is_approved) else 'No',
-            'Yes' if (adj and adj.adjuvant_received) else 'No',
-            adj.planned_cycles if adj else '',
-            adj.cycles.count() if adj else '',
-            adj.chemo_status.status_name if (adj and adj.chemo_status) else '',
-            'Yes' if (adj and adj.is_approved) else 'No',
-            fu.disease_status.status_name if (fu and fu.disease_status) else '',
-        ])
+    if dataset_format == 'long':
+        headers, rows = get_long_format_data(qs)
+        dict_headers, dict_rows = get_long_data_dictionary()
+        filename_base = f"gynae_events_long_{site_slug}_{date_stamp}"
+        sheet_title = "Event_Timeline"
+    else:
+        headers, rows = get_wide_format_data(qs)
+        dict_headers, dict_rows = get_wide_data_dictionary()
+        filename_base = f"gynae_patients_wide_{site_slug}_{date_stamp}"
+        sheet_title = "Patients_Analysis"
 
-    return response
+    if file_type in ['excel', 'xlsx']:
+        sheets = [
+            {'name': sheet_title, 'headers': headers, 'rows': rows},
+            {'name': 'Data_Dictionary', 'headers': dict_headers, 'rows': dict_rows}
+        ]
+        return generate_excel_response(sheets, filename=f"{filename_base}.xlsx")
+    else:
+        return generate_csv_response(headers, rows, filename=f"{filename_base}.csv")
 
 
 # --- Admin User Management & Access Control ---
 
 @login_required
 def user_list_view(request):
-    """Replicates Access User Management - lists all system users and roles."""
+    """Replicates Access User Management - lists all system users and roles with dynamic filtering."""
     if not can_manage_users(request.user):
         messages.error(request, "Access denied. User Management requires administrator privileges.")
         return redirect('dashboard')
@@ -477,11 +430,18 @@ def user_list_view(request):
     from core.models import Role, UserProfile
 
     users = User.objects.all().select_related('profile__role').order_by('username')
-    roles = Role.objects.filter(is_active=True)
+    roles = Role.objects.filter(is_active=True).order_by('display_order', 'role_name')
+
+    selected_role = request.GET.get('role', 'all').strip()
+    selected_status = request.GET.get('status', 'all').strip()
+    search_query = request.GET.get('q', '').strip()
 
     return render(request, 'core/user_list.html', {
         'users': users,
         'roles': roles,
+        'selected_role': selected_role,
+        'selected_status': selected_status,
+        'search_query': search_query,
     })
 
 @login_required

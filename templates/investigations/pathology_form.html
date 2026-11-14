@@ -28,9 +28,9 @@
 
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
                 <div>
-                    <label class="access-label" style="font-weight: bold;">Report Date *</label>
+                    <label class="access-label" style="font-weight: bold; color: #b00000;">Report Date *</label>
                     <input type="date" name="path_date" 
-                           value="{% if path_report and path_report.path_date %}{{ path_report.path_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                           value="{% if path_report and path_report.path_date %}{{ path_report.path_date|date:'Y-m-d' }}{% endif %}" 
                            class="access-input" required>
                 </div>
                 <div>

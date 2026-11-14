@@ -24,56 +24,52 @@
         </div>
     </div>
     <div class="access-subform-body">
-        <form method="post" action="">
-            {% csrf_token %}
+        <div style="display: flex; gap: 14px; align-items: flex-start;">
+            <div style="flex: 1; min-width: 0;">
+                <form method="post" action="">
+                    {% csrf_token %}
 
-            <!-- Section 1: Encounter Vitals & General Exam -->
-            <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
-                <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. Encounter Meta & Physical Assessment</legend>
-                
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
-                    <div>
-                        <label class="access-label" style="font-weight: bold;">Encounter Date</label>
-                        <input type="date" name="encounter_date" 
-                               value="{% if encounter and encounter.encounter_date %}{{ encounter.encounter_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
-                               class="access-input">
-                    </div>
-                    <div>
-                        <label class="access-label">ECOG Performance Status</label>
-                        <select name="ecog_id" class="access-select">
-                            <option value="">-- Select ECOG --</option>
-                            {% for e in ecog_scores %}
-                                <option value="{{ e.ecog_id }}" {% if encounter and encounter.ecog_id == e.ecog_id %}selected{% endif %}>
-                                    ECOG {{ e.score }} ({{ e.description }})
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="access-label">Height (cm)</label>
-                        <input type="number" step="0.1" name="height" id="htInput" 
-                               value="{% if encounter and encounter.height %}{{ encounter.height }}{% elif initial_height %}{{ initial_height }}{% endif %}" 
-                               class="access-input" placeholder="e.g. 155.0">
-                    </div>
-                    <div>
-                        <label class="access-label">Weight (kg)</label>
-                        <input type="number" step="0.1" name="weight" id="wtInput" 
-                               value="{% if encounter and encounter.weight %}{{ encounter.weight }}{% elif initial_weight %}{{ initial_weight }}{% endif %}" 
-                               class="access-input" placeholder="e.g. 58.5">
-                    </div>
-                </div>
+                    <!-- Section 1: Encounter Vitals & General Exam -->
+                    <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
+                        <legend style="font-weight: bold; color: #003366; padding: 0 5px; font-size: 11px;">1. Encounter Meta & Physical Assessment</legend>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px;">
+                            <div>
+                                <label class="access-label" style="font-weight: bold;">Encounter Date</label>
+                                <input type="date" name="encounter_date" 
+                                       value="{% if encounter and encounter.encounter_date %}{{ encounter.encounter_date|date:'Y-m-d' }}{% elif enc_slug == 'baseline' and patient.date_of_registration %}{{ patient.date_of_registration|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                                       class="access-input">
+                            </div>
+                            <div>
+                                <label class="access-label">ECOG Performance Status</label>
+                                <select name="ecog_id" class="access-select">
+                                    <option value="">-- Select ECOG --</option>
+                                    {% for e in ecog_scores %}
+                                        <option value="{{ e.ecog_id }}" {% if encounter and encounter.ecog_id == e.ecog_id %}selected{% endif %}>
+                                            ECOG {{ e.score }} ({{ e.description }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="access-label">Height (cm)</label>
+                                <input type="number" step="0.1" name="height" id="htInput" 
+                                       value="{% if encounter and encounter.height %}{{ encounter.height }}{% elif initial_height %}{{ initial_height }}{% endif %}" 
+                                       class="access-input" placeholder="e.g. 155.0">
+                            </div>
+                            <div>
+                                <label class="access-label">Weight (kg)</label>
+                                <input type="number" step="0.1" name="weight" id="wtInput" 
+                                       value="{% if encounter and encounter.weight %}{{ encounter.weight }}{% elif initial_weight %}{{ initial_weight }}{% endif %}" 
+                                       class="access-input" placeholder="e.g. 58.5">
+                            </div>
+                        </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div>
-                        <label class="access-label">Presenting Complaints at this Visit</label>
-                        <textarea name="presenting_complaints" class="access-textarea" rows="2" placeholder="Symptoms reported today...">{% if encounter %}{{ encounter.presenting_complaints|default:'' }}{% endif %}</textarea>
-                    </div>
-                    <div>
-                        <label class="access-label">General & Systemic Examination</label>
-                        <textarea name="examination_findings" class="access-textarea" rows="2" placeholder="Pallor, edema, lymphadenopathy, chest/CVS...">{% if encounter %}{{ encounter.examination_findings|default:'' }}{% endif %}</textarea>
-                    </div>
-                </div>
-            </fieldset>
+                        <div>
+                            <label class="access-label" style="font-weight: bold;">General & Systemic Examination Findings</label>
+                            <textarea name="examination_findings" class="access-textarea" rows="2" placeholder="Pallor, edema, lymphadenopathy, chest/CVS, vitals, general assessment...">{% if encounter %}{{ encounter.examination_findings|default:'' }}{% endif %}</textarea>
+                        </div>
+                    </fieldset>
 
             <!-- Section 2: Clinical Pelvic Examination Findings -->
             <fieldset style="border: 1px solid #c0c0c0; padding: 10px; margin-bottom: 12px; background: #fafafa;">
@@ -212,41 +208,45 @@
 
                 <!-- Tumour 3 Dimensions -->
                 <div style="background: #fdfaf5; border: 1px solid #ecd8b0; padding: 6px 10px; margin-bottom: 8px; border-radius: 2px;">
-                    <label class="access-label" style="font-weight: bold; color: #b45309; margin-bottom: 4px;">
+                    <div style="font-weight: bold; color: #b45309; font-size: 11px; margin-bottom: 6px;">
                         Tumour Physical Dimensions (D₁ × D₂ × D₃ in cm)
-                    </label>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    </div>
+                    <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
                         <div>
-                            <label class="access-label" style="font-size: 10px;">Dimension 1 — Width / Transverse (cm)</label>
+                            <label class="access-label" style="font-size: 10px; font-weight: bold;">Width / Transverse (cm)</label>
                             <input type="number" step="0.1" name="tumour_size_cm" 
                                    value="{% if encounter and encounter.tumour_size_cm %}{{ encounter.tumour_size_cm }}{% endif %}" 
-                                   class="access-input" placeholder="e.g. 4.0">
+                                   class="access-input" style="width: 70px; text-align: center; font-weight: bold;" maxlength="5" placeholder="0.0">
                         </div>
                         <div>
-                            <label class="access-label" style="font-size: 10px;">Dimension 2 — Length / Craniocaudal (cm)</label>
+                            <label class="access-label" style="font-size: 10px; font-weight: bold;">Length / Craniocaudal (cm)</label>
                             <input type="number" step="0.1" name="tumour_size_2_cm" 
                                    value="{% if encounter and encounter.tumour_size_2_cm %}{{ encounter.tumour_size_2_cm }}{% endif %}" 
-                                   class="access-input" placeholder="e.g. 4.0">
+                                   class="access-input" style="width: 70px; text-align: center; font-weight: bold;" maxlength="5" placeholder="0.0">
                         </div>
                         <div>
-                            <label class="access-label" style="font-size: 10px;">Dimension 3 — Thickness / Anteroposterior (cm)</label>
+                            <label class="access-label" style="font-size: 10px; font-weight: bold;">Thickness / AP (cm)</label>
                             <input type="number" step="0.1" name="tumour_size_3_cm" 
                                    value="{% if encounter and encounter.tumour_size_3_cm %}{{ encounter.tumour_size_3_cm }}{% endif %}" 
-                                   class="access-input" placeholder="e.g. 3.5">
+                                   class="access-input" style="width: 70px; text-align: center; font-weight: bold;" maxlength="5" placeholder="0.0">
                         </div>
                     </div>
                 </div>
 
                 {% if enc_slug == 'pre-brachy' %}
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                            <input type="checkbox" name="tandem_sounded" value="1" {% if encounter and encounter.tandem_sounded %}checked{% endif %}>
-                            Uterine Sounding Performed
-                        </label>
-                        <input type="number" step="0.1" name="tandem_length_cm" 
-                               value="{% if encounter and encounter.tandem_length_cm %}{{ encounter.tandem_length_cm }}{% endif %}" 
-                               class="access-input" style="width: 140px;" placeholder="Sound length (cm)">
+                <div style="background: #eef6fc; border: 1px solid #b8d9f2; padding: 8px 12px; margin-top: 6px; margin-bottom: 6px; border-radius: 2px;">
+                    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                        <div>
+                            <label class="access-label" style="font-weight: bold; color: #003366; font-size: 11px; margin-bottom: 2px;">
+                                Uterus Sounded Length (cm) <span style="color: #b00000;">*</span>:
+                            </label>
+                            <input type="number" step="0.1" min="0" max="25" name="tandem_length_cm" id="tandemLengthInput"
+                                   value="{% if encounter and encounter.tandem_length_cm is not None %}{{ encounter.tandem_length_cm }}{% endif %}" 
+                                   class="access-input" style="width: 75px; text-align: center; font-weight: bold;" placeholder="0" required>
+                        </div>
+                        <div style="font-size: 11px; color: #b00000; font-weight: bold;">
+                            ⚠️ Mandatory: Enter 0 if canal is stenosed / cannot be sounded.
+                        </div>
                     </div>
                 </div>
                 {% endif %}
@@ -313,6 +313,9 @@
                         🖌️ Open Clinical Diagram
                     </a>
                 {% endif %}
+                <a href="{% url 'history_detail' patient.mr_no %}" class="btn-access" style="background: #eef2f7; color: #003366; font-weight: bold; border-color: #70a0d0;" title="Return to Clinical History Form">
+                    ⬅️ Back to Clinical History
+                </a>
                 {% if enc_slug == 'pre-brachy' %}
                 <button type="submit" name="save_patient_dashboard" class="btn-access" style="background: #003366; color: #fff; font-weight: bold;">
                     ➡️ Save and Go to Patient dashboard
@@ -332,6 +335,147 @@
             </div>
         </form>
     </div>
+
+    <!-- Right Column: Patient Clinical History Summary -->
+    <aside style="width: 320px; flex-shrink: 0;">
+        <div style="border: 1px solid #b8c4d2; background: #ffffff; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+            <div style="background: #003366; color: #ffffff; padding: 6px 10px; font-weight: bold; font-size: 11px; display: flex; justify-content: space-between; align-items: center;">
+                <span>📋 Clinical History Summary</span>
+                <a href="{% url 'history_detail' patient.mr_no %}" style="color: #cce4ff; font-size: 10px; text-decoration: underline;">
+                    ✏️ Edit History
+                </a>
+            </div>
+            <div style="padding: 10px; font-size: 11px; color: #333; max-height: 820px; overflow-y: auto;">
+                {% if latest_history %}
+                    <div style="margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e5e5e5; display: flex; justify-content: space-between; font-size: 10.5px; color: #555;">
+                        <span>History Date:</span>
+                        <strong>{{ latest_history.snapshot_date|date:'d-M-Y' }}</strong>
+                    </div>
+
+                    <!-- Presenting Symptoms from History -->
+                    <div style="margin-bottom: 10px;">
+                        <div style="font-weight: bold; color: #003366; font-size: 10.5px; margin-bottom: 4px;">
+                            🚨 Presenting Symptoms:
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            {% if latest_history.bleeding_pv %}
+                                <span style="background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; padding: 1px 5px; border-radius: 2px; font-weight: bold; font-size: 10px;">Bleeding P/V</span>
+                            {% endif %}
+                            {% if latest_history.water_discharge_pv %}
+                                <span style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 1px 5px; border-radius: 2px; font-weight: bold; font-size: 10px;">Watery Discharge P/V</span>
+                            {% endif %}
+                            {% if latest_history.dyspareunia %}
+                                <span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Dyspareunia</span>
+                            {% endif %}
+                            {% if latest_history.loin_pain %}
+                                <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Loin Pain</span>
+                            {% endif %}
+                            {% if not latest_history.bleeding_pv and not latest_history.water_discharge_pv and not latest_history.dyspareunia and not latest_history.loin_pain %}
+                                <span style="color: #777; font-style: italic; font-size: 10.5px;">None flagged</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- HPI -->
+                    {% if latest_history.hpi %}
+                    <div style="margin-bottom: 10px; background: #fafafa; border: 1px solid #e8e8e8; padding: 6px; border-radius: 2px;">
+                        <div style="font-weight: bold; color: #003366; font-size: 10.5px; margin-bottom: 2px;">
+                            📝 History of Present Illness (HPI):
+                        </div>
+                        <div style="font-size: 11px; line-height: 1.35; white-space: pre-wrap; color: #222;">{{ latest_history.hpi }}</div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Comorbidities -->
+                    <div style="margin-bottom: 10px;">
+                        <div style="font-weight: bold; color: #003366; font-size: 10.5px; margin-bottom: 4px;">
+                            🩺 Medical Comorbidities:
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            {% if latest_history.hypertension %}
+                                <span style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Hypertension (HTN)</span>
+                            {% endif %}
+                            {% if latest_history.diabetic %}
+                                <span style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Diabetes (DM)</span>
+                            {% endif %}
+                            {% if latest_history.hypothyroidism %}
+                                <span style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Hypothyroidism</span>
+                            {% endif %}
+                            {% if latest_history.seizures %}
+                                <span style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Seizure Disorder</span>
+                            {% endif %}
+                            {% if latest_history.comorbidity_others %}
+                                <span style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Other Medical</span>
+                            {% endif %}
+                            {% if not latest_history.hypertension and not latest_history.diabetic and not latest_history.hypothyroidism and not latest_history.seizures and not latest_history.comorbidity_others %}
+                                <span style="color: #777; font-style: italic; font-size: 10.5px;">No major comorbidities</span>
+                            {% endif %}
+                        </div>
+                        {% if latest_history.comorbidity_notes %}
+                            <div style="font-size: 10px; color: #555; margin-top: 3px; font-style: italic;">
+                                Notes: {{ latest_history.comorbidity_notes }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Habits -->
+                    <div style="margin-bottom: 10px;">
+                        <div style="font-weight: bold; color: #003366; font-size: 10.5px; margin-bottom: 4px;">
+                            🚬 Habits:
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            {% if latest_history.smoking %}<span style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Smoking</span>{% endif %}
+                            {% if latest_history.alcohol %}<span style="background: #fffbeb; color: #92400e; border: 1px solid #fde68a; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Alcohol</span>{% endif %}
+                            {% if latest_history.tobacco_chewing %}<span style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Tobacco Chewing</span>{% endif %}
+                            {% if latest_history.habits_others %}<span style="background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; padding: 1px 5px; border-radius: 2px; font-size: 10px;">Other Habits</span>{% endif %}
+                            {% if not latest_history.smoking and not latest_history.alcohol and not latest_history.tobacco_chewing and not latest_history.habits_others %}
+                                <span style="color: #777; font-style: italic; font-size: 10.5px;">No addiction history</span>
+                            {% endif %}
+                        </div>
+                        {% if latest_history.habits_notes %}
+                            <div style="font-size: 10px; color: #555; margin-top: 3px; font-style: italic;">
+                                Notes: {{ latest_history.habits_notes }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Past Med / Surg -->
+                    {% if latest_history.past_med_surg %}
+                    <div style="margin-bottom: 8px;">
+                        <div style="font-weight: bold; color: #003366; font-size: 10.5px; margin-bottom: 2px;">
+                            🏥 Past Med / Surg History:
+                        </div>
+                        <div style="font-size: 10.5px; color: #333; line-height: 1.3;">{{ latest_history.past_med_surg }}</div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Prior RT / Surgery -->
+                    {% if latest_history.prior_radiation or latest_history.previous_surgery %}
+                    <div style="background: #fff8e6; border: 1px solid #f5c060; padding: 6px; border-radius: 2px; margin-top: 6px;">
+                        <div style="font-weight: bold; color: #b45309; font-size: 10.5px; margin-bottom: 2px;">
+                            ⚠️ Prior Oncologic Treatments:
+                        </div>
+                        {% if latest_history.prior_radiation %}
+                            <div style="font-size: 10px; color: #333;"><strong>Prior RT:</strong> {{ latest_history.prior_radiation_details|default:'Yes' }}</div>
+                        {% endif %}
+                        {% if latest_history.previous_surgery %}
+                            <div style="font-size: 10px; color: #333;"><strong>Prior Surgery:</strong> {{ latest_history.previous_surgery_details|default:'Yes' }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                {% else %}
+                    <div style="padding: 15px; text-align: center; color: #666; font-style: italic;">
+                        No clinical history recorded yet for this patient.<br><br>
+                        <a href="{% url 'history_detail' patient.mr_no %}" class="btn-access btn-primary-action" style="font-size: 11px;">
+                            ➕ Record Clinical History
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </aside>
+</div>
 </div>
 
 <script>

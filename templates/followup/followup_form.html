@@ -204,6 +204,7 @@
                 
                 <!-- Death Details (Active/Shown ONLY if Dead) -->
                 <input type="hidden" name="death_reported" id="deathReportedHidden" value="{% if fu and fu.death_reported %}1{% else %}0{% endif %}">
+                <input type="hidden" name="open_diagram_flag" id="openDiagramFlag" value="0">
                 <div id="deathDetailsContainer" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; background: #fff5f5; border: 1px solid #ffcccc; padding: 8px 12px; border-radius: 3px;">
                     <div>
                         <label class="access-label" style="font-weight: bold; color: #b00000;">Date of Death *</label>
@@ -401,27 +402,27 @@
 
                         <!-- Tumour 3 Dimensions -->
                         <div style="background: #fdfaf5; border: 1px solid #ecd8b0; padding: 6px 10px; border-radius: 2px;">
-                            <label class="access-label" style="font-weight: bold; color: #b45309; margin-bottom: 4px;">
+                            <div style="font-weight: bold; color: #b45309; font-size: 11px; margin-bottom: 6px;">
                                 Tumour / Residual Mass Physical Dimensions (D₁ × D₂ × D₃ in cm)
-                            </label>
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            </div>
+                            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
                                 <div>
-                                    <label class="access-label" style="font-size: 10px;">Dimension 1 — Width / Transverse (cm)</label>
+                                    <label class="access-label" style="font-size: 10px; font-weight: bold;">Width / Transverse (cm)</label>
                                     <input type="number" step="0.1" name="exam_tumour_size_cm" 
                                            value="{% if encounter and encounter.tumour_size_cm %}{{ encounter.tumour_size_cm }}{% endif %}" 
-                                           class="access-input" placeholder="e.g. 2.5">
+                                           class="access-input" style="width: 70px; text-align: center; font-weight: bold;" maxlength="5" placeholder="0.0">
                                 </div>
                                 <div>
-                                    <label class="access-label" style="font-size: 10px;">Dimension 2 — Length / Craniocaudal (cm)</label>
+                                    <label class="access-label" style="font-size: 10px; font-weight: bold;">Length / Craniocaudal (cm)</label>
                                     <input type="number" step="0.1" name="exam_tumour_size_2_cm" 
                                            value="{% if encounter and encounter.tumour_size_2_cm %}{{ encounter.tumour_size_2_cm }}{% endif %}" 
-                                           class="access-input" placeholder="e.g. 3.0">
+                                           class="access-input" style="width: 70px; text-align: center; font-weight: bold;" maxlength="5" placeholder="0.0">
                                 </div>
                                 <div>
-                                    <label class="access-label" style="font-size: 10px;">Dimension 3 — Thickness / Anteroposterior (cm)</label>
+                                    <label class="access-label" style="font-size: 10px; font-weight: bold;">Thickness / AP (cm)</label>
                                     <input type="number" step="0.1" name="exam_tumour_size_3_cm" 
                                            value="{% if encounter and encounter.tumour_size_3_cm %}{{ encounter.tumour_size_3_cm }}{% endif %}" 
-                                           class="access-input" placeholder="e.g. 2.0">
+                                           class="access-input" style="width: 70px; text-align: center; font-weight: bold;" maxlength="5" placeholder="0.0">
                                 </div>
                             </div>
                         </div>
@@ -443,10 +444,13 @@
                                 <button type="submit" name="auto_populate_svg" value="1" class="btn-access" style="background: #fff4e6; color: #b35900; border-color: #ffd8a8; font-weight: bold; padding: 3px 8px; font-size: 11px;" title="Auto-populate SVG anatomical zones from physical pelvic examination above">
                                     ⚡ Auto-populate SVG from Examination
                                 </button>
-                                <button type="submit" name="open_diagram" value="1" class="btn-access btn-primary-action" style="padding: 3px 10px; font-size: 11px; font-weight: bold;" title="Save and open high-resolution interactive pelvic canvas">
+                                <button type="submit" name="open_diagram" value="1" onclick="document.getElementById('openDiagramFlag').value='1';" class="btn-access btn-primary-action" style="padding: 3px 10px; font-size: 11px; font-weight: bold;" title="Save and open high-resolution interactive pelvic canvas">
                                     🖌️ Open Interactive Clinical Diagram
                                 </button>
                                 {% if encounter and encounter.clinical_id %}
+                                    <a href="{% url 'ibs_diagram' encounter.clinical_id %}?return_to=followup{% if fu %}&fu_id={{ fu.follow_up_status_id }}{% endif %}" class="btn-access" style="background: #eef2ff; color: #1e40af; border-color: #c7d2fe; font-size: 11px; font-weight: bold; padding: 3px 8px;" title="Directly view and edit IBS pelvic diagram">
+                                        🗺️ Direct Diagram View
+                                    </a>
                                     <a href="{% url 'examination_pdf' patient.mr_no 'baseline' %}?encounter_id={{ encounter.clinical_id }}" target="_blank" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; border-color: #70a0d0; padding: 3px 8px; font-size: 11px;">
                                         📄 Examination PDF Report
                                     </a>
@@ -742,10 +746,10 @@ function updateFollowUpUIState() {
     var contactOptForDeath = contactSelect ? contactSelect.options[contactSelect.selectedIndex] : null;
     var contactTextForDeath = contactOptForDeath ? contactOptForDeath.text.trim().toLowerCase() : '';
 
-    var isDead = diseaseText.includes('dead');
+    var isDead = diseaseText.includes('dead') || diseaseText.includes('deceased') || diseaseText.includes('death') || diseaseText.includes('expired');
     var isLost = diseaseText.includes('lost') || contactTextForDeath.includes('lost');
-    var isNed = diseaseText.includes('ned') || diseaseText.includes('no evidence');
-    var isRecurrenceOrResidual = diseaseText.includes('recurrence') || diseaseText.includes('residual') || diseaseText.includes('second primary');
+    var isNed = diseaseText.includes('ned') || diseaseText.includes('no evidence') || diseaseText.includes('no disease') || diseaseText.includes('disease free') || diseaseText.includes('without disease');
+    var isRecurrenceOrResidual = diseaseText.includes('recurrence') || diseaseText.includes('residual') || diseaseText.includes('second primary') || diseaseText.includes('progression');
 
     // Sections to control
     var recSection = document.getElementById('recurrenceSection');
@@ -841,9 +845,18 @@ function updateFollowUpUIState() {
     // Default fallback
     else {
         if (recSection) recSection.style.display = 'block';
-        if (deathContainer) deathContainer.style.display = 'none';
+        if (deathContainer) {
+            deathContainer.style.display = 'none';
+            if (dateInput) { dateInput.disabled = true; dateInput.value = ''; }
+            if (causeSelect) { causeSelect.disabled = true; causeSelect.value = ''; }
+        }
+        if (deathHidden) deathHidden.value = '0';
         if (vitalSection) vitalSection.style.display = 'block';
-        if (nextFuContainer) nextFuContainer.style.display = 'grid';
+        if (nextFuContainer) {
+            nextFuContainer.style.display = 'grid';
+            if (nextDateInput) nextDateInput.disabled = false;
+            if (nextNotesInput) nextNotesInput.disabled = false;
+        }
         if (examSection) examSection.style.display = 'block';
         if (noticeBox) noticeBox.style.display = 'none';
     }

@@ -403,7 +403,7 @@
             <div style="border-bottom: 1px dashed #ccc; padding-bottom: 4px; margin-bottom: 4px; display: flex; justify-content: space-between;">
                 <div>
                     <strong>{{ fu.follow_up_date|date:'d-M-Y' }}</strong>: 
-                    <span style="font-weight: bold; color: {% if fu.disease_status.status_name == 'No Evidence of Disease' %}#008000{% else %}#b00000{% endif %};">
+                    <span style="font-weight: bold; color: {% if 'No Evidence' in fu.disease_status.status_name or 'NED' in fu.disease_status.status_name or 'Alive' in fu.disease_status.status_name or 'no disease' in fu.disease_status.status_name|lower or 'free' in fu.disease_status.status_name|lower %}#008000{% elif 'dead' in fu.disease_status.status_name|lower or 'deceased' in fu.disease_status.status_name|lower or fu.death_reported %}#000000{% else %}#b00000{% endif %};">
                         {{ fu.disease_status.status_name|default:'Contact logged' }}
                     </span> 
                     via {{ fu.contact_type.contact_type|default:'Clinic' }}

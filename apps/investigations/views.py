@@ -41,10 +41,20 @@ def blood_form_view(request, mr_no, blood_id=None):
     blood = get_object_or_404(BloodInvestigation, blood_id=blood_id, patient=patient) if blood_id else None
 
     if request.method == 'POST':
+        test_date_raw = request.POST.get('test_date', '').strip()
+        if not test_date_raw:
+            messages.error(request, "Blood test date is mandatory.")
+            return render(request, 'investigations/blood_form.html', {
+                'patient': patient,
+                'blood': blood,
+                'return_to': request.GET.get('return_to', '') or request.POST.get('return_to', ''),
+                'fu_id': request.GET.get('fu_id', '') or request.POST.get('fu_id', ''),
+            })
+
         if not blood:
             blood = BloodInvestigation(patient=patient, entered_by=request.user.username)
 
-        blood.test_date = request.POST.get('test_date') or date.today()
+        blood.test_date = test_date_raw
         blood.lab_reference_no = request.POST.get('lab_reference_no', '')
         blood.specimen_type = request.POST.get('specimen_type', 'Blood')
 
@@ -130,10 +140,26 @@ def pathology_form_view(request, mr_no, path_id=None):
     grades = Grade.objects.filter(is_active=True)
 
     if request.method == 'POST':
+        path_date_raw = request.POST.get('path_date', '').strip()
+        if not path_date_raw:
+            messages.error(request, "Pathology report date is mandatory.")
+            return render(request, 'investigations/pathology_form.html', {
+                'patient': patient,
+                'path_report': path_report,
+                'specimens': specimens,
+                'biopsy_sites': biopsy_sites,
+                'path_types': path_types,
+                'fnac_sites': fnac_sites,
+                'histologies': histologies,
+                'grades': grades,
+                'return_to': request.GET.get('return_to', '') or request.POST.get('return_to', ''),
+                'fu_id': request.GET.get('fu_id', '') or request.POST.get('fu_id', ''),
+            })
+
         if not path_report:
             path_report = PathologyInvestigation(patient=patient, entered_by=request.user.username)
 
-        path_report.path_date = request.POST.get('path_date') or date.today()
+        path_report.path_date = path_date_raw
         path_report.lab_reference_no = request.POST.get('lab_reference_no', '')
         path_report.specimen_id = request.POST.get('specimen_id') or None
         path_report.biopsy_site_id = request.POST.get('biopsy_site_id') or None
@@ -224,11 +250,12 @@ def imaging_form_view(request, mr_no, imaging_id=None):
             selected_site_ids = [pelvis_site.imaging_site_id]
 
     if request.method == 'POST':
-        impression = request.POST.get('impression', '').strip()
-        if not impression:
-            messages.error(request, "Overall Imaging Impression is mandatory.")
-            raw_site_ids = request.POST.getlist('imaging_site_ids')
-            curr_selected_ids = [int(x) for x in raw_site_ids if str(x).isdigit()]
+        imaging_date_raw = request.POST.get('imaging_date', '').strip()
+        raw_site_ids = request.POST.getlist('imaging_site_ids')
+        curr_selected_ids = [int(x) for x in raw_site_ids if str(x).isdigit()]
+
+        if not imaging_date_raw:
+            messages.error(request, "Imaging investigation date is mandatory.")
             return render(request, 'investigations/imaging_form.html', {
                 'patient': patient,
                 'imaging': imaging,
@@ -238,12 +265,30 @@ def imaging_form_view(request, mr_no, imaging_id=None):
                 'selected_site_ids': curr_selected_ids,
                 'organ_statuses': organ_statuses,
                 'nodal_stations_lookup': nodal_stations_lookup,
+                'return_to': request.GET.get('return_to', '') or request.POST.get('return_to', ''),
+                'fu_id': request.GET.get('fu_id', '') or request.POST.get('fu_id', ''),
+            })
+
+        impression = request.POST.get('impression', '').strip()
+        if not impression:
+            messages.error(request, "Overall Imaging Impression is mandatory.")
+            return render(request, 'investigations/imaging_form.html', {
+                'patient': patient,
+                'imaging': imaging,
+                'pelvis_detail': pelvis_detail,
+                'imaging_types': imaging_types,
+                'imaging_sites': imaging_sites,
+                'selected_site_ids': curr_selected_ids,
+                'organ_statuses': organ_statuses,
+                'nodal_stations_lookup': nodal_stations_lookup,
+                'return_to': request.GET.get('return_to', '') or request.POST.get('return_to', ''),
+                'fu_id': request.GET.get('fu_id', '') or request.POST.get('fu_id', ''),
             })
 
         if not imaging:
             imaging = ImagingInvestigation(patient=patient, entered_by=request.user.username)
 
-        imaging.imaging_date = request.POST.get('imaging_date') or date.today()
+        imaging.imaging_date = imaging_date_raw
         imaging.imaging_type_id = request.POST.get('imaging_type_id') or None
         
         # Multi-select Anatomical Sites
@@ -400,10 +445,23 @@ def molecular_form_view(request, mr_no, molecular_id=None):
     markers = MolecularMarker.objects.filter(is_active=True)
 
     if request.method == 'POST':
+        test_date_raw = request.POST.get('test_date', '').strip()
+        if not test_date_raw:
+            messages.error(request, "Molecular test date is mandatory.")
+            return render(request, 'investigations/molecular_form.html', {
+                'patient': patient,
+                'molecular': mol,
+                'mol_types': mol_types,
+                'specimens': specimens,
+                'markers': markers,
+                'return_to': request.GET.get('return_to', '') or request.POST.get('return_to', ''),
+                'fu_id': request.GET.get('fu_id', '') or request.POST.get('fu_id', ''),
+            })
+
         if not mol:
             mol = MolecularInvestigation(patient=patient, entered_by=request.user.username)
 
-        mol.test_date = request.POST.get('test_date') or date.today()
+        mol.test_date = test_date_raw
         mol.lab_reference_no = request.POST.get('lab_reference_no', '')
         mol.molecular_type_id = request.POST.get('molecular_type_id') or None
         mol.specimen_id = request.POST.get('specimen_id') or None

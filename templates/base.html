@@ -7,8 +7,8 @@
     <title>{% block title %}{{ APP_TITLE }}{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/access_theme.css' %}">
     <style>
-        .region-marked { fill: #ff2a2a !important; opacity: 0.8 !important; }
-        .region-hover { stroke: #003366 !important; stroke-width: 0.8 !important; }
+        .region-marked { fill: #ff2a2a !important; opacity: 0.8 !important; vector-effect: non-scaling-stroke !important; transform: none !important; }
+        .region-hover { stroke: #003366 !important; stroke-width: 0.8 !important; vector-effect: non-scaling-stroke !important; transform: none !important; }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -43,8 +43,7 @@
         <a href="{% url 'patient_register' %}" class="btn-access">➕ Register New Patient</a>
         <a href="{% url 'patient_search' %}" class="btn-access">🔍 Search Patients</a>
         {% if CAN_EXPORT_DATA %}
-        <a href="{% url 'export_data' %}?format=wide" class="btn-access" title="One row per patient analytical dataset">📊 Export Patients (Wide)</a>
-        <a href="{% url 'export_data' %}?format=long" class="btn-access" title="Event and drug administration level longitudinal dataset for R/statistics">📈 Export Events (Long)</a>
+        <a href="{% url 'export_data' %}" class="btn-access" style="color: #003366; font-weight: bold;" onclick="openExportModal(event)" title="Export cohort dataset as Excel (.xlsx) or CSV for R / SPSS / Stata">📊 Export Data</a>
         {% endif %}
         {% if CAN_MANAGE_USERS %}
         <a href="{% url 'user_list' %}" class="btn-access" style="color: #003366; font-weight: bold;">👥 User Management</a>
@@ -72,6 +71,10 @@
 
         {% block content %}{% endblock %}
     </main>
+
+    {% if CAN_EXPORT_DATA %}
+        {% include "core/export_modal.html" %}
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
 </body>

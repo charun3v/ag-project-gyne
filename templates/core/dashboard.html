@@ -9,14 +9,14 @@
         <div style="display: flex; flex-direction: column; line-height: 1.25;">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 15px; font-weight: bold; letter-spacing: 0.3px;">Radiation Oncology</span>
-                <span style="font-size: 11px; opacity: 0.9; font-weight: normal;">— {% if is_single_patient %}Patient Specific Dashboard{% else %}Patient Worklist Dashboard{% endif %}</span>
+                <span style="font-size: 11px; opacity: 0.9; font-weight: normal;">— {% if is_single_patient %}Patient Specific Dashboard{% else %}Recent Patients Worklist (Your Last 15 Opened){% endif %}</span>
             </div>
             <span style="font-size: 11px; font-weight: 500; color: #003366; opacity: 0.85;">Kidwai Memorial Institute of Oncology</span>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
             {% if is_single_patient %}
                 <a href="{% url 'dashboard' %}" class="btn-access" style="background: #003366; color: #fff; font-weight: bold; font-size: 11px; padding: 3px 10px; border-radius: 2px; text-decoration: none;">
-                    👥 All Patients Worklist
+                    👥 Recent Patients Worklist
                 </a>
                 <a href="{% url 'patient_summary' single_patient.mr_no %}" class="btn-access" style="background: #e8f4fd; color: #003366; font-weight: bold; font-size: 11px; padding: 3px 10px; border-radius: 2px; text-decoration: none; border-color: #70a0d0;">
                     📄 Patient Summary
@@ -25,10 +25,12 @@
                     Patient: <strong>{{ single_patient.mr_no }}</strong>
                 </span>
             {% else %}
-                <input type="text" id="patientFilter" placeholder="Type to filter MR No. or Name..." 
-                       style="font-size: 11px; padding: 3px 8px; width: 240px; border: 1px solid #707070;"
+                <input type="text" id="patientFilter" placeholder="Type to filter in recent 15..." 
+                       style="font-size: 11px; padding: 3px 8px; width: 220px; border: 1px solid #707070;"
                        onkeyup="filterPatientRows()">
-                <span style="font-size: 11px; color: #444444;">Total Patients: <strong>{{ patients|length }}</strong></span>
+                <span style="font-size: 11px; color: #003366; background: #e8f0fe; border: 1px solid #c2d7f2; padding: 2px 8px; border-radius: 3px;">
+                    Recent Patients: <strong>{{ patients|length }}</strong> / 15
+                </span>
             {% endif %}
         </div>
     </div>
@@ -53,6 +55,13 @@
                 ✓ Patient Specific Dashboard
             </span>
         </div>
+    </div>
+    {% endif %}
+
+    {% if not is_single_patient %}
+    <div style="background: #f8fafc; border-bottom: 1px solid #d8e2ec; padding: 4px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #555;">
+        <span>🕒 Displaying the <strong>most recent 15 patients</strong> opened by your account.</span>
+        <a href="{% url 'patient_search' %}" style="color: #003366; text-decoration: none; font-weight: bold;">🔍 Search All Patients Directory →</a>
     </div>
     {% endif %}
 

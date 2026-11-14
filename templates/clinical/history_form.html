@@ -28,7 +28,7 @@
                 <div>
                     <label class="access-label" style="font-weight: bold;">History Snapshot Date</label>
                     <input type="date" name="snapshot_date" 
-                           value="{% if history and history.snapshot_date %}{{ history.snapshot_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                           value="{% if history and history.snapshot_date %}{{ history.snapshot_date|date:'Y-m-d' }}{% elif patient.date_of_registration %}{{ patient.date_of_registration|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
                            class="access-input" style="width: 160px;">
                 </div>
             </div>

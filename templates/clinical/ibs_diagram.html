@@ -8,20 +8,26 @@
   #stage {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     background: #fdfdfd;
     border: 1px solid #b0c0d0;
     min-height: 880px;
     position: relative;
     overflow: auto;
-    padding: 30px;
+    padding: 20px 30px 40px 30px;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    contain: layout;
   }
   #svgHolder {
     transform: rotate(90deg) scale(1.15);
     transform-origin: center center;
-    transition: transform 0.2s ease-in-out;
     margin: 40px auto;
+    position: relative;
+    width: 760px;
+    height: 760px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   #svgHolder svg {
     display: block;
@@ -29,10 +35,22 @@
     width: auto;
     max-height: none !important;
     max-width: none !important;
-    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
+    overflow: visible;
   }
-  .region-marked { fill: #ff1a1a !important; opacity: 0.85 !important; stroke: #8b0000 !important; stroke-width: 0.8 !important; }
-  .region-hover { stroke: #003366 !important; stroke-width: 1.2 !important; filter: brightness(1.1); }
+  .region-marked { 
+    fill: #ff1a1a !important; 
+    opacity: 0.85 !important; 
+    stroke: #8b0000 !important; 
+    stroke-width: 0.8 !important; 
+    vector-effect: non-scaling-stroke !important;
+    transform: none !important;
+  }
+  .region-hover { 
+    stroke: #003366 !important; 
+    stroke-width: 0.8 !important; 
+    vector-effect: non-scaling-stroke !important;
+    transform: none !important;
+  }
 </style>
 {% endblock %}
 
@@ -81,15 +99,15 @@
     </div>
 
     <!-- Live Status Strip -->
-    <div style="background: #e9ecef; border-bottom: 1px solid #ced4da; padding: 6px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
-        <div>
+    <div style="background: #e9ecef; border-bottom: 1px solid #ced4da; padding: 6px 14px; height: 36px; min-height: 36px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; font-size: 12px; overflow: hidden; white-space: nowrap;">
+        <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%;">
             <span>Zone: </span><strong id="hoverRegionLabel" style="color: #003366; font-size: 13px;">Hover over an anatomical zone</strong>
         </div>
-        <div>
+        <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%;">
             <span>Marked Zones (<strong id="markedCount">0</strong>): </span>
             <span id="markedListText" style="color: #d13438; font-weight: 600;">None</span>
         </div>
-        <div id="statusText" style="font-size: 11px; color: #666;">Ready</div>
+        <div id="statusText" style="font-size: 11px; color: #666; white-space: nowrap;">Ready</div>
     </div>
 
     <!-- Hidden Form for Saving Marks -->

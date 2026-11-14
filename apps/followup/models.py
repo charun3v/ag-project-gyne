@@ -90,7 +90,7 @@ class FollowUpStatus(models.Model):
     """Corresponds to tblFollowUpStatus - Longitudinal survival, recurrence, and performance monitoring."""
     follow_up_status_id = models.BigAutoField(primary_key=True, db_column='FollowUpStatusID')
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='follow_up_records', db_column='MR_No')
-    encounter = models.ForeignKey(Encounter, on_delete=models.SET_NULL, null=True, blank=True, db_column='EncounterID')
+    encounter = models.ForeignKey(Encounter, on_delete=models.SET_NULL, null=True, blank=True, db_column='EncounterID', related_name='followup_records')
     follow_up_date = models.DateField(default=date.today, db_column='FollowUp_Date')
     
     contact_type = models.ForeignKey(FollowUpContactType, on_delete=models.SET_NULL, null=True, blank=True, db_column='FollowUpContactTypeID')

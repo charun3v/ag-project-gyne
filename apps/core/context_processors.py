@@ -26,6 +26,13 @@ def app_branding(request):
         can_exp = can_export_data(request.user)
         can_roles = can_manage_roles(request.user)
 
+    primary_sites = []
+    try:
+        from clinical.models import PrimarySite
+        primary_sites = list(PrimarySite.objects.filter(is_active=True).order_by('display_order', 'site'))
+    except Exception:
+        pass
+
     return {
         'APP_DEPARTMENT': 'Radiation Oncology',
         'APP_INSTITUTION': 'Kidwai Memorial Institute of Oncology',
@@ -37,4 +44,5 @@ def app_branding(request):
         'CAN_MANAGE_USERS': can_users,
         'CAN_EXPORT_DATA': can_exp,
         'CAN_MANAGE_ROLES': can_roles,
+        'PRIMARY_SITES_LIST': primary_sites,
     }

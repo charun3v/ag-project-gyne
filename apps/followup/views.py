@@ -164,9 +164,20 @@ def followup_form_view(request, mr_no, followup_id=None):
         ct_name = ct.contact_type.lower() if ct else ''
 
         # Determine dead & lost status
-        is_dead = bool(request.POST.get('death_reported')) or ('dead' in ds_name)
         is_lost = ('lost' in ds_name) or ('lost' in ct_name)
-        is_ned = ('ned' in ds_name) or ('no evidence' in ds_name)
+        is_ned = ('ned' in ds_name) or ('no evidence' in ds_name) or ('no disease' in ds_name) or ('disease free' in ds_name) or ('without disease' in ds_name)
+        
+        # Dead is ONLY true if status explicitly indicates death
+        is_dead = ('dead' in ds_name) or ('deceased' in ds_name) or ('death' in ds_name) or ('expired' in ds_name)
+        raw_death = request.POST.get('death_reported')
+        if not is_dead and raw_death in ['1', 'true', 'True', True]:
+            # Only consider death_reported if ds_name does not indicate an alive or active status
+            has_alive_status = is_ned or ('alive' in ds_name) or ('recurrence' in ds_name) or ('stable' in ds_name) or ('progression' in ds_name) or ('response' in ds_name)
+            if not has_alive_status:
+                is_dead = True
+
+        if is_ned or ('alive' in ds_name and 'dead' not in ds_name) or ('free' in ds_name and 'dead' not in ds_name):
+            is_dead = False
 
         # Recurrence details (saved if not NED and not Dead)
         if not is_ned and not is_dead and not is_lost:
@@ -324,7 +335,17 @@ def followup_form_view(request, mr_no, followup_id=None):
         messages.success(request, f"Follow-up visit record ({fu.follow_up_date}) saved.")
 
         # Quick navigation handling
-        if 'open_diagram' in request.POST and fu.encounter:
+        if 'open_diagram' in request.POST or request.POST.get('open_diagram_flag') == '1':
+            if not fu.encounter:
+                enc_type_fu = EncounterType.objects.filter(encounter_type_name__icontains='Follow-up').first() or EncounterType.objects.first()
+                enc = Encounter.objects.create(
+                    patient=patient,
+                    encounter_type=enc_type_fu,
+                    encounter_date=fu.follow_up_date,
+                    entered_by=request.user.username
+                )
+                fu.encounter = enc
+                fu.save(update_fields=['encounter'])
             return redirect(f"/clinical/encounter/{fu.encounter.clinical_id}/diagram/?return_to=followup&fu_id={fu.follow_up_status_id}")
         if 'open_blood_add' in request.POST:
             return redirect(f"/investigations/{patient.mr_no}/blood/add/?return_to=followup&fu_id={fu.follow_up_status_id}")

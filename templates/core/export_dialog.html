@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Export Center - {{ APP_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="access-form-box" style="max-width: 900px; margin: 0 auto;">
+    <!-- Form Header -->
+    <div class="access-form-header">
+        <div style="display: flex; flex-direction: column; line-height: 1.25;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">📊</span>
+                <span style="font-size: 15px; font-weight: bold; letter-spacing: 0.3px;">Analytical & Research Data Export Center</span>
+            </div>
+            <span style="font-size: 11px; font-weight: 500; color: #003366; opacity: 0.85;">Kidwai Memorial Institute of Oncology — Biostatistical & Clinical Registry</span>
+        </div>
+        <div>
+            <a href="{% url 'dashboard' %}" class="btn-access" style="text-decoration: none;">🏠 Back to Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Form Body -->
+    <form id="exportFormDialog" method="GET" action="{% url 'export_data' %}" onsubmit="handleExportDownload(event, this)" style="padding: 16px 20px;">
+        <input type="hidden" name="download" value="1">
+
+        <!-- Section 1: Dataset Scope & Format -->
+        <fieldset style="border: 1px solid #70a0d0; background: #fafdff; padding: 12px 16px; margin-bottom: 16px; border-radius: 3px;">
+            <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 12px;">
+                1. Dataset Scope & File Format
+            </legend>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Dataset Scope -->
+                <div>
+                    <label style="font-weight: bold; font-size: 11px; color: #003366; display: block; margin-bottom: 6px;">
+                        Dataset Scope:
+                    </label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11px; cursor: pointer;">
+                            <input type="radio" name="format" value="wide" checked style="margin-top: 2px;">
+                            <div>
+                                <strong>Wide-Format (Patient Analysis)</strong>
+                                <div style="font-size: 10px; color: #555;">One row per patient. Includes demographics, staging, full treatments, radiobiology EQD2, compliance, and pre-calculated survival endpoints (OS & DFS). Ideal for SPSS, R regression & Kaplan-Meier survival curves.</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11px; cursor: pointer;">
+                            <input type="radio" name="format" value="long" style="margin-top: 2px;">
+                            <div>
+                                <strong>Long-Format (Event Timeline)</strong>
+                                <div style="font-size: 10px; color: #555;">One row per drug administration, RT course/fraction, and follow-up visit. Optimal for longitudinal mixed-effects models and timeline plotting in R / tidyverse.</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- File Format -->
+                <div>
+                    <label style="font-weight: bold; font-size: 11px; color: #003366; display: block; margin-bottom: 6px;">
+                        File Format:
+                    </label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11px; cursor: pointer;">
+                            <input type="radio" name="file_type" value="excel" checked style="margin-top: 2px;">
+                            <div>
+                                <strong>Microsoft Excel Workbook (.xlsx)</strong>
+                                <div style="font-size: 10px; color: #2e7d32; font-weight: 500;">✓ Includes extra Data Dictionary codebook sheet.</div>
+                                <div style="font-size: 10px; color: #555;">Native OpenXML spreadsheet with formatted headers and gridlines. Ready for Excel, SPSS, and R <code>readxl</code>.</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11px; cursor: pointer;">
+                            <input type="radio" name="file_type" value="csv" style="margin-top: 2px;">
+                            <div>
+                                <strong>Comma-Separated Values (.csv)</strong>
+                                <div style="font-size: 10px; color: #555;">Standard UTF-8 BOM encoding. Directly importable in R <code>read.csv()</code>, SPSS <code>GET DATA /TYPE=TXT</code>, and Stata.</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Section 2: Cohort Filters -->
+        <fieldset style="border: 1px solid #70a0d0; background: #ffffff; padding: 12px 16px; margin-bottom: 16px; border-radius: 3px;">
+            <legend style="font-weight: bold; color: #003366; padding: 0 6px; font-size: 12px;">
+                2. Cohort Filtering (Primary Site & Date Range)
+            </legend>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Primary Site -->
+                <div>
+                    <label for="primary_site" style="font-weight: bold; font-size: 11px; color: #003366; display: block; margin-bottom: 4px;">
+                        Primary Disease Site:
+                    </label>
+                    <select id="primary_site" name="primary_site" style="width: 100%; font-size: 11px; padding: 4px 6px; border: 1px solid #707070; background: #ffffff;">
+                        <option value="ALL">-- All Primary Sites (Complete Registry) --</option>
+                        {% for site in primary_sites %}
+                            <option value="{{ site.site }}">{{ site.site }}</option>
+                        {% endfor %}
+                    </select>
+                    <div style="font-size: 10px; color: #666; margin-top: 4px;">Filter patients by specific gynaecological malignancy site (e.g. Cervix, Endometrium, Ovary).</div>
+                </div>
+
+                <!-- Date Range Field & Pickers -->
+                <div>
+                    <label for="date_field" style="font-weight: bold; font-size: 11px; color: #003366; display: block; margin-bottom: 4px;">
+                        Filter Date Field:
+                    </label>
+                    <select id="date_field" name="date_field" style="width: 100%; font-size: 11px; padding: 4px 6px; border: 1px solid #707070; background: #ffffff; margin-bottom: 8px;">
+                        <option value="registration" selected>Patient Registration Date</option>
+                        <option value="diagnosis">Oncology Diagnosis Date</option>
+                        <option value="ebrt_start">EBRT Start Date</option>
+                        <option value="last_followup">Last Follow-Up Date</option>
+                    </select>
+
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <div style="flex: 1;">
+                            <label for="date_from" style="font-size: 10px; color: #333; display: block; margin-bottom: 2px;">From Date:</label>
+                            <input type="date" id="date_from" name="date_from" style="width: 100%; font-size: 11px; padding: 3px 6px; border: 1px solid #707070;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label for="date_to" style="font-size: 10px; color: #333; display: block; margin-bottom: 2px;">To Date:</label>
+                            <input type="date" id="date_to" name="date_to" value="{{ today_str }}" style="width: 100%; font-size: 11px; padding: 3px 6px; border: 1px solid #707070;">
+                        </div>
+                    </div>
+                    <div style="font-size: 10px; color: #666; margin-top: 4px;">Leave From Date blank to export all historical records up to To Date.</div>
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Destination Choice Notice -->
+        <div style="background: #fdfbf2; border: 1px solid #e0c880; padding: 10px 14px; margin-bottom: 16px; border-radius: 3px; font-size: 11px; color: #553b00;">
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer;">
+                <input type="checkbox" id="always_ask_location_dialog" checked>
+                <span>📁 Always ask where to save export file (Opens Windows "Save As..." dialog)</span>
+            </label>
+            <div style="font-size: 10px; color: #776000; margin-left: 24px; margin-top: 3px;">
+                When checked, your browser will prompt you to select the exact destination folder (Desktop, Documents, D: drive, or USB) before saving.
+            </div>
+        </div>
+
+        <!-- Section 3: Statistical Compatibility Guide -->
+        <div style="background: #eef4f9; border-left: 4px solid #003366; padding: 10px 14px; margin-bottom: 18px; font-size: 11px; line-height: 1.5; color: #222;">
+            <strong style="color: #003366;">💡 Ready for Statistical Softwares (R, SPSS, Stata, SAS):</strong>
+            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                <li><strong>Syntax-compliant headers:</strong> Uses clean <code>snake_case</code> identifiers (no spaces or illegal punctuation) that import directly into R without renaming.</li>
+                <li><strong>ISO-8601 Dates:</strong> All dates formatted as <code>YYYY-MM-DD</code> to prevent date-parsing ambiguities.</li>
+                <li><strong>Pre-Calculated Survival Endpoints:</strong>
+                    <code>os_status</code> (1=Dead, 0=Censored), <code>os_days</code>, <code>os_months</code>, 
+                    <code>dfs_status</code> (1=Recurrence/Death, 0=Censored), <code>dfs_days</code>, <code>dfs_months</code>.
+                    Instantly runnable in R <code>survival::survfit(Surv(os_days, os_status) ~ figo_stage)</code> or SPSS Kaplan-Meier.
+                </li>
+                <li><strong>Dosimetry & Compliance:</strong> Cumulative EQD2 (HR-CTV D90, Bladder, Rectum, Sigmoid), EBRT OTT, Total OTT, and treatment compliance status with clinical reasons.</li>
+                <li><strong>Data Dictionary Included:</strong> In Excel exports, a secondary sheet named <code>Data_Dictionary</code> provides full clinical operational definitions, data types, and coding ranges.</li>
+            </ul>
+        </div>
+
+        <!-- Action Ribbon -->
+        <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #d0d0d0; padding-top: 12px;">
+            <a href="{% url 'dashboard' %}" class="btn-access" style="padding: 6px 14px; text-decoration: none;">
+                Cancel / Return
+            </a>
+            <button type="submit" id="dialogSubmitBtn" class="btn-access" style="background: #003366; color: #ffffff; font-weight: bold; padding: 6px 18px; border-color: #002244; cursor: pointer;">
+                📥 Download Export File
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    async function handleExportDownload(event, formElement) {
+        event.preventDefault();
+        const askLocation = document.getElementById('always_ask_location_dialog') ? document.getElementById('always_ask_location_dialog').checked : true;
+        const formData = new FormData(formElement);
+        const params = new URLSearchParams(formData);
+        const fileType = formData.get('file_type') || 'excel';
+        const isExcel = fileType === 'excel' || fileType === 'xlsx';
+        const extension = isExcel ? '.xlsx' : '.csv';
+
+        const submitBtn = formElement.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '⏳ Preparing Export...';
+        submitBtn.disabled = true;
+
+        try {
+            const response = await fetch(formElement.action + '?' + params.toString());
+            if (!response.ok) {
+                throw new Error('Export generation failed with status ' + response.status);
+            }
+
+            let filename = 'gynae_oncology_export' + extension;
+            const disposition = response.headers.get('Content-Disposition');
+            if (disposition && disposition.indexOf('filename=') !== -1) {
+                const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+
+            const blob = await response.blob();
+
+            // Native Windows "Save As..." File Dialog
+            if (askLocation && ('showSaveFilePicker' in window)) {
+                try {
+                    const pickerOptions = {
+                        suggestedName: filename,
+                        types: [{
+                            description: isExcel ? 'Excel Workbook (*.xlsx)' : 'CSV Document (*.csv)',
+                            accept: isExcel 
+                                ? {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']}
+                                : {'text/csv': ['.csv']}
+                        }]
+                    };
+                    const handle = await window.showSaveFilePicker(pickerOptions);
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    return;
+                } catch (pickerErr) {
+                    if (pickerErr.name === 'AbortError') {
+                        // User cancelled the file picker dialog
+                        return;
+                    }
+                    console.warn('showSaveFilePicker error, falling back:', pickerErr);
+                }
+            }
+
+            // Fallback download if picker not supported or unchecked
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+
+        } catch (err) {
+            alert('Export error: ' + err.message);
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

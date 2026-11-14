@@ -552,7 +552,7 @@ def build_examination_investigation_pdf(patient_or_encounter):
             ]
             for f in fu_records:
                 dis_status = f.disease_status.status_name if f.disease_status else "Logged"
-                dis_color = "#15803d" if "no evidence" in dis_status.lower() else "#b91c1c"
+                dis_color = "#15803d" if any(w in dis_status.lower() for w in ["no evidence", "ned", "alive", "no disease", "free"]) else ("#000000" if any(w in dis_status.lower() for w in ["dead", "deceased"]) else "#b91c1c")
                 
                 rec_txt = "No recurrence"
                 if f.recurrence_detected:

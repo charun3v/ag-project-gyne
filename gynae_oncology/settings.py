@@ -36,7 +36,7 @@ except ImportError:
     pass
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-gynae-mdt-oncology-database-key-2026')
-DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
+DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 # Application definition
@@ -67,6 +67,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.recent_patients.RecentPatientMiddleware',
 ]
 
 ROOT_URLCONF = 'gynae_oncology.urls'

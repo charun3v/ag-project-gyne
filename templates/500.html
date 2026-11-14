@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Error (500) - Kidwai Radiation Oncology</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #e0e6ed;
+            margin: 0;
+            padding: 40px 20px;
+            color: #333333;
+        }
+        .error-card {
+            max-width: 650px;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 2px solid #003366;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .error-header {
+            background: #003366;
+            color: #ffffff;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .error-body {
+            padding: 24px;
+            line-height: 1.6;
+            font-size: 13px;
+        }
+        .error-badge {
+            display: inline-block;
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #f87171;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .action-bar {
+            background: #f4f6f9;
+            border-top: 1px solid #d0d7de;
+            padding: 12px 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .btn-access {
+            display: inline-block;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: bold;
+            text-decoration: none;
+            color: #003366;
+            background: #ece9d8;
+            border: 1px solid #707070;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .btn-access:hover {
+            background: #dfdac8;
+        }
+        .btn-primary {
+            background: #003366;
+            color: #ffffff;
+            border-color: #002244;
+        }
+        .btn-primary:hover {
+            background: #002244;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-header">
+            <span>🏥</span>
+            <span>Radiation Oncology MDT Database — Kidwai Memorial Institute of Oncology</span>
+        </div>
+        <div class="error-body">
+            <div class="error-badge">⚠️ Notice: Server Error (500)</div>
+            <h3 style="margin-top: 0; color: #003366;">An unexpected error occurred while processing your request.</h3>
+            <p>
+                The system recorded this event. If you were attempting to register a new patient or access a form, 
+                please return to the main dashboard or verify that all required database tables and services are running.
+            </p>
+            <div style="background: #fafafa; border: 1px solid #e1e4e8; padding: 10px; border-radius: 3px; font-family: Consolas, monospace; font-size: 11px; color: #555;">
+                Tip: Diagnostic logs are captured in <code>django_last_crash.log</code> inside the application folder.
+            </div>
+        </div>
+        <div class="action-bar">
+            <a href="javascript:history.back()" class="btn-access">⬅️ Go Back</a>
+            <a href="/" class="btn-access btn-primary">🏠 Return to Patient Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

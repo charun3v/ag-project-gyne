@@ -11,10 +11,11 @@
         </div>
     </div>
     <div class="access-subform-body">
+        <!-- Top Action Bar -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <span style="font-size: 11px; color: #444;">
-                Active system accounts: <strong>{{ users|length }} user{{ users|length|pluralize }}</strong>
-            </span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 13px; font-weight: bold; color: #003366;">User Accounts Directory</span>
+            </div>
             <div style="display: flex; gap: 8px;">
                 <a href="{% url 'user_create' %}" class="btn-access btn-primary-action">
                     ➕ Create New User Account
@@ -28,25 +29,81 @@
             </div>
         </div>
 
-        <table class="access-table">
+        <!-- Filter & Live Search Toolbar -->
+        <div style="background: #f4f8fb; border: 1px solid #b8cddf; padding: 8px 12px; margin-bottom: 12px; border-radius: 3px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                <!-- Live Search Box (filters dynamically as you type) -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <label for="userSearchInput" style="font-weight: bold; font-size: 11px; color: #003366;">🔍 Search:</label>
+                    <input type="text" id="userSearchInput" value="{{ search_query }}"
+                           placeholder="Type username, name, email..."
+                           style="font-size: 11px; padding: 4px 8px; width: 220px; border: 1px solid #707070; border-radius: 2px; background: #fff;"
+                           oninput="filterUsers()" onkeyup="filterUsers()">
+                </div>
+
+                <!-- Role Filter Dropdown -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <label for="roleFilterSelect" style="font-weight: bold; font-size: 11px; color: #003366;">🛡️ Role:</label>
+                    <select id="roleFilterSelect" style="font-size: 11px; padding: 4px 6px; border: 1px solid #707070; border-radius: 2px; background: #fff;"
+                            onchange="filterUsers()">
+                        <option value="all" {% if selected_role == 'all' or not selected_role %}selected{% endif %}>-- All Roles --</option>
+                        <option value="admin" {% if selected_role == 'admin' %}selected{% endif %}>Administrator / Superuser</option>
+                        {% for r in roles %}
+                            <option value="{{ r.role_id }}" {% if selected_role == r.role_id|stringformat:"s" %}selected{% endif %}>{{ r.role_name }}</option>
+                        {% endfor %}
+                        <option value="none" {% if selected_role == 'none' %}selected{% endif %}>No Role Assigned</option>
+                    </select>
+                </div>
+
+                <!-- Status Filter Dropdown -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <label for="statusFilterSelect" style="font-weight: bold; font-size: 11px; color: #003366;">⚡ Status:</label>
+                    <select id="statusFilterSelect" style="font-size: 11px; padding: 4px 6px; border: 1px solid #707070; border-radius: 2px; background: #fff;"
+                            onchange="filterUsers()">
+                        <option value="all" {% if selected_status == 'all' or not selected_status %}selected{% endif %}>-- All Statuses --</option>
+                        <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active Users Only</option>
+                        <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive Users Only</option>
+                    </select>
+                </div>
+
+                <!-- Reset Button -->
+                <button type="button" class="btn-access" onclick="resetUserFilters()" style="font-size: 11px; padding: 3px 8px; cursor: pointer; background: #fff;">
+                    🔄 Reset Filters
+                </button>
+            </div>
+
+            <!-- Dynamic Count Badge -->
+            <div style="font-size: 11px; color: #003366; background: #e8f0fe; border: 1px solid #c2d7f2; padding: 3px 10px; border-radius: 3px;">
+                Showing <strong id="userCountDisplay">{{ users|length }}</strong> of <strong>{{ users|length }}</strong> account{{ users|length|pluralize }}
+            </div>
+        </div>
+
+        <table class="access-table" id="usersTable">
             <thead>
                 <tr>
                     <th style="width: 140px;">Username</th>
                     <th>Full Name</th>
                     <th>Email</th>
                     <th>Assigned Role</th>
-                    <th style="width: 80px; text-align: center;">Status</th>
+                    <th style="width: 85px; text-align: center;">Status</th>
                     <th style="width: 130px;">Last Login</th>
                     <th style="width: 150px; text-align: center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for u in users %}
-                    <tr>
+                    <tr class="user-row"
+                        data-username="{{ u.username|lower }}"
+                        data-fullname="{{ u.get_full_name|lower }}"
+                        data-email="{{ u.email|lower }}"
+                        data-role-id="{% if u.profile.role %}{{ u.profile.role.role_id }}{% elif u.is_superuser %}admin{% else %}none{% endif %}"
+                        data-role-name="{% if u.profile.role %}{{ u.profile.role.role_name|lower }}{% elif u.is_superuser %}administrator superuser admin{% else %}no role assigned{% endif %}"
+                        data-is-admin="{% if u.is_superuser %}true{% else %}false{% endif %}"
+                        data-status="{% if u.is_active %}active{% else %}inactive{% endif %}">
                         <td>
                             <strong style="color: #003366;">{{ u.username }}</strong>
                             {% if u.is_superuser %}
-                                <span style="background: #e8eef4; color: #003366; font-size: 9px; padding: 1px 4px; border-radius: 2px; margin-left: 4px;">Admin</span>
+                                <span style="background: #e8eef4; color: #003366; font-size: 9px; padding: 1px 4px; border-radius: 2px; margin-left: 4px; font-weight: bold; border: 1px solid #b8cddf;">Admin</span>
                             {% endif %}
                         </td>
                         <td>{{ u.get_full_name|default:'-' }}</td>
@@ -56,15 +113,23 @@
                                 <span style="background: #eef2f7; color: #003366; border: 1px solid #b8c4d2; padding: 2px 6px; border-radius: 2px; font-weight: bold; font-size: 10px;">
                                     🛡️ {{ u.profile.role.role_name }}
                                 </span>
+                            {% elif u.is_superuser %}
+                                <span style="background: #eef6ff; color: #003366; border: 1px solid #70a0d0; padding: 2px 6px; border-radius: 2px; font-weight: bold; font-size: 10px;">
+                                    🛡️ Super Administrator
+                                </span>
                             {% else %}
-                                <span style="color: #777;">No Role Assigned</span>
+                                <span style="color: #777; font-style: italic;">No Role Assigned</span>
                             {% endif %}
                         </td>
                         <td style="text-align: center;">
                             {% if u.is_active %}
-                                <span style="color: #2e7d32; font-weight: bold;">✓ Active</span>
+                                <span style="color: #2e7d32; font-weight: bold; background: #e8f5e9; border: 1px solid #c8e6c9; padding: 1px 6px; border-radius: 2px; font-size: 10px;">
+                                    ✓ Active
+                                </span>
                             {% else %}
-                                <span style="color: #b00000; font-weight: bold;">✗ Inactive</span>
+                                <span style="color: #b00000; font-weight: bold; background: #ffebee; border: 1px solid #ffcdd2; padding: 1px 6px; border-radius: 2px; font-size: 10px;">
+                                    ✗ Inactive
+                                </span>
                             {% endif %}
                         </td>
                         <td>{{ u.last_login|date:'d-M-Y H:i'|default:'Never' }}</td>
@@ -88,6 +153,13 @@
                         </td>
                     </tr>
                 {% endfor %}
+
+                <!-- No Results Row (Hidden by default, displayed when filter yields 0 matches) -->
+                <tr id="noResultsRow" style="display: none;">
+                    <td colspan="7" style="text-align: center; padding: 25px; color: #777; font-style: italic; background: #fafafa;">
+                        🔍 No user accounts match the current search query or filter criteria. Click "Reset Filters" to show all users.
+                    </td>
+                </tr>
             </tbody>
         </table>
 
@@ -120,4 +192,93 @@
         </fieldset>
     </div>
 </div>
+
+<script>
+    // Live Dynamic Search & Filtering for User Accounts
+    function filterUsers() {
+        const searchInput = document.getElementById('userSearchInput');
+        const roleSelect = document.getElementById('roleFilterSelect');
+        const statusSelect = document.getElementById('statusFilterSelect');
+
+        const searchVal = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const selectedRole = roleSelect ? roleSelect.value.toLowerCase() : 'all';
+        const selectedStatus = statusSelect ? statusSelect.value.toLowerCase() : 'all';
+
+        const rows = document.querySelectorAll('.user-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const username = row.getAttribute('data-username') || '';
+            const fullname = row.getAttribute('data-fullname') || '';
+            const email = row.getAttribute('data-email') || '';
+            const roleId = row.getAttribute('data-role-id') || '';
+            const roleName = row.getAttribute('data-role-name') || '';
+            const isAdmin = row.getAttribute('data-is-admin') === 'true';
+            const status = row.getAttribute('data-status') || '';
+
+            // 1. Text Search Filter (matches username, full name, email, or role name)
+            const matchesSearch = !searchVal || 
+                username.includes(searchVal) || 
+                fullname.includes(searchVal) || 
+                email.includes(searchVal) ||
+                roleName.includes(searchVal);
+
+            // 2. Role Filter
+            let matchesRole = true;
+            if (selectedRole && selectedRole !== 'all') {
+                if (selectedRole === 'admin') {
+                    matchesRole = isAdmin || roleId === 'admin' || roleName.includes('admin');
+                } else if (selectedRole === 'none') {
+                    matchesRole = (roleId === 'none');
+                } else {
+                    matchesRole = (roleId === selectedRole);
+                }
+            }
+
+            // 3. Status Filter
+            let matchesStatus = true;
+            if (selectedStatus && selectedStatus !== 'all') {
+                matchesStatus = (status === selectedStatus);
+            }
+
+            // Combined Visibility
+            if (matchesSearch && matchesRole && matchesStatus) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update count badge
+        const countDisplay = document.getElementById('userCountDisplay');
+        if (countDisplay) {
+            countDisplay.textContent = visibleCount;
+        }
+
+        // Toggle no-results row
+        const noResultsRow = document.getElementById('noResultsRow');
+        if (noResultsRow) {
+            noResultsRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+        }
+    }
+
+    // Reset all filters back to default
+    function resetUserFilters() {
+        const searchInput = document.getElementById('userSearchInput');
+        const roleSelect = document.getElementById('roleFilterSelect');
+        const statusSelect = document.getElementById('statusFilterSelect');
+
+        if (searchInput) searchInput.value = '';
+        if (roleSelect) roleSelect.value = 'all';
+        if (statusSelect) statusSelect.value = 'all';
+
+        filterUsers();
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        filterUsers();
+    });
+</script>
 {% endblock %}

@@ -28,9 +28,9 @@
 
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
                 <div>
-                    <label class="access-label" style="font-weight: bold;">Test Date *</label>
+                    <label class="access-label" style="font-weight: bold; color: #b00000;">Test Date *</label>
                     <input type="date" name="test_date" 
-                           value="{% if blood and blood.test_date %}{{ blood.test_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" 
+                           value="{% if blood and blood.test_date %}{{ blood.test_date|date:'Y-m-d' }}{% endif %}" 
                            class="access-input" required>
                 </div>
                 <div>
